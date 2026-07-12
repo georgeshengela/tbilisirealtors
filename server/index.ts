@@ -43,8 +43,8 @@ app.use('/api/admin', adminRoutes);
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '../dist');
   app.use(express.static(distPath));
-  // SPA fallback — hand everything that isn't an /api route to index.html
-  app.get('*', (req, res) => {
+  // SPA fallback — app.use (no path) is Express 5 compatible; app.get('*') is not
+  app.use((req, res) => {
     if (req.path.startsWith('/api/')) {
       res.status(404).json({ error: 'Not found' });
       return;
