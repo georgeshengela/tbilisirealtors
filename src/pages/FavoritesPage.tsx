@@ -24,7 +24,7 @@ export default function FavoritesPage() {
                 <Heart size={28} className="text-red-500" fill="currentColor" />
                 ფავორიტები
               </h1>
-              <p className="text-slate-500 dark:text-slate-400 mt-1">შენახული ქონება — {favorites.length} განცხადება</p>
+              <p className="text-slate-500 dark:text-slate-400 mt-1">შენახული განცხადება — {favorites.length} განცხადება</p>
             </div>
           </div>
         </div>
@@ -37,9 +37,9 @@ export default function FavoritesPage() {
               <Heart size={40} className="text-red-300" />
             </div>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-3">ფავორიტები ცარიელია</h2>
-            <p className="text-slate-500 mb-8">შენახეთ ქონება, ♥ ღილაკზე დაჭერით</p>
+            <p className="text-slate-500 mb-8">შენახეთ განცხადება, ♥ ღილაკზე დაჭერით</p>
             <Link to="/listings" className="bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold hover:bg-blue-500 transition-colors">
-              ქონების ძებნა
+              განცხადების ძებნა
             </Link>
           </div>
         ) : (
@@ -60,7 +60,7 @@ export default function FavoritesPage() {
             {/* Stats Cards */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
               {[
-                { label: 'შენახული ქონება', value: favorites.length, color: 'blue' },
+                { label: 'შენახული განცხადება', value: favorites.length, color: 'blue' },
                 { label: 'გაყიდვა', value: favorites.filter(p => p.status === 'sale').length, color: 'emerald' },
                 { label: 'გაქირავება', value: favorites.filter(p => p.status === 'rent').length, color: 'purple' },
                 { label: 'პრემიუმ', value: favorites.filter(p => p.isPremium).length, color: 'amber' },

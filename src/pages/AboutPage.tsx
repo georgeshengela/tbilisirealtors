@@ -36,7 +36,7 @@ export default function AboutPage() {
     { year: '2020', title: 'გაფართოება', desc: 'ბათუმი, ქუთაისი და სხვა ქალაქების დამატება.' },
     { year: '2022', title: 'მობაილ აპი', desc: 'iOS და Android აპლიკაციის გამოშვება.' },
     { year: '2024', title: 'AI ანალიტიკა', desc: 'ხელოვნური ინტელექტის ჩართვა ბაზრის ანალიზში.' },
-    { year: '2026', title: 'ახლა', desc: '12,400+ ქონება, 350+ აგენტი, 8,200+ კლიენტი.' },
+    { year: '2026', title: 'ახლა', desc: '12,400+ განცხადება, 350+ აგენტი, 8,200+ კლიენტი.' },
   ];
 
   return (
@@ -57,11 +57,11 @@ export default function AboutPage() {
             <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">ჩვენს შესახებ</span>
             <h1 className="text-4xl lg:text-6xl font-bold text-white mt-3 mb-6">
               საქართველოს #1<br />
-              <span className="gradient-text">უძრავი ქონების</span><br />
+              <span className="gradient-text">უძრავი განცხადების</span><br />
               პლატფორმა
             </h1>
             <p className="text-slate-300 text-xl leading-relaxed">
-              2018 წლიდან ვეხმარებით ქართველ ოჯახებს და ინვესტორებს ოცნების ქონების პოვნაში
+              2018 წლიდან ვეხმარებით ქართველ ოჯახებს და ინვესტორებს ოცნების განცხადების პოვნაში
             </p>
           </motion.div>
         </div>
@@ -82,12 +82,12 @@ export default function AboutPage() {
               </h2>
               <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed mb-6">
                 TbilisiRealtors.ge შექმნილია იმისთვის, რომ ყველა ადამიანს ჰქონდეს 
-                თანაბარი წვდომა ქონების ბაზარზე. ჩვენ ვაერთიანებთ ტექნოლოგიებს, 
+                თანაბარი წვდომა განცხადების ბაზარზე. ჩვენ ვაერთიანებთ ტექნოლოგიებს, 
                 გამოცდილ პროფესიონალებს და გამჭვირვალე პროცესებს.
               </p>
               <div className="space-y-3">
                 {[
-                  'ყველა ქონება ვერიფიცირებულია ჩვენი გუნდის მიერ',
+                  'ყველა განცხადება ვერიფიცირებულია ჩვენი გუნდის მიერ',
                   'გამჭვირვალე გარიგებები, დაფარული გადასახადების გარეშე',
                   '24/7 მხარდაჭერა ყველა კლიენტისთვის',
                 ].map((item) => (
@@ -133,7 +133,7 @@ export default function AboutPage() {
         <div className="container-xl">
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
             {[
-              { value: '12,400+', label: 'ქონება', icon: Building2 },
+              { value: '12,400+', label: 'განცხადება', icon: Building2 },
               { value: '8,200+', label: 'კლიენტი', icon: Users },
               { value: '350+', label: 'გამოცდ. აგენტი', icon: Award },
               { value: '5,800+', label: 'გარიგება', icon: CheckCircle },

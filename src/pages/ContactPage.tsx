@@ -173,8 +173,8 @@ export default function ContactPage() {
                         className="w-full bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3.5 text-sm text-slate-800 dark:text-white focus:border-blue-500 focus:outline-none transition-all appearance-none"
                       >
                         <option value="">თემის არჩევა</option>
-                        <option value="buy">ქონების შეძენა</option>
-                        <option value="sell">ქონების გაყიდვა</option>
+                        <option value="buy">განცხადების შეძენა</option>
+                        <option value="sell">განცხადების გაყიდვა</option>
                         <option value="rent">გაქირავება</option>
                         <option value="agent">აგენტის კავშირი</option>
                         <option value="other">სხვა</option>

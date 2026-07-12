@@ -2,73 +2,15 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import {
-  Search, MapPin, Building2, ChevronDown, Star, ArrowRight,
-  Shield, Award, TrendingUp, Users, CheckCircle, Sparkles,
-  Key, Tag, Home, Layers, Phone, Bed, Bath, SlidersHorizontal,
-  Crown, Square, Heart,
+  Search, MapPin, ChevronDown, ChevronLeft, ChevronRight, ArrowRight,
+  Sparkles, Phone,
+  Bed, Bath, SlidersHorizontal,
+  Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent,
 } from 'lucide-react';
-import { properties, agents } from '../data/mockData';
-import type { Property } from '../data/mockData';
+import { properties, blogPosts, constructionProjects, faqItems } from '../data/mockData';
+import type { Property, BlogPost, ConstructionProject } from '../data/mockData';
 
 /* ────────────────────────────────────────────────────────────────────────── */
-
-const CATEGORY_TILES = [
-  {
-    label: 'ბინები',
-    sublabel: 'ქალაქური ცხოვრება',
-    icon: Building2,
-    href: '/listings?type=apartment',
-    count: '4,218',
-    image: 'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&q=85',
-  },
-  {
-    label: 'სახლები',
-    sublabel: 'კერძო სახლები',
-    icon: Home,
-    href: '/listings?type=house',
-    count: '1,847',
-    image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=85',
-  },
-  {
-    label: 'ვილები',
-    sublabel: 'ელიტური ვილები',
-    icon: Sparkles,
-    href: '/listings?type=villa',
-    count: '523',
-    image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=85',
-  },
-  {
-    label: 'გაქირავება',
-    sublabel: 'ყოველთვიური',
-    icon: Key,
-    href: '/listings?status=rent',
-    count: '2,931',
-    image: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&q=85',
-  },
-  {
-    label: 'კომერციული',
-    sublabel: 'ოფისი & მაღაზია',
-    icon: Layers,
-    href: '/listings?type=commercial',
-    count: '892',
-    image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=85',
-  },
-  {
-    label: 'პრემიუმ',
-    sublabel: 'ელიტური კოლექცია',
-    icon: Tag,
-    href: '/listings?premium=true',
-    count: '318',
-    image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&q=85',
-  },
-];
-
-const WHYUS = [
-  { icon: Shield, title: 'ვერიფ. ქონება', desc: 'ყველა განცხ. გადამოწმ. ჩვენი ექსპ. გუნდის მიერ პირადად.', color: '#131b2e', iconBg: 'rgba(73,124,255,0.12)', iconColor: '#497cff' },
-  { icon: Award, title: 'ლიც. სპეც.', desc: '350+ ლიცენზ. აგენტი საშ. 7 წ. გამ. ბაზარზე.', color: '#131b2e', iconBg: 'rgba(217,119,6,0.12)', iconColor: '#d97706' },
-  { icon: TrendingUp, title: 'ბაზ. ანალ.', desc: 'რეალ. დროის ფასების ანალ., ტენდ. & ინვ. ROI.', color: '#131b2e', iconBg: 'rgba(22,163,74,0.12)', iconColor: '#16a34a' },
-  { icon: Users, title: '96% კმაყ.', desc: '8,200+ კლ. ნდობს ჩვენს სერვ. ქონ. შეძ.-გაყ.ში.', color: '#131b2e', iconBg: 'rgba(124,58,237,0.12)', iconColor: '#7c3aed' },
-];
 
 function InViewFade({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
   const ref = useRef(null);
@@ -86,21 +28,444 @@ function InViewFade({ children, delay = 0, className = '' }: { children: React.R
   );
 }
 
+type SectionAccent = 'blue' | 'green';
+
+const SECTION_ACCENTS: Record<SectionAccent, { color: string }> = {
+  blue: { color: '#497cff' },
+  green: { color: '#10B981' },
+};
+
+function SectionIcon({
+  icon: Icon,
+  color,
+}: {
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties; color?: string }>;
+  color: string;
+}) {
+  return (
+    <div
+      className="flex items-center justify-center flex-shrink-0"
+      style={{
+        width: 38,
+        height: 38,
+        borderRadius: 11,
+        border: `2px solid ${color}`,
+        background: 'transparent',
+      }}
+    >
+      <Icon size={18} strokeWidth={2.5} style={{ color }} />
+    </div>
+  );
+}
+
+function SectionTitle({
+  icon: Icon,
+  title,
+  accent = 'blue',
+  linkTo,
+  linkLabel,
+  align = 'left',
+}: {
+  icon: React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties; color?: string }>;
+  title: string;
+  accent?: SectionAccent;
+  linkTo?: string;
+  linkLabel?: string;
+  align?: 'left' | 'center';
+}) {
+  const a = SECTION_ACCENTS[accent];
+  const centered = align === 'center';
+
+  const cta = linkTo && linkLabel ? (
+    <Link
+      to={linkTo}
+      className="group inline-flex items-center gap-1 text-[13px] font-semibold flex-shrink-0 transition-opacity duration-200 hover:opacity-70"
+      style={{ color: a.color }}
+    >
+      {linkLabel}
+      <ArrowRight size={14} className="transition-transform duration-200 group-hover:translate-x-0.5" />
+    </Link>
+  ) : null;
+
+  if (centered) {
+    return (
+      <header className="mb-8 sm:mb-10 flex flex-col items-center text-center">
+        <div className="mb-3">
+          <SectionIcon icon={Icon} color={a.color} />
+        </div>
+        <h2
+          className="font-extrabold"
+          style={{ fontSize: 'clamp(22px, 2.6vw, 28px)', color: '#14161a', lineHeight: 1.18, letterSpacing: '-0.02em' }}
+        >
+          {title}
+        </h2>
+      </header>
+    );
+  }
+
+  return (
+    <header className="mb-6 sm:mb-8 flex items-center justify-between gap-5">
+      <div className="flex items-center gap-3 min-w-0">
+        <SectionIcon icon={Icon} color={a.color} />
+        <h2
+          className="font-extrabold min-w-0"
+          style={{ fontSize: 'clamp(21px, 2.4vw, 27px)', color: '#14161a', lineHeight: 1.18, letterSpacing: '-0.02em' }}
+        >
+          {title}
+        </h2>
+      </div>
+
+      {cta}
+    </header>
+  );
+}
+
+function BlogCard({ post }: { post: BlogPost }) {
+  return (
+    <Link
+      to={`/blog/${post.id}`}
+      className="group flex flex-col h-full rounded-2xl overflow-hidden bg-white"
+      style={{
+        border: '1px solid #eceef0',
+        boxShadow: '0 2px 10px rgba(15,23,42,0.06)',
+        transition: 'box-shadow 0.22s ease, border-color 0.22s ease',
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(15,23,42,0.10)';
+        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(73,124,255,0.35)';
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(15,23,42,0.06)';
+        (e.currentTarget as HTMLElement).style.borderColor = '#eceef0';
+      }}
+    >
+      <div className="relative aspect-[4/3] overflow-hidden flex-shrink-0">
+        <img
+          src={post.image}
+          alt={post.title}
+          className="w-full h-full object-cover"
+        />
+        <div
+          className="absolute inset-0"
+          style={{ background: 'linear-gradient(to top, rgba(10,13,20,0.45) 0%, transparent 55%)' }}
+        />
+        <span
+          className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-bold"
+          style={{ background: 'rgba(255,255,255,0.95)', color: '#497cff' }}
+        >
+          {post.category}
+        </span>
+        <span
+          className="absolute bottom-3 right-3 flex items-center gap-1 px-2 py-1 rounded-full text-[10px] font-semibold"
+          style={{ background: 'rgba(0,0,0,0.45)', color: '#fff', backdropFilter: 'blur(6px)' }}
+        >
+          <Clock size={10} />
+          {post.readTime} წთ
+        </span>
+      </div>
+
+      <div className="flex flex-col flex-1 p-5">
+        <h3
+          className="font-bold text-[15px] leading-snug line-clamp-2 group-hover:text-[#497cff] transition-colors"
+          style={{ color: '#191c1e', minHeight: '2.75rem' }}
+        >
+          {post.title}
+        </h3>
+        <p
+          className="mt-2 text-[13px] leading-relaxed line-clamp-2"
+          style={{ color: '#76777d', minHeight: '2.5rem' }}
+        >
+          {post.excerpt}
+        </p>
+
+        <div
+          className="mt-auto pt-4 flex items-center justify-between gap-3"
+          style={{ borderTop: '1px solid #eceef0' }}
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <img
+              src={post.author.photo}
+              alt={post.author.name}
+              className="w-7 h-7 rounded-full object-cover flex-shrink-0"
+              style={{ border: '1.5px solid #eceef0' }}
+            />
+            <span className="text-[12px] font-semibold truncate" style={{ color: '#45464d' }}>
+              {post.author.name}
+            </span>
+          </div>
+          <span
+            className="flex items-center gap-1 text-[12px] font-semibold flex-shrink-0 group-hover:gap-1.5 transition-all"
+            style={{ color: '#497cff' }}
+          >
+            წაიკითხე
+            <ArrowRight size={12} />
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+const PROJECT_STATUS: Record<ConstructionProject['status'], { label: string; bg: string }> = {
+  building: { label: 'მშენებარე', bg: '#d97706' },
+  presale: { label: 'პრე-გაყიდვა', bg: '#497cff' },
+  completed: { label: 'დასრულებული', bg: '#059669' },
+};
+
+function ConstructionProjectCard({ project }: { project: ConstructionProject }) {
+  const status = PROJECT_STATUS[project.status];
+
+  return (
+    <Link
+      to="/listings"
+      className="group relative block overflow-hidden rounded-2xl"
+      style={{
+        aspectRatio: '3/4',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+        transition: 'box-shadow 0.25s ease',
+      }}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 36px rgba(73,124,255,0.28)'; }}
+      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.25)'; }}
+    >
+      <img
+        src={project.image}
+        alt={project.name}
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to top, rgba(8,11,18,0.95) 0%, rgba(8,11,18,0.45) 50%, rgba(8,11,18,0.10) 100%)',
+        }}
+      />
+
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{ background: 'linear-gradient(160deg, rgba(73,124,255,0.25) 0%, transparent 55%)' }}
+      />
+
+      <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-[rgba(73,124,255,0.55)] transition-all duration-300" />
+
+      <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
+        <span
+          className="px-2.5 py-1 rounded-full text-[10px] font-bold"
+          style={{ background: status.bg, color: '#fff' }}
+        >
+          {status.label}
+        </span>
+        <span
+          className="px-2 py-1 rounded-full text-[9px] font-semibold truncate max-w-[48%]"
+          style={{ background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)' }}
+        >
+          {project.developer}
+        </span>
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0 p-4">
+        <p className="text-white font-extrabold text-[15px] leading-tight mb-1">{project.name}</p>
+        <p className="flex items-center gap-1 text-[11px] mb-3" style={{ color: 'rgba(255,255,255,0.55)' }}>
+          <MapPin size={11} strokeWidth={2.5} />
+          {project.district}, {project.city}
+        </p>
+
+        <p className="font-extrabold text-xl mb-3" style={{ color: '#7aabff', letterSpacing: '-0.02em' }}>
+          ₾{project.priceFrom.toLocaleString()}
+          <span className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.45)' }}>+</span>
+        </p>
+
+        <div
+          className="flex items-center justify-between rounded-xl px-3 py-2 mb-2"
+          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)' }}
+        >
+          <div className="text-center flex-1">
+            <p className="text-[13px] font-bold text-white leading-none">{project.units}</p>
+            <p className="text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>ბინა</p>
+          </div>
+          <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.12)' }} />
+          <div className="text-center flex-1">
+            <p className="text-[13px] font-bold text-white leading-none">{project.completion}</p>
+            <p className="text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>დასრულება</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <span className="text-[11px] font-bold" style={{ color: '#7aabff' }}>დეტალები</span>
+          <ArrowRight size={11} style={{ color: '#7aabff' }} />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+type AdVariant = 'navy' | 'blue' | 'light';
+
+const AD_THEMES: Record<AdVariant, {
+  bg: string;
+  accent: string;
+  title: string;
+  subtitle: string;
+  ctaBg: string;
+  ctaColor: string;
+  border?: string;
+}> = {
+  navy: {
+    bg: 'linear-gradient(135deg, #131b2e 0%, #1a2d5a 60%, #131b2e 100%)',
+    accent: '#7aabff',
+    title: '#fff',
+    subtitle: 'rgba(255,255,255,0.55)',
+    ctaBg: '#497cff',
+    ctaColor: '#fff',
+  },
+  blue: {
+    bg: 'linear-gradient(135deg, #1e3a6e 0%, #497cff 100%)',
+    accent: 'rgba(255,255,255,0.75)',
+    title: '#fff',
+    subtitle: 'rgba(255,255,255,0.65)',
+    ctaBg: '#fff',
+    ctaColor: '#1e3a6e',
+  },
+  light: {
+    bg: '#fff',
+    accent: '#497cff',
+    title: '#14161a',
+    subtitle: '#76777d',
+    ctaBg: '#497cff',
+    ctaColor: '#fff',
+    border: '1px solid #eceef0',
+  },
+};
+
+function AdBanner({
+  sponsor,
+  title,
+  subtitle,
+  ctaLabel,
+  ctaHref,
+  variant = 'navy',
+  image,
+  icon: Icon = BadgePercent,
+}: {
+  sponsor: string;
+  title: string;
+  subtitle: string;
+  ctaLabel: string;
+  ctaHref: string;
+  variant?: AdVariant;
+  image?: string;
+  icon?: React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties; color?: string }>;
+}) {
+  const t = AD_THEMES[variant];
+
+  return (
+    <Link
+      to={ctaHref}
+      className="group relative flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-8 rounded-2xl overflow-hidden px-6 sm:px-8 py-6 sm:py-7"
+      style={{
+        background: t.bg,
+        border: t.border,
+        boxShadow: variant === 'light' ? '0 2px 12px rgba(15,23,42,0.06)' : '0 4px 24px rgba(15,23,42,0.18)',
+        transition: 'box-shadow 0.22s ease',
+      }}
+      onMouseEnter={e => {
+        (e.currentTarget as HTMLElement).style.boxShadow = variant === 'light'
+          ? '0 8px 28px rgba(73,124,255,0.14)'
+          : '0 8px 32px rgba(73,124,255,0.22)';
+      }}
+      onMouseLeave={e => {
+        (e.currentTarget as HTMLElement).style.boxShadow = variant === 'light'
+          ? '0 2px 12px rgba(15,23,42,0.06)'
+          : '0 4px 24px rgba(15,23,42,0.18)';
+      }}
+    >
+      <span
+        className="absolute top-3 right-3 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest"
+        style={{
+          color: variant === 'light' ? '#9ea0a7' : 'rgba(255,255,255,0.35)',
+          background: variant === 'light' ? '#f2f4f6' : 'rgba(255,255,255,0.08)',
+        }}
+      >
+        სარეკლამო
+      </span>
+
+      <div
+        className="flex items-center justify-center flex-shrink-0"
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 14,
+          border: `2px solid ${variant === 'light' ? '#497cff' : 'rgba(255,255,255,0.25)'}`,
+          background: variant === 'light' ? 'rgba(73,124,255,0.08)' : 'rgba(255,255,255,0.08)',
+        }}
+      >
+        <Icon size={22} strokeWidth={2.2} style={{ color: variant === 'light' ? '#497cff' : '#fff' }} />
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <p
+          className="text-[10px] font-bold uppercase tracking-wider mb-1"
+          style={{ color: t.accent }}
+        >
+          {sponsor}
+        </p>
+        <h3
+          className="font-extrabold leading-tight"
+          style={{ fontSize: 'clamp(17px, 2vw, 22px)', color: t.title, letterSpacing: '-0.02em' }}
+        >
+          {title}
+        </h3>
+        <p className="mt-1 text-[13px] leading-snug" style={{ color: t.subtitle }}>
+          {subtitle}
+        </p>
+      </div>
+
+      {image && (
+        <div
+          className="hidden md:block flex-shrink-0 rounded-xl overflow-hidden"
+          style={{
+            width: 140,
+            height: 80,
+            border: variant === 'light' ? '1px solid #eceef0' : '2px solid rgba(255,255,255,0.15)',
+          }}
+        >
+          <img src={image} alt="" className="w-full h-full object-cover" />
+        </div>
+      )}
+
+      <span
+        className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-[13px] font-bold flex-shrink-0 transition-transform duration-200 group-hover:scale-[1.02]"
+        style={{ background: t.ctaBg, color: t.ctaColor }}
+      >
+        {ctaLabel}
+        <ArrowRight size={14} strokeWidth={2.5} />
+      </span>
+    </Link>
+  );
+}
+
+function AdStrip({ bg, children }: { bg: string; children: React.ReactNode }) {
+  return (
+    <div className="py-8 sm:py-10" style={{ background: bg }}>
+      <div className="container-xl">
+        <InViewFade>{children}</InViewFade>
+      </div>
+    </div>
+  );
+}
+
 /* ─────────────── Compact card (6-per-row) — VIP & New ─────────────────── */
 type CardBadge = 'vip' | 'new';
 
 const BADGE_CONFIG: Record<CardBadge, {
   bg: string; color: string; shadow: string;
   icon: React.ReactNode; label: string;
-  hoverRing: string;
 }> = {
   vip: {
-    bg: 'linear-gradient(135deg, #f5c142 0%, #e8960e 100%)',
-    color: '#000',
-    shadow: '0 2px 8px rgba(245,193,66,0.50)',
-    icon: <Crown size={8} strokeWidth={3} />,
-    label: 'VIP',
-    hoverRing: '0 0 0 2px rgba(245,193,66,0.70), 0 16px 40px rgba(0,0,0,0.28)',
+    bg: 'linear-gradient(135deg, #497cff 0%, #3458d8 100%)',
+    color: '#fff',
+    shadow: '0 2px 8px rgba(73,124,255,0.40)',
+    icon: <Rocket size={8} strokeWidth={3} />,
+    label: 'SUPER VIP',
   },
   new: {
     bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
@@ -108,122 +473,301 @@ const BADGE_CONFIG: Record<CardBadge, {
     shadow: '0 2px 8px rgba(16,185,129,0.45)',
     icon: <Sparkles size={8} strokeWidth={3} />,
     label: 'ახალი',
-    hoverRing: '0 0 0 2px rgba(16,185,129,0.65), 0 16px 40px rgba(0,0,0,0.28)',
   },
 };
 
 function VipListingCard({ property, badge = 'vip' }: { property: Property; badge?: CardBadge }) {
   const [liked, setLiked] = useState(false);
-  const [hovered, setHovered] = useState(false);
+  const [imgIndex, setImgIndex] = useState(0);
+  const cardRef = useRef<HTMLAnchorElement>(null);
   const cfg = BADGE_CONFIG[badge];
+  const images = property.images;
 
   const priceLabel = property.status === 'rent'
     ? `₾${property.price.toLocaleString()}/თვ.`
     : `₾${property.price.toLocaleString()}`;
 
-  return (
-    <div
-      className="relative flex flex-col bg-white rounded-[16px] overflow-hidden"
-      style={{
-        boxShadow: hovered
-          ? cfg.hoverRing
-          : '0 2px 16px rgba(0,0,0,0.18), 0 0 0 1px rgba(255,255,255,0.06)',
-        transition: 'box-shadow 0.22s ease',
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* ── Image ── */}
-      <Link to={`/property/${property.id}`} className="relative block" style={{ aspectRatio: '4/3' }}>
-        <img
-          src={property.images[0]}
-          alt={property.title}
-          className="w-full h-full object-cover"
-        />
-        {/* gradient */}
-        <div
-          className="absolute inset-0 pointer-events-none"
-          style={{ background: 'linear-gradient(to top, rgba(5,7,14,0.75) 0%, rgba(5,7,14,0.12) 48%, transparent 100%)' }}
-        />
-        {/* Badge */}
-        <div className="absolute top-2 left-2">
-          <span
-            className="inline-flex items-center gap-1"
-            style={{
-              background: cfg.bg,
-              color: cfg.color,
-              fontSize: 9,
-              fontWeight: 900,
-              padding: '3px 7px',
-              borderRadius: 999,
-              letterSpacing: '0.05em',
-              boxShadow: cfg.shadow,
-            }}
-          >
-            {cfg.icon} {cfg.label}
-          </span>
-        </div>
-        {/* Heart */}
-        <button
-          onClick={e => { e.preventDefault(); setLiked(l => !l); }}
-          className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center transition-colors duration-200"
-          style={{ background: liked ? '#ef4444' : 'rgba(255,255,255,0.88)', boxShadow: '0 1px 6px rgba(0,0,0,0.22)' }}
-        >
-          <Heart size={11} strokeWidth={2} style={{ color: liked ? '#fff' : '#45464d', fill: liked ? '#fff' : 'none' }} />
-        </button>
-        {/* Price + status */}
-        <div className="absolute bottom-0 left-0 right-0 px-2.5 pb-2.5 flex items-end justify-between">
-          <span style={{ color: '#fff', fontSize: 13, fontWeight: 800, letterSpacing: '-0.01em', textShadow: '0 1px 6px rgba(0,0,0,0.6)' }}>
-            {priceLabel}
-          </span>
-          <span
-            style={{
-              fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 999,
-              background: property.status === 'sale' ? 'rgba(20,24,36,0.88)' : 'rgba(73,124,255,0.90)',
-              color: '#fff', letterSpacing: '0.02em',
-            }}
-          >
-            {property.status === 'sale' ? 'იყიდება' : 'ქირავდება'}
-          </span>
-        </div>
-      </Link>
+  const handleMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (images.length <= 1) return;
+    const el = cardRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const ratio = Math.min(Math.max((e.clientX - rect.left) / rect.width, 0), 0.999);
+    setImgIndex(Math.floor(ratio * images.length));
+  };
 
-      {/* ── Content ── */}
-      <Link to={`/property/${property.id}`} className="flex-1 flex flex-col px-3 pt-2.5 pb-3">
+  const handleMouseLeave = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(15,23,42,0.08)';
+    setImgIndex(0);
+  };
+
+  return (
+    <Link
+      ref={cardRef}
+      to={`/property/${property.id}`}
+      className="group relative block overflow-hidden rounded-2xl"
+      style={{
+        aspectRatio: '3/4',
+        boxShadow: '0 2px 10px rgba(15,23,42,0.08)',
+        transition: 'box-shadow 0.25s ease',
+      }}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 32px rgba(15,23,42,0.16)'; }}
+      onMouseLeave={handleMouseLeave}
+    >
+      {/* Photos — swap on horizontal mouse scrub */}
+      {images.map((src, i) => (
+        <img
+          key={src}
+          src={src}
+          alt={i === 0 ? property.title : ''}
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ opacity: i === imgIndex ? 1 : 0, transition: 'opacity 0.12s ease' }}
+          draggable={false}
+        />
+      ))}
+
+      {/* Photo scrub bars */}
+      {images.length > 1 && (
+        <div className="absolute top-2 left-2.5 right-2.5 z-20 flex gap-0.5 pointer-events-none">
+          {images.map((_, i) => (
+            <div
+              key={i}
+              className="flex-1 rounded-full transition-all duration-150"
+              style={{
+                height: 2,
+                background: i === imgIndex ? '#fff' : 'rgba(255,255,255,0.35)',
+                boxShadow: i === imgIndex ? '0 0 4px rgba(0,0,0,0.25)' : 'none',
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Gradient */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to top, rgba(10,13,20,0.92) 0%, rgba(10,13,20,0.40) 48%, rgba(10,13,20,0.06) 100%)',
+        }}
+      />
+
+      {/* Hover tint */}
+      <div
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{
+          background: badge === 'vip'
+            ? 'linear-gradient(160deg, rgba(73,124,255,0.22) 0%, transparent 55%)'
+            : 'linear-gradient(160deg, rgba(16,185,129,0.22) 0%, transparent 55%)',
+        }}
+      />
+
+      {/* Hover ring */}
+      <div
+        className={`absolute inset-0 rounded-2xl border-2 border-transparent transition-all duration-300 ${
+          badge === 'vip'
+            ? 'group-hover:border-[rgba(73,124,255,0.55)]'
+            : 'group-hover:border-[rgba(16,185,129,0.55)]'
+        }`}
+      />
+
+      {/* Badge — top left */}
+      <div className="absolute top-2.5 left-2.5">
+        <span
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+          style={{
+            background: cfg.bg,
+            color: cfg.color,
+            boxShadow: cfg.shadow,
+            letterSpacing: '0.04em',
+          }}
+        >
+          {cfg.icon} {cfg.label}
+        </span>
+      </div>
+
+      {/* Heart — top right */}
+      <button
+        onClick={e => { e.preventDefault(); e.stopPropagation(); setLiked(l => !l); }}
+        className="absolute top-2.5 right-2.5 w-8 h-8 rounded-xl flex items-center justify-center"
+        style={{
+          background: liked ? '#ef4444' : 'rgba(255,255,255,0.15)',
+          backdropFilter: 'blur(10px)',
+          border: liked ? 'none' : '1px solid rgba(255,255,255,0.22)',
+          transition: 'background 0.18s ease',
+        }}
+      >
+        <Heart size={13} strokeWidth={2} style={{ color: liked ? '#fff' : '#fff', fill: liked ? '#fff' : 'none' }} />
+      </button>
+
+      {/* Status — below badge */}
+      <div className="absolute top-11 left-2.5">
+        <span
+          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
+          style={{
+            background: 'rgba(255,255,255,0.15)',
+            color: '#fff',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(255,255,255,0.20)',
+          }}
+        >
+          {property.status === 'sale' ? 'იყიდება' : 'ქირავდება'}
+        </span>
+      </div>
+
+      {/* Bottom info */}
+      <div className="absolute bottom-0 left-0 right-0 p-3">
         <p
-          className="font-bold line-clamp-1 leading-snug mb-1.5 transition-colors duration-200"
-          style={{ fontSize: 12, color: hovered ? '#497cff' : '#191c1e' }}
+          className="text-white font-bold text-sm leading-tight line-clamp-1"
+          style={{ marginBottom: 4 }}
         >
           {property.title}
         </p>
-        <div className="flex items-center gap-1 mb-2.5">
-          <MapPin size={10} strokeWidth={2} style={{ color: '#497cff', flexShrink: 0 }} />
-          <span className="truncate" style={{ fontSize: 10.5, color: '#9ea0a7', fontWeight: 500 }}>
+        <div className="flex items-center gap-1 mb-2">
+          <MapPin size={10} strokeWidth={2} style={{ color: 'rgba(255,255,255,0.55)', flexShrink: 0 }} />
+          <span className="truncate text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.55)' }}>
             {property.district}, {property.city}
           </span>
         </div>
-        <div
-          className="mt-auto flex items-center gap-3 pt-2"
-          style={{ borderTop: '1px solid #f0f2f5', fontSize: 11, color: '#45464d' }}
-        >
+
+        {/* Stats row */}
+        <div className="flex items-center gap-2 mb-2">
           {property.bedrooms > 0 && (
-            <span className="flex items-center gap-1">
-              <Bed size={10} strokeWidth={2} style={{ color: '#b0b2ba' }} />
-              <strong style={{ color: '#191c1e', fontWeight: 700 }}>{property.bedrooms}</strong>
+            <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.70)' }}>
+              <Bed size={10} /> {property.bedrooms}
             </span>
           )}
-          <span className="flex items-center gap-1">
-            <Square size={10} strokeWidth={2} style={{ color: '#b0b2ba' }} />
-            <strong style={{ color: '#191c1e', fontWeight: 700 }}>{property.area}</strong>
-            <span style={{ color: '#9ea0a7' }}>მ²</span>
+          <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.70)' }}>
+            <Square size={10} /> {property.area} მ²
           </span>
           {property.floor && (
-            <span style={{ marginLeft: 'auto', color: '#b0b2ba', fontSize: 10 }}>
+            <span className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>
               {property.floor}/{property.totalFloors}სთ
             </span>
           )}
         </div>
-      </Link>
+
+        {/* Price */}
+        <p className="text-white font-bold" style={{ fontSize: 15, lineHeight: 1, letterSpacing: '-0.01em' }}>
+          {priceLabel}
+        </p>
+
+        {/* Hover CTA */}
+        <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+          <span className="text-[11px] font-bold" style={{ color: badge === 'vip' ? '#7aabff' : '#34d399' }}>
+            ნახვა
+          </span>
+          <ArrowRight size={11} style={{ color: badge === 'vip' ? '#7aabff' : '#34d399' }} />
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+/* ─────────────── Horizontal listing slider ─────────────────────────────── */
+function ListingSlider({
+  items,
+  badge = 'vip',
+}: {
+  items: Property[];
+  badge?: CardBadge;
+}) {
+  const trackRef = useRef<HTMLDivElement>(null);
+  const [canLeft, setCanLeft] = useState(false);
+  const [canRight, setCanRight] = useState(false);
+
+  const updateArrows = () => {
+    const el = trackRef.current;
+    if (!el) return;
+    setCanLeft(el.scrollLeft > 4);
+    setCanRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  };
+
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el) return;
+    updateArrows();
+    el.addEventListener('scroll', updateArrows, { passive: true });
+    window.addEventListener('resize', updateArrows);
+    return () => {
+      el.removeEventListener('scroll', updateArrows);
+      window.removeEventListener('resize', updateArrows);
+    };
+  }, [items]);
+
+  const accent = badge === 'vip'
+    ? { main: '#497cff', soft: 'rgba(73,124,255,0.10)', ring: 'rgba(73,124,255,0.28)' }
+    : { main: '#059669', soft: 'rgba(5,150,105,0.10)', ring: 'rgba(5,150,105,0.28)' };
+
+  const scroll = (dir: 'left' | 'right') => {
+    const el = trackRef.current;
+    if (!el) return;
+    const slide = el.querySelector('[data-slide]') as HTMLElement | null;
+    const step = slide ? slide.offsetWidth + 12 : el.clientWidth * 0.6;
+    el.scrollBy({ left: dir === 'left' ? -step * 2 : step * 2, behavior: 'smooth' });
+  };
+
+  const NavBtn = ({ dir }: { dir: 'left' | 'right' }) => {
+    const enabled = dir === 'left' ? canLeft : canRight;
+    return (
+      <button
+        type="button"
+        onClick={() => scroll(dir)}
+        disabled={!enabled}
+        aria-label={dir === 'left' ? 'წინა' : 'შემდეგი'}
+        className={[
+          'absolute top-1/2 -translate-y-1/2 z-10 hidden sm:flex items-center justify-center rounded-full',
+          'opacity-0 group-hover/slider:opacity-100 transition-all duration-200',
+          enabled ? 'group-hover/slider:pointer-events-auto pointer-events-none' : 'pointer-events-none',
+        ].join(' ')}
+        style={{
+          width: 40,
+          height: 40,
+          left: dir === 'left' ? 10 : undefined,
+          right: dir === 'right' ? 10 : undefined,
+          background: '#fff',
+          border: `1px solid ${accent.ring}`,
+          boxShadow: '0 4px 16px rgba(15,23,42,0.10)',
+        }}
+        onMouseEnter={e => {
+          if (!enabled) return;
+          (e.currentTarget as HTMLElement).style.background = accent.soft;
+          (e.currentTarget as HTMLElement).style.borderColor = accent.main;
+        }}
+        onMouseLeave={e => {
+          if (!enabled) return;
+          (e.currentTarget as HTMLElement).style.background = '#fff';
+          (e.currentTarget as HTMLElement).style.borderColor = accent.ring;
+        }}
+      >
+        {dir === 'left'
+          ? <ChevronLeft size={18} strokeWidth={2.5} style={{ color: accent.main }} />
+          : <ChevronRight size={18} strokeWidth={2.5} style={{ color: accent.main }} />
+        }
+      </button>
+    );
+  };
+
+  return (
+    <div className="group/slider relative w-full">
+      {canLeft && <NavBtn dir="left" />}
+      {canRight && <NavBtn dir="right" />}
+
+      <div
+        ref={trackRef}
+        className="listing-slider flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+      >
+        {items.map(p => (
+          <div
+            key={p.id}
+            data-slide
+            className="flex-shrink-0 snap-start w-[calc((100%-12px)/2)] sm:w-[calc((100%-24px)/3)] lg:w-[calc((100%-48px)/5)]"
+          >
+            <VipListingCard property={p} badge={badge} />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -245,6 +789,7 @@ export default function HomePage() {
   }, []);
 
   const [featuredFilter, setFeaturedFilter] = useState<'all'|'apartment'|'house'|'villa'|'commercial'>('all');
+  const [openFaq, setOpenFaq] = useState<string | null>(faqItems[0]?.id ?? null);
   const featuredAll = properties.filter(p => p.isFeatured).slice(0, 12);
   const featured = featuredFilter === 'all' ? featuredAll : featuredAll.filter(p => p.type === featuredFilter);
   const newest = properties.filter(p => p.isNew).slice(0, 12);
@@ -317,7 +862,7 @@ export default function HomePage() {
                 >
                   <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse flex-shrink-0" />
                   <span className="text-[11px] font-bold tracking-widest uppercase text-white/80">
-                    საქართველოს #1 უძრავი ქონების პლატფორმა
+                    საქართველოს #1 უძრავი განცხადების პლატფორმა
                   </span>
                 </motion.div>
 
@@ -373,7 +918,7 @@ export default function HomePage() {
                   }}
                 >
                   {[
-                    { v: '12,400+', l: 'ქონება' },
+                    { v: '12,400+', l: 'განცხადება' },
                     { v: '350+',    l: 'აგენტი' },
                     { v: '96%',     l: 'კმაყოფ.' },
                   ].map((s, i) => (
@@ -494,7 +1039,7 @@ export default function HomePage() {
                 <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full"
                   style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.20)' }}>
                   <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                  <span className="text-xs font-bold" style={{ color: '#10B981' }}>12,400+ ქონება</span>
+                  <span className="text-xs font-bold" style={{ color: '#10B981' }}>12,400+ განცხადება</span>
                 </div>
               </div>
 
@@ -867,793 +1412,258 @@ export default function HomePage() {
       </section>
 
       {/* ══════════════════════════════════════════════════════
-          CATEGORY TILES — compact photo grid
+          SUPER VIP LISTINGS
       ══════════════════════════════════════════════════════ */}
-      <section className="py-14 bg-white">
+      <section className="py-16 sm:py-20" style={{ background: '#fff' }}>
         <div className="container-xl">
-
-          {/* Header */}
           <InViewFade>
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
-              <div>
-                <span
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold uppercase tracking-widest mb-3"
-                  style={{ background: 'rgba(73,124,255,0.10)', color: '#497cff', border: '1px solid rgba(73,124,255,0.20)' }}
-                >
-                  <Layers size={10} />
-                  კატეგორიები
-                </span>
-                <h2 className="headline-lg text-[#191c1e]">სად გსურთ ძებნა?</h2>
-                <p className="body-md mt-1" style={{ color: '#76777d' }}>
-                  6 კატეგორია · 10,729+ განცხადება
-                </p>
-              </div>
-              <Link
-                to="/listings"
-                className="hidden sm:flex items-center gap-1.5 text-sm font-semibold flex-shrink-0"
-                style={{ color: '#497cff' }}
-              >
-                ყველა კატეგორია <ArrowRight size={15} />
-              </Link>
-            </div>
+            <SectionTitle
+              icon={Rocket}
+              title="SUPER VIP განცხადებები"
+              linkTo="/listings?vip=true"
+              linkLabel="ყველა VIP"
+            />
           </InViewFade>
-
-          {/* Compact 6-col photo strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-            {CATEGORY_TILES.map((cat, i) => (
-              <InViewFade key={cat.label} delay={i * 0.04}>
-                <Link
-                  to={cat.href}
-                  className="group relative block overflow-hidden rounded-2xl"
-                  style={{
-                    aspectRatio: '3/4',
-                    boxShadow: '0 2px 10px rgba(15,23,42,0.08)',
-                    transition: 'box-shadow 0.25s ease',
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 32px rgba(15,23,42,0.16)';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(15,23,42,0.08)';
-                  }}
-                >
-                  {/* Photo */}
-                  <img
-                    src={cat.image}
-                    alt={cat.label}
-                    className="absolute inset-0 w-full h-full object-cover"
-                  />
-
-                  {/* Gradient */}
-                  <div
-                    className="absolute inset-0"
-                    style={{
-                      background: 'linear-gradient(to top, rgba(10,13,20,0.88) 0%, rgba(10,13,20,0.35) 45%, rgba(10,13,20,0.08) 100%)',
-                    }}
-                  />
-
-                  {/* Hover blue tint */}
-                  <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    style={{ background: 'linear-gradient(160deg, rgba(73,124,255,0.20) 0%, transparent 55%)' }}
-                  />
-
-                  {/* Hover ring */}
-                  <div
-                    className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-[rgba(73,124,255,0.55)] transition-all duration-300"
-                  />
-
-                  {/* Count badge — top right */}
-                  <div className="absolute top-2.5 right-2.5">
-                    <span
-                      className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
-                      style={{
-                        background: 'rgba(255,255,255,0.18)',
-                        color: '#fff',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(255,255,255,0.22)',
-                      }}
-                    >
-                      {cat.count}
-                    </span>
-                  </div>
-
-                  {/* Icon pill — top left */}
-                  <div className="absolute top-2.5 left-2.5">
-                    <div
-                      className="w-8 h-8 rounded-xl flex items-center justify-center"
-                      style={{
-                        background: 'rgba(255,255,255,0.15)',
-                        backdropFilter: 'blur(10px)',
-                        border: '1px solid rgba(255,255,255,0.22)',
-                      }}
-                    >
-                      <cat.icon size={15} strokeWidth={2} style={{ color: '#fff' }} />
-                    </div>
-                  </div>
-
-                  {/* Bottom info */}
-                  <div className="absolute bottom-0 left-0 right-0 p-3">
-                    <p className="text-white font-bold text-sm leading-tight">{cat.label}</p>
-                    <p className="text-white/55 text-[10px] font-medium mt-0.5 truncate">{cat.sublabel}</p>
-                    <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <span className="text-[11px] font-bold" style={{ color: '#7aabff' }}>ნახვა</span>
-                      <ArrowRight size={11} style={{ color: '#7aabff' }} />
-                    </div>
-                  </div>
-                </Link>
-              </InViewFade>
-            ))}
-          </div>
-
-          {/* Compact quick-links row */}
-          <InViewFade delay={0.15}>
-            <div
-              className="flex items-center gap-2 flex-wrap mt-5 px-4 py-3 rounded-2xl"
-              style={{ background: '#f7f9fb', border: '1px solid #eceef0' }}
-            >
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#9ea0a7', flexShrink: 0 }}>სწრაფი:</span>
-              {[
-                { l: 'ახალი ბინები', href: '/listings?type=apartment&new=true' },
-                { l: 'ვაკე', href: '/listings?city=თბილისი&district=ვაკე' },
-                { l: 'ბათუმი', href: '/listings?city=ბათუმი' },
-                { l: 'ქირავდება', href: '/listings?status=rent' },
-                { l: 'პრემიუმ', href: '/listings?premium=true' },
-              ].map(link => (
-                <Link
-                  key={link.l}
-                  to={link.href}
-                  className="px-3 py-1 rounded-full text-xs font-semibold transition-all duration-150"
-                  style={{ background: '#fff', color: '#45464d', border: '1px solid #e0e3e5' }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.background = '#497cff';
-                    (e.currentTarget as HTMLElement).style.color = '#fff';
-                    (e.currentTarget as HTMLElement).style.borderColor = '#497cff';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = '#fff';
-                    (e.currentTarget as HTMLElement).style.color = '#45464d';
-                    (e.currentTarget as HTMLElement).style.borderColor = '#e0e3e5';
-                  }}
-                >
-                  {link.l}
-                </Link>
-              ))}
-            </div>
-          </InViewFade>
-
-        </div>
-      </section>
-
-      {/* ══════════════════════════════════════════════════════
-          VIP LISTINGS — paid premium placements
-      ══════════════════════════════════════════════════════ */}
-      <section
-        className="relative overflow-hidden"
-        style={{ background: 'linear-gradient(180deg, #06080f 0%, #0b0f1e 55%, #060810 100%)', paddingTop: 80, paddingBottom: 80 }}
-      >
-        {/* Ambient gold glow — top-left */}
-        <div
-          className="absolute pointer-events-none"
-          style={{ top: '-20%', left: '-8%', width: 700, height: 700, borderRadius: '50%', background: 'radial-gradient(circle, rgba(245,193,66,0.055) 0%, transparent 65%)' }}
-        />
-        {/* Ambient blue glow — bottom-right */}
-        <div
-          className="absolute pointer-events-none"
-          style={{ bottom: '-15%', right: '-8%', width: 600, height: 600, borderRadius: '50%', background: 'radial-gradient(circle, rgba(73,124,255,0.07) 0%, transparent 65%)' }}
-        />
-        {/* Subtle grid lines */}
-        <div
-          className="absolute inset-0 opacity-[0.022]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '56px 56px' }}
-        />
-
-        <div className="container-xl relative">
-
-          {/* ── Section header ── */}
-          <InViewFade>
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-10">
-
-              {/* Left */}
-              <div>
-                {/* VIP pill */}
-                <div
-                  className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full mb-5"
-                  style={{ background: 'linear-gradient(135deg, rgba(245,193,66,0.14), rgba(240,168,32,0.07))', border: '1px solid rgba(245,193,66,0.32)' }}
-                >
-                  <Crown size={13} style={{ color: '#f5c142' }} />
-                  <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#f5c142' }}>
-                    VIP განცხადებები
-                  </span>
-                  <span style={{ width: 1, height: 12, background: 'rgba(245,193,66,0.30)' }} />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(245,193,66,0.60)' }}>პლატინიუმ პაკეტი</span>
-                </div>
-
-                <h2
-                  className="font-bold mb-3"
-                  style={{ fontSize: 'clamp(26px, 3.2vw, 40px)', color: '#fff', lineHeight: 1.12, letterSpacing: '-0.015em' }}
-                >
-                  პრიორიტეტული{' '}
-                  <span
-                    style={{
-                      background: 'linear-gradient(135deg, #f5c142 0%, #f0a820 55%, #e8960e 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
-                    }}
-                  >
-                    განცხადებები
-                  </span>
-                </h2>
-                <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: 14, lineHeight: 1.65, maxWidth: 460 }}>
-                  ეს ქონებები VIP ხილვადობის პაკეტით სარგებლობს — სამჯერ მეტი ვიზიტი,
-                  პირველი სტრიქონი, ოქროს ბეჯი
-                </p>
-              </div>
-
-              {/* Right: metrics + link */}
-              <div className="flex items-center gap-0 flex-shrink-0">
-                {[
-                  { v: `${featured.length}`, l: 'VIP ახლა' },
-                  { v: '3×', l: 'მეტი ხედვა' },
-                  { v: '₾99/თვ', l: 'პაკეტი' },
-                ].map((s, i) => (
-                  <div
-                    key={s.l}
-                    className="text-center px-6"
-                    style={{ borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}
-                  >
-                    <p style={{ fontSize: 24, fontWeight: 800, color: '#f5c142', lineHeight: 1, letterSpacing: '-0.01em' }}>{s.v}</p>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 5, fontWeight: 600, letterSpacing: '0.03em' }}>{s.l}</p>
-                  </div>
-                ))}
-                <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.08)', marginLeft: 8, marginRight: 16 }} />
-                <Link
-                  to="/listings?vip=true"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0"
-                  style={{ background: 'rgba(245,193,66,0.10)', color: '#f5c142', border: '1px solid rgba(245,193,66,0.28)' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(245,193,66,0.18)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(245,193,66,0.10)'; }}
-                >
-                  ყველა VIP <ArrowRight size={14} />
-                </Link>
-              </div>
-            </div>
-          </InViewFade>
-
-          {/* ── Filter chips ── */}
-          <InViewFade delay={0.06}>
+          <InViewFade delay={0.05}>
             <div className="flex items-center gap-2 flex-wrap mb-8">
               {([
-                { v: 'all',        l: 'ყველა'    },
-                { v: 'apartment',  l: 'ბინა'     },
-                { v: 'house',      l: 'სახლი'    },
-                { v: 'villa',      l: 'ვილა'     },
-                { v: 'commercial', l: 'კომერც.'  },
+                { v: 'all',        l: 'ყველა'   },
+                { v: 'apartment',  l: 'ბინა'    },
+                { v: 'house',      l: 'სახლი'   },
+                { v: 'villa',      l: 'ვილა'    },
+                { v: 'commercial', l: 'კომერც.' },
               ] as const).map(chip => (
                 <button
                   key={chip.v}
                   onClick={() => setFeaturedFilter(chip.v)}
                   className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200"
                   style={{
-                    background: featuredFilter === chip.v ? '#f5c142' : 'rgba(255,255,255,0.06)',
-                    color: featuredFilter === chip.v ? '#0a0c14' : 'rgba(255,255,255,0.55)',
-                    border: `1px solid ${featuredFilter === chip.v ? '#f5c142' : 'rgba(255,255,255,0.12)'}`,
+                    background: featuredFilter === chip.v ? '#497cff' : '#f2f4f6',
+                    color: featuredFilter === chip.v ? '#fff' : '#45464d',
+                    border: `1px solid ${featuredFilter === chip.v ? '#497cff' : 'transparent'}`,
                   }}
                 >
                   {chip.l}
                 </button>
               ))}
-              {/* Live badge */}
-              <div
-                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.22)' }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981' }}>{featured.length} VIP ახლა</span>
-              </div>
             </div>
           </InViewFade>
-
-          {/* ── 6-column VIP grid ── */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {featured.slice(0, 12).map((p, i) => (
-              <InViewFade key={p.id} delay={i * 0.035}>
-                <VipListingCard property={p} />
-              </InViewFade>
-            ))}
-          </div>
-
-          {/* ── Promote-your-listing CTA ── */}
-          <InViewFade delay={0.18}>
-            <div
-              className="mt-10 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-6 px-8 py-6"
-              style={{ background: 'rgba(245,193,66,0.055)', border: '1px solid rgba(245,193,66,0.18)' }}
-            >
-              <div className="flex items-center gap-5">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(245,193,66,0.12)', border: '1px solid rgba(245,193,66,0.22)' }}
-                >
-                  <Crown size={22} style={{ color: '#f5c142' }} />
-                </div>
-                <div>
-                  <p style={{ color: '#fff', fontWeight: 700, fontSize: 15, marginBottom: 3 }}>
-                    გამოაქვეყნეთ VIP-ად
-                  </p>
-                  <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: 13 }}>
-                    3× მეტი ხილვადობა · ოქროს VIP ბეჯი · პირველი სტრიქონი ძებნაში
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 flex-shrink-0">
-                <div className="text-right hidden sm:block">
-                  <p style={{ color: '#f5c142', fontWeight: 800, fontSize: 20, lineHeight: 1 }}>
-                    ₾99
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'rgba(245,193,66,0.60)' }}>/თვ.</span>
-                  </p>
-                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.30)', marginTop: 3 }}>VIP პაკეტი</p>
-                </div>
-                <Link
-                  to="/contact"
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0 transition-opacity duration-200"
-                  style={{ background: 'linear-gradient(135deg, #f5c142 0%, #e8960e 100%)', color: '#07090e' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '0.88'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
-                >
-                  <Crown size={14} /> VIP-ში გადასვლა
-                </Link>
-              </div>
-            </div>
-          </InViewFade>
-
+          <ListingSlider items={featured} badge="vip" />
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════
-          NEW LISTINGS — 6-col × 2-row, dark premium
-      ══════════════════════════════════════════════════════ */}
-      <section
-        className="relative overflow-hidden"
-        style={{ background: 'linear-gradient(180deg, #060a10 0%, #0a1018 55%, #060a10 100%)', paddingTop: 80, paddingBottom: 80 }}
-      >
-        {/* Ambient emerald glow — top-right */}
-        <div
-          className="absolute pointer-events-none"
-          style={{ top: '-18%', right: '-6%', width: 650, height: 650, borderRadius: '50%', background: 'radial-gradient(circle, rgba(16,185,129,0.07) 0%, transparent 65%)' }}
+      <AdStrip bg="#f7f9fb">
+        <AdBanner
+          sponsor="Bank of Georgia"
+          title="იპოთეკა 8.9%-დან — პირველი 2 წელი ფიქსირებული"
+          subtitle="გამოითვლეთ თქვენი ყოველთვიური გადახდა ონლაინ და მიიღეთ წინასწარი დამტკიცება 24 საათში"
+          ctaLabel="გამოთვლა"
+          ctaHref="/contact"
+          variant="navy"
         />
-        {/* Ambient blue glow — bottom-left */}
-        <div
-          className="absolute pointer-events-none"
-          style={{ bottom: '-14%', left: '-6%', width: 580, height: 580, borderRadius: '50%', background: 'radial-gradient(circle, rgba(73,124,255,0.07) 0%, transparent 65%)' }}
-        />
-        {/* Subtle grid */}
-        <div
-          className="absolute inset-0 opacity-[0.022]"
-          style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,1) 1px, transparent 1px)', backgroundSize: '56px 56px' }}
-        />
-
-        <div className="container-xl relative">
-
-          {/* ── Section header ── */}
-          <InViewFade>
-            <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-10">
-
-              {/* Left */}
-              <div>
-                {/* New pill */}
-                <div
-                  className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full mb-5"
-                  style={{ background: 'linear-gradient(135deg, rgba(16,185,129,0.14), rgba(5,150,105,0.07))', border: '1px solid rgba(16,185,129,0.30)' }}
-                >
-                  <Sparkles size={13} style={{ color: '#10B981' }} />
-                  <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#10B981' }}>
-                    ახალი განცხადებები
-                  </span>
-                  <span style={{ width: 1, height: 12, background: 'rgba(16,185,129,0.30)' }} />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: 'rgba(16,185,129,0.60)' }}>ბოლო 7 დღე</span>
-                </div>
-
-                <h2
-                  className="font-bold mb-3"
-                  style={{ fontSize: 'clamp(26px, 3.2vw, 40px)', color: '#fff', lineHeight: 1.12, letterSpacing: '-0.015em' }}
-                >
-                  ახლახანს{' '}
-                  <span
-                    style={{
-                      background: 'linear-gradient(135deg, #34d399 0%, #10B981 55%, #059669 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
-                    }}
-                  >
-                    დამატებული
-                  </span>
-                </h2>
-                <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: 14, lineHeight: 1.65, maxWidth: 460 }}>
-                  ყოველდღიურად ემატება ასობით ახალი განცხადება — ყველაზე სწრაფი
-                  გზა სასურველი ქონების საპოვნელად
-                </p>
-              </div>
-
-              {/* Right: metrics + link */}
-              <div className="flex items-center gap-0 flex-shrink-0">
-                {[
-                  { v: `${newest.length}`, l: 'ახალი ახლა' },
-                  { v: '47+', l: 'დღეში ემ.' },
-                  { v: '7 დღე', l: 'სიახლე' },
-                ].map((s, i) => (
-                  <div
-                    key={s.l}
-                    className="text-center px-6"
-                    style={{ borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.08)' : 'none' }}
-                  >
-                    <p style={{ fontSize: 24, fontWeight: 800, color: '#10B981', lineHeight: 1, letterSpacing: '-0.01em' }}>{s.v}</p>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.38)', marginTop: 5, fontWeight: 600, letterSpacing: '0.03em' }}>{s.l}</p>
-                  </div>
-                ))}
-                <div style={{ width: 1, height: 40, background: 'rgba(255,255,255,0.08)', marginLeft: 8, marginRight: 16 }} />
-                <Link
-                  to="/listings?new=true"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold flex-shrink-0"
-                  style={{ background: 'rgba(16,185,129,0.10)', color: '#10B981', border: '1px solid rgba(16,185,129,0.28)' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(16,185,129,0.18)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(16,185,129,0.10)'; }}
-                >
-                  ყველა ახალი <ArrowRight size={14} />
-                </Link>
-              </div>
-            </div>
-          </InViewFade>
-
-          {/* ── Live badge row ── */}
-          <InViewFade delay={0.06}>
-            <div className="flex items-center gap-3 mb-8">
-              <div
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-                style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.22)' }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                <span style={{ fontSize: 11, fontWeight: 700, color: '#10B981' }}>ახლახან დამატებული</span>
-              </div>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.28)', fontWeight: 500 }}>
-                განახლება ყოველ 15 წუთში
-              </span>
-            </div>
-          </InViewFade>
-
-          {/* ── 6-column grid ── */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-            {newest.slice(0, 12).map((p, i) => (
-              <InViewFade key={p.id} delay={i * 0.035}>
-                <VipListingCard property={p} badge="new" />
-              </InViewFade>
-            ))}
-          </div>
-
-          {/* ── Bottom CTA strip ── */}
-          <InViewFade delay={0.18}>
-            <div
-              className="mt-10 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-6 px-8 py-6"
-              style={{ background: 'rgba(16,185,129,0.05)', border: '1px solid rgba(16,185,129,0.16)' }}
-            >
-              <div className="flex items-center gap-5">
-                <div
-                  className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.22)' }}
-                >
-                  <TrendingUp size={22} style={{ color: '#10B981' }} />
-                </div>
-                <div>
-                  <p style={{ color: '#fff', fontWeight: 700, fontSize: 15, marginBottom: 3 }}>
-                    გამოაქვეყნეთ ახალი განცხადება
-                  </p>
-                  <p style={{ color: 'rgba(255,255,255,0.40)', fontSize: 13 }}>
-                    უფასოდ · ტოპ ძებნაში · 24 საათში ვერიფიკაცია
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 flex-shrink-0">
-                <Link
-                  to="/listings?new=true"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm"
-                  style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.70)', border: '1px solid rgba(255,255,255,0.12)' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; }}
-                >
-                  ყველა ახალი <ArrowRight size={14} />
-                </Link>
-                <Link
-                  to="/contact"
-                  className="flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm flex-shrink-0 transition-opacity duration-200"
-                  style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#fff' }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '0.88'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
-                >
-                  <Sparkles size={14} /> განცხ. დამატება
-                </Link>
-              </div>
-            </div>
-          </InViewFade>
-
-        </div>
-      </section>
+      </AdStrip>
 
       {/* ══════════════════════════════════════════════════════
-          WHY CHOOSE US
+          NEW LISTINGS
       ══════════════════════════════════════════════════════ */}
-      <section className="py-20" style={{ background: '#131b2e' }}>
+      <section className="py-16 sm:py-20" style={{ background: '#f7f9fb' }}>
         <div className="container-xl">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            {/* Left text */}
-            <InViewFade>
-              <p className="section-label mb-3" style={{ color: '#497cff' }}>ჩვენი უპირატ.</p>
-              <h2 className="headline-lg text-white mb-4">
-                რატომ TbilisiRealtors.ge?
-              </h2>
-              <p className="body-lg text-white/60 mb-10 max-w-lg">
-                2018 წლიდან ვეხმარებით ქართელ ოჯახებს სახლის პოვნაში.
-                პრემიუმ სერვისი, გამჭვირვალე პროცესი, სანდო გუნდი.
-              </p>
+          <InViewFade>
+            <SectionTitle
+              icon={Sparkles}
+              title="ახლახანს დამატებული"
+              accent="green"
+              linkTo="/listings?new=true"
+              linkLabel="ყველა ახალი"
+            />
+          </InViewFade>
+          <ListingSlider items={newest} badge="new" />
+        </div>
+      </section>
 
-              <div className="space-y-5">
-                {WHYUS.map((w, i) => (
-                  <InViewFade key={w.title} delay={0.1 + i * 0.09}>
-                    <div className="flex items-start gap-4">
-                      <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
-                        style={{ background: w.iconBg }}>
-                        <w.icon size={21} strokeWidth={1.8} style={{ color: w.iconColor }} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-white text-sm mb-1">{w.title}</p>
-                        <p className="text-white/55 text-[13px] leading-relaxed">{w.desc}</p>
-                      </div>
-                    </div>
+      <AdStrip bg="#fff">
+        <AdBanner
+          sponsor="TbilisiRealtors.ge"
+          title="SUPER VIP — გაზარდეთ ხილვადობა 10×"
+          subtitle="თქვენი განცხადება საიტის პრიორიტეტულ ზონაში. მეტი ვიზიტი, სწრაფი გაყიდვა."
+          ctaLabel="VIP აქტივაცია"
+          ctaHref="/listings?vip=true"
+          variant="blue"
+          icon={Rocket}
+        />
+      </AdStrip>
+
+      {/* ══════════════════════════════════════════════════════
+          NEW CONSTRUCTION PROJECTS
+      ══════════════════════════════════════════════════════ */}
+      <section className="py-16 sm:py-20 bg-white">
+        <div className="container-xl">
+          <InViewFade>
+            <SectionTitle
+              icon={HardHat}
+              title="ახალი საცხოვრებელი პროექტები"
+              linkTo="/listings?type=apartment&new=true"
+              linkLabel="ყველა პროექტი"
+            />
+          </InViewFade>
+
+          <InViewFade delay={0.05}>
+            <div
+              className="relative rounded-3xl overflow-hidden p-5 sm:p-6"
+              style={{ background: 'linear-gradient(135deg, #131b2e 0%, #1a2d5a 55%, #131b2e 100%)' }}
+            >
+              <div
+                className="absolute inset-0 opacity-[0.06] pointer-events-none"
+                style={{
+                  backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)',
+                  backgroundSize: '32px 32px',
+                }}
+              />
+
+              <div className="relative flex flex-wrap items-center gap-2 mb-5">
+                {[
+                  { label: 'პრე-გაყიდვა', color: '#497cff' },
+                  { label: '0% საკომისიო', color: '#10B981' },
+                  { label: 'უფასო კონსულტაცია', color: '#d97706' },
+                ].map(chip => (
+                  <span
+                    key={chip.label}
+                    className="px-3 py-1 rounded-full text-[10px] font-bold"
+                    style={{ background: `${chip.color}22`, color: chip.color, border: `1px solid ${chip.color}44` }}
+                  >
+                    {chip.label}
+                  </span>
+                ))}
+              </div>
+
+              <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-4">
+                {constructionProjects.map((project, i) => (
+                  <InViewFade key={project.id} delay={0.08 + i * 0.05}>
+                    <ConstructionProjectCard project={project} />
                   </InViewFade>
                 ))}
               </div>
-
-              <InViewFade delay={0.5} className="mt-10 flex gap-3">
-                <Link to="/about" className="btn-accent px-6 py-3 rounded-xl text-sm">
-                  გაიგეთ მეტი <ArrowRight size={15} />
-                </Link>
-                <Link to="/contact" className="btn-ghost px-6 py-3 rounded-xl text-sm text-white border-white/20 hover:bg-white/10">
-                  დაგვიკავ. <Phone size={14} />
-                </Link>
-              </InViewFade>
-            </InViewFade>
-
-            {/* Right — stats grid */}
-            <div className="grid grid-cols-2 gap-4">
-              {[
-                { v: '12,400+', l: 'ქონება', sub: 'ვერიფ. განცხ.', icon: Building2, color: '#497cff' },
-                { v: '8,200+', l: 'კლიენტი', sub: 'კმაყ. მომხ.', icon: Users, color: '#10B981' },
-                { v: '350+', l: 'აგენტი', sub: 'ლიც. სპეც.', icon: Award, color: '#d97706' },
-                { v: '96%', l: 'კმაყ.', sub: 'კლიენტ. შეფ.', icon: CheckCircle, color: '#7c3aed' },
-              ].map((s, i) => (
-                <InViewFade key={s.l} delay={i * 0.1}>
-                  <div
-                    className="rounded-2xl p-6"
-                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
-                  >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center mb-4"
-                      style={{ background: `${s.color}20` }}>
-                      <s.icon size={20} strokeWidth={1.8} style={{ color: s.color }} />
-                    </div>
-                    <p className="text-3xl font-bold text-white mb-1">{s.v}</p>
-                    <p className="text-sm font-semibold text-white/80">{s.l}</p>
-                    <p className="text-[12px] text-white/40 mt-0.5">{s.sub}</p>
-                  </div>
-                </InViewFade>
-              ))}
             </div>
+          </InViewFade>
+        </div>
+      </section>
+
+      <AdStrip bg="#f7f9fb">
+        <AdBanner
+          sponsor="Archi Group"
+          title="Panorama Residence — პრე-გაყიდვა ვაკეში"
+          subtitle="186 ბინა · დასრულება 2027 Q2 · ფასი ₾185,000-დან · 0% საკომისიო"
+          ctaLabel="პროექტის ნახვა"
+          ctaHref="/listings?type=apartment&new=true"
+          variant="light"
+          icon={HardHat}
+          image="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&q=80"
+        />
+      </AdStrip>
+
+      {/* ══════════════════════════════════════════════════════
+          BLOG & BUYING GUIDES
+      ══════════════════════════════════════════════════════ */}
+      <section className="py-16 sm:py-20" style={{ background: '#f7f9fb' }}>
+        <div className="container-xl">
+          <InViewFade>
+            <SectionTitle
+              icon={BookOpen}
+              title="ბლოგი და საყიდვის გზამკვლევები"
+              linkTo="/blog"
+              linkLabel="ყველა სტატია"
+            />
+          </InViewFade>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
+            {blogPosts.slice(0, 3).map((post, i) => (
+              <InViewFade key={post.id} delay={i * 0.05} className="h-full">
+                <BlogCard post={post} />
+              </InViewFade>
+            ))}
           </div>
         </div>
       </section>
 
       {/* ══════════════════════════════════════════════════════
-          MAKLERS — infinite auto-scroll slider
+          FAQ
       ══════════════════════════════════════════════════════ */}
-      <section className="py-20 overflow-hidden" style={{ background: '#f7f9fb' }}>
-
-        {/* ── Header (contained) ── */}
-        <div className="container-xl mb-10">
-          <InViewFade className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
-            <div>
-              <div
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full mb-4"
-                style={{ background: 'rgba(73,124,255,0.09)', border: '1px solid rgba(73,124,255,0.22)' }}
-              >
-                <Users size={12} style={{ color: '#497cff' }} />
-                <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.13em', textTransform: 'uppercase', color: '#497cff' }}>
-                  ჩვენი გუნდი
-                </span>
-              </div>
-              <h2
-                className="font-bold mb-2"
-                style={{ fontSize: 'clamp(24px, 3vw, 38px)', color: '#191c1e', letterSpacing: '-0.015em', lineHeight: 1.12 }}
-              >
-                Maklers
-              </h2>
-              <p style={{ color: '#76777d', fontSize: 14 }}>
-                350+ ლიცენზირებული სპეციალისტი — საშუალოდ 7 წლიანი გამოცდილებით
-              </p>
-            </div>
-            <Link
-              to="/agents"
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold flex-shrink-0"
-              style={{ background: '#fff', color: '#191c1e', border: '1.5px solid #e0e3e5' }}
-              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#497cff'; (e.currentTarget as HTMLElement).style.color = '#497cff'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#e0e3e5'; (e.currentTarget as HTMLElement).style.color = '#191c1e'; }}
-            >
-              ყველა Makler <ArrowRight size={15} />
-            </Link>
+      <section className="py-16 sm:py-20 bg-white">
+        <div className="container-xl">
+          <InViewFade>
+            <SectionTitle
+              icon={HelpCircle}
+              title="ხშირად დასმული კითხვები"
+            />
           </InViewFade>
-        </div>
-
-        {/* ── Infinite marquee track (full-bleed) ── */}
-        {/* Fade masks on left/right edges */}
-        <div className="relative">
-          <div
-            className="absolute left-0 top-0 bottom-0 w-24 pointer-events-none z-10"
-            style={{ background: 'linear-gradient(to right, #f7f9fb 0%, transparent 100%)' }}
-          />
-          <div
-            className="absolute right-0 top-0 bottom-0 w-24 pointer-events-none z-10"
-            style={{ background: 'linear-gradient(to left, #f7f9fb 0%, transparent 100%)' }}
-          />
-
-          {/* Scrolling track — duplicated for seamless loop */}
-          <div className="marquee-track" style={{ gap: 20, paddingLeft: 20, paddingRight: 20 }}>
-            {[...agents, ...agents].map((agent, i) => (
-              <Link
-                key={`${agent.id}-${i}`}
-                to={`/agent/${agent.id}`}
-                className="group flex-shrink-0 flex flex-col bg-white rounded-2xl overflow-hidden"
-                style={{
-                  width: 200,
-                  textDecoration: 'none',
-                  border: '1px solid #eceef0',
-                  boxShadow: '0 2px 12px rgba(15,23,42,0.06)',
-                  transition: 'box-shadow 0.22s ease, border-color 0.22s ease',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 28px rgba(73,124,255,0.16)';
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(73,124,255,0.40)';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 12px rgba(15,23,42,0.06)';
-                  (e.currentTarget as HTMLElement).style.borderColor = '#eceef0';
-                }}
-              >
-                {/* Coloured banner */}
-                <div
-                  className="relative flex-shrink-0"
-                  style={{
-                    height: 72,
-                    background: i % 3 === 0
-                      ? 'linear-gradient(135deg, #131b2e 0%, #1a2d5a 100%)'
-                      : i % 3 === 1
-                      ? 'linear-gradient(135deg, #1a1208 0%, #3a2e10 100%)'
-                      : 'linear-gradient(135deg, #0c1910 0%, #0e2a1a 100%)',
-                  }}
-                >
-                  {/* Grid texture */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {faqItems.map((item, i) => {
+              const isOpen = openFaq === item.id;
+              return (
+                <InViewFade key={item.id} delay={i * 0.04}>
                   <div
-                    className="absolute inset-0 opacity-[0.10]"
+                    className="rounded-2xl overflow-hidden h-full transition-colors duration-200"
                     style={{
-                      backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)',
-                      backgroundSize: '20px 20px',
+                      border: '1px solid #eceef0',
+                      background: '#fff',
+                      boxShadow: isOpen ? '0 8px 24px rgba(15,23,42,0.08)' : '0 2px 10px rgba(15,23,42,0.06)',
                     }}
-                  />
-                  {/* Rating pill — top right */}
-                  <div className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.20)' }}>
-                    <Star size={9} fill="#d97706" style={{ color: '#d97706' }} />
-                    <span style={{ fontSize: 10, fontWeight: 700, color: '#fff' }}>{agent.rating}</span>
-                  </div>
-                </div>
-
-                {/* Avatar — overlapping the banner */}
-                <div className="relative px-4" style={{ marginTop: -28 }}>
-                  <div
-                    className="relative rounded-xl overflow-hidden"
-                    style={{ width: 56, height: 56, border: '2.5px solid #fff', boxShadow: '0 3px 10px rgba(0,0,0,0.16)' }}
                   >
-                    <img src={agent.photo} alt={agent.name} className="w-full h-full object-cover" />
-                  </div>
-                  {agent.verified && (
-                    <div
-                      className="absolute flex items-center justify-center rounded-full border-2 border-white"
-                      style={{ width: 18, height: 18, background: '#497cff', bottom: 0, left: 44 }}
+                    <button
+                      type="button"
+                      onClick={() => setOpenFaq(isOpen ? null : item.id)}
+                      className="w-full flex items-start justify-between gap-4 px-5 py-4 text-left"
                     >
-                      <CheckCircle size={9} color="#fff" fill="#fff" strokeWidth={0} />
-                    </div>
-                  )}
-                </div>
-
-                {/* Info */}
-                <div className="px-4 pt-2 pb-4 flex flex-col flex-1">
-                  <p
-                    className="font-bold leading-tight mb-0.5 group-hover:text-[#497cff] transition-colors"
-                    style={{ fontSize: 13, color: '#191c1e' }}
-                  >
-                    {agent.name}
-                  </p>
-                  <p style={{ fontSize: 11, color: '#9ea0a7', marginBottom: 8 }}>{agent.company}</p>
-
-                  {/* Specialization tag */}
-                  <div className="mb-3">
-                    <span
-                      className="inline-block px-2 py-0.5 rounded-full"
-                      style={{ fontSize: 10, fontWeight: 600, background: '#f0f2f5', color: '#45464d' }}
-                    >
-                      {agent.specialization[0]}
-                    </span>
+                      <span
+                        className="font-semibold text-sm leading-snug"
+                        style={{ color: isOpen ? '#497cff' : '#191c1e' }}
+                      >
+                        {item.question}
+                      </span>
+                      <div
+                        className="flex items-center justify-center flex-shrink-0 mt-0.5"
+                        style={{
+                          width: 28,
+                          height: 28,
+                          borderRadius: 8,
+                          border: '2px solid #497cff',
+                          background: 'transparent',
+                        }}
+                      >
+                        <ChevronDown
+                          size={14}
+                          strokeWidth={2.5}
+                          style={{
+                            color: '#497cff',
+                            transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                            transition: 'transform 0.2s ease',
+                          }}
+                        />
+                      </div>
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {isOpen && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="px-5 pb-4 pt-0">
+                            <p className="text-[13px] leading-relaxed" style={{ color: '#76777d' }}>
+                              {item.answer}
+                            </p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-
-                  {/* Mini stats */}
-                  <div
-                    className="flex items-center justify-between rounded-lg px-3 py-2 mt-auto mb-3"
-                    style={{ background: '#f7f9fb', border: '1px solid #eceef0' }}
-                  >
-                    <div className="text-center">
-                      <p style={{ fontSize: 13, fontWeight: 800, color: '#191c1e', lineHeight: 1 }}>{agent.propertyCount}</p>
-                      <p style={{ fontSize: 9, color: '#9ea0a7', marginTop: 2, fontWeight: 600 }}>ქონება</p>
-                    </div>
-                    <div style={{ width: 1, height: 24, background: '#eceef0' }} />
-                    <div className="text-center">
-                      <p style={{ fontSize: 13, fontWeight: 800, color: '#191c1e', lineHeight: 1 }}>{agent.yearsExperience}წ</p>
-                      <p style={{ fontSize: 9, color: '#9ea0a7', marginTop: 2, fontWeight: 600 }}>გამოც.</p>
-                    </div>
-                    <div style={{ width: 1, height: 24, background: '#eceef0' }} />
-                    <div className="text-center">
-                      <p style={{ fontSize: 13, fontWeight: 800, color: '#191c1e', lineHeight: 1 }}>{agent.reviewCount}</p>
-                      <p style={{ fontSize: 9, color: '#9ea0a7', marginTop: 2, fontWeight: 600 }}>შეფ.</p>
-                    </div>
-                  </div>
-
-                  {/* Call button */}
-                  <button
-                    type="button"
-                    onClick={e => { e.preventDefault(); e.stopPropagation(); window.location.href = `tel:${agent.phone}`; }}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-bold text-white cursor-pointer"
-                    style={{ background: '#191c1e', border: 'none', transition: 'background 0.2s ease' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#497cff'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#191c1e'; }}
-                  >
-                    <Phone size={10} strokeWidth={2} /> დარეკვა
-                  </button>
-                </div>
-              </Link>
-            ))}
+                </InViewFade>
+              );
+            })}
           </div>
         </div>
-
-        {/* ── Bottom CTA ── */}
-        <div className="container-xl mt-10">
-          <InViewFade>
-            <div
-              className="rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-5 px-8 py-6"
-              style={{ background: '#fff', border: '1px solid #e0e3e5' }}
-            >
-              <div>
-                <p className="font-bold text-[#191c1e] text-base">გსურთ პროფ. Makler-თან გასაუბრება?</p>
-                <p className="text-sm text-[#76777d] mt-0.5">უფასო 30-წუთიანი კონსულტაცია ნებისმიერ სამუშაო დღეს</p>
-              </div>
-              <div className="flex gap-3 flex-shrink-0">
-                <Link to="/agents" className="btn-primary px-6 py-3 rounded-xl text-sm">
-                  Makler-ის არჩევა <Users size={15} />
-                </Link>
-                <Link to="/contact" className="btn-ghost px-6 py-3 rounded-xl text-sm">
-                  კონსულტაცია <Phone size={14} />
-                </Link>
-              </div>
-            </div>
-          </InViewFade>
-        </div>
-
       </section>
-
 
     </div>
   );

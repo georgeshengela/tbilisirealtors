@@ -52,7 +52,7 @@ export default function PropertyDetailPage() {
               <Home size={14} />მთავარი
             </Link>
             <span style={{ color: '#c6c6cd' }}>/</span>
-            <Link to="/listings" className="hover:text-[#497cff] transition-colors">ქონება</Link>
+            <Link to="/listings" className="hover:text-[#497cff] transition-colors">განცხადება</Link>
             <span style={{ color: '#c6c6cd' }}>/</span>
             <span className="font-semibold truncate" style={{ color: '#191c1e' }}>{property.title}</span>
           </div>
@@ -326,7 +326,7 @@ export default function PropertyDetailPage() {
                   <motion.div key="details" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                     <div className="grid sm:grid-cols-2 gap-0 rounded-2xl overflow-hidden" style={{ border: '1px solid #eceef0' }}>
                       {([
-                        { label: 'ქონების ტიპი', value: TYPE_LABELS[property.type] },
+                        { label: 'განცხადების ტიპი', value: TYPE_LABELS[property.type] },
                         { label: 'სტატუსი', value: property.status === 'sale' ? 'გაყიდვა' : 'გაქირავება' },
                         { label: 'ქალაქი', value: property.city },
                         { label: 'რაიონი', value: property.district },
@@ -463,7 +463,7 @@ export default function PropertyDetailPage() {
               <div className="flex items-end justify-between mb-5">
                 <div>
                   <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: '#9ea0a7' }}>მსგავსი</p>
-                  <h2 className="font-bold text-lg" style={{ color: '#191c1e' }}>მსგავსი ქონება</h2>
+                  <h2 className="font-bold text-lg" style={{ color: '#191c1e' }}>მსგავსი განცხადება</h2>
                 </div>
                 <Link to="/listings" className="text-sm font-semibold flex items-center gap-1" style={{ color: '#497cff' }}>
                   ყველა <ArrowRight size={14} />

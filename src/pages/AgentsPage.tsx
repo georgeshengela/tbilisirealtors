@@ -25,7 +25,7 @@ export default function AgentsPage() {
             <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">გუნდი</span>
             <h1 className="text-4xl lg:text-5xl font-bold text-white mt-3 mb-4">ჩვენი გამოცდილი<br />სპეციალისტები</h1>
             <p className="text-slate-400 text-lg max-w-xl mx-auto">
-              350+ ლიცენზირებული აგენტი მზადაა დაგეხმაროთ ოცნების ქონების პოვნაში
+              350+ ლიცენზირებული აგენტი მზადაა დაგეხმაროთ ოცნების განცხადების პოვნაში
             </p>
           </motion.div>
         </div>
@@ -114,7 +114,7 @@ export default function AgentsPage() {
                   <div className="grid grid-cols-3 gap-3 py-4 border-y border-slate-100 dark:border-slate-700 mb-4">
                     <div className="text-center">
                       <p className="text-xl font-bold text-slate-900 dark:text-white">{agent.propertyCount}</p>
-                      <p className="text-xs text-slate-500">ქონება</p>
+                      <p className="text-xs text-slate-500">განცხადება</p>
                     </div>
                     <div className="text-center border-x border-slate-100 dark:border-slate-700">
                       <p className="text-xl font-bold text-slate-900 dark:text-white">{agent.reviewCount}</p>

@@ -282,7 +282,7 @@ export default function ListingsPage() {
               <div className="relative z-10 h-full flex flex-col items-center justify-center text-white">
                 <MapPin size={40} style={{ color: '#497cff', marginBottom: 12 }} strokeWidth={1.5} />
                 <p className="text-xl font-bold mb-1">ინტ. რუკა</p>
-                <p className="text-white/50 text-sm">{filtered.length} ქონება</p>
+                <p className="text-white/50 text-sm">{filtered.length} განცხადება</p>
                 <div className="flex flex-wrap gap-2 mt-4 justify-center max-w-xs px-4">
                   {filtered.slice(0, 5).map(p => (
                     <div key={p.id} className="glass-navy rounded-lg px-2.5 py-1 text-xs text-white font-semibold">

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -15,6 +15,9 @@ import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
+import AdminLoginPage from './pages/AdminLoginPage';
+import AdminPage from './pages/AdminPage';
+import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -24,10 +27,26 @@ function ScrollToTop() {
   return null;
 }
 
+function ProtectedAdminRoute() {
+  const { user, loading } = useAdminAuth();
+  if (loading) return null;
+  return user ? <AdminPage /> : <Navigate to="/admin/login" replace />;
+}
+
 function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMode: () => void }) {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const isDashboard = location.pathname.startsWith('/dashboard');
+  const isAdminPage = location.pathname.startsWith('/admin');
+
+  if (isAdminPage) {
+    return (
+      <Routes>
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route path="/admin/*" element={<ProtectedAdminRoute />} />
+      </Routes>
+    );
+  }
 
   return (
     <div className={darkMode ? 'dark' : ''}>
@@ -77,7 +96,9 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AppContent darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+      <AdminAuthProvider>
+        <AppContent darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+      </AdminAuthProvider>
     </BrowserRouter>
   );
 }

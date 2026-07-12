@@ -98,7 +98,7 @@ export const agents: Agent[] = [
     propertyCount: 48,
     yearsExperience: 8,
     specialization: ['საცხოვრებელი', 'კომერციული'],
-    bio: 'გამოცდილი უძრავი ქონების სპეციალისტი, რომელიც 8 წლის განმავლობაში ეხმარება კლიენტებს იდეალური სახლის პოვნაში. სპეციალიზირებულია თბილისის პრემიუმ სეგმენტში.',
+    bio: 'გამოცდილი უძრავი განცხადების სპეციალისტი, რომელიც 8 წლის განმავლობაში ეხმარება კლიენტებს იდეალური სახლის პოვნაში. სპეციალიზირებულია თბილისის პრემიუმ სეგმენტში.',
     company: 'TbilisiRealtors.ge',
     verified: true,
     languages: ['ქართული', 'ინგლისური', 'რუსული'],
@@ -114,7 +114,7 @@ export const agents: Agent[] = [
     propertyCount: 35,
     yearsExperience: 6,
     specialization: ['საცხოვრებელი', 'ვილები'],
-    bio: 'ნინო სპეციალიზდება ძვირადღირებულ სახლებსა და ვილებზე. მისი გამოცდილება კლიენტებს სასურველ ქონებაზე მიგვიყვანს სწრაფად და ეფექტურად.',
+    bio: 'ნინო სპეციალიზდება ძვირადღირებულ სახლებსა და ვილებზე. მისი გამოცდილება კლიენტებს სასურველ განცხადებაზე მიგვიყვანს სწრაფად და ეფექტურად.',
     company: 'TbilisiRealtors.ge',
     verified: true,
     languages: ['ქართული', 'ინგლისური'],
@@ -130,7 +130,7 @@ export const agents: Agent[] = [
     propertyCount: 62,
     yearsExperience: 10,
     specialization: ['კომერციული', 'ინვესტიციები'],
-    bio: 'კომერციული უძრავი ქონების ექსპერტი 10 წლიანი გამოცდილებით. ლაშა ეხმარება ბიზნესებს საოფისე და სავაჭრო ფართების მოძიებაში.',
+    bio: 'კომერციული უძრავი განცხადების ექსპერტი 10 წლიანი გამოცდილებით. ლაშა ეხმარება ბიზნესებს საოფისე და სავაჭრო ფართების მოძიებაში.',
     company: 'TbilisiRealtors.ge',
     verified: true,
     languages: ['ქართული', 'ინგლისური', 'გერმანული'],
@@ -690,8 +690,8 @@ export const properties: Property[] = [
 export const blogPosts: BlogPost[] = [
   {
     id: 'b1',
-    title: 'თბილისის უძრავი ქონების ბაზრის 2026 წლის ტენდენციები',
-    excerpt: 'გაიგეთ, რა ტენდენციები ახასიათებს 2026 წელს თბილისის უძრავი ქონების ბაზარს და სად ჯობს ინვესტიცია.',
+    title: 'თბილისის უძრავი განცხადების ბაზრის 2026 წლის ტენდენციები',
+    excerpt: 'გაიგეთ, რა ტენდენციები ახასიათებს 2026 წელს თბილისის უძრავი განცხადების ბაზარს და სად ჯობს ინვესტიცია.',
     content: '',
     author: agents[0],
     category: 'ბაზრის ანალიზი',
@@ -716,7 +716,7 @@ export const blogPosts: BlogPost[] = [
   },
   {
     id: 'b3',
-    title: 'საინვესტიციო ქონება: ბათუმი vs თბილისი',
+    title: 'საინვესტიციო განცხადება: ბათუმი vs თბილისი',
     excerpt: 'შედარებითი ანალიზი - სად ჯობს ინვესტიცია, ბათუმში თუ თბილისში?',
     content: '',
     author: agents[2],
@@ -776,8 +776,111 @@ export const cities = [
   { name: 'გორი', count: 98, image: PROPERTY_IMAGES.luxury4 },
 ];
 
+export interface ConstructionProject {
+  id: string;
+  name: string;
+  city: string;
+  district: string;
+  developer: string;
+  units: number;
+  priceFrom: number;
+  completion: string;
+  status: 'building' | 'completed' | 'presale';
+  image: string;
+}
+
+export const constructionProjects: ConstructionProject[] = [
+  {
+    id: 'cp1',
+    name: 'Panorama Residence',
+    city: 'თბილისი',
+    district: 'ვაკე',
+    developer: 'Archi Group',
+    units: 186,
+    priceFrom: 185000,
+    completion: '2027 Q2',
+    status: 'building',
+    image: PROPERTY_IMAGES.luxury2,
+  },
+  {
+    id: 'cp2',
+    name: 'Blue Horizon Tower',
+    city: 'ბათუმი',
+    district: 'ბულვარი',
+    developer: 'Orbi City',
+    units: 320,
+    priceFrom: 98000,
+    completion: '2026 Q4',
+    status: 'presale',
+    image: PROPERTY_IMAGES.luxury5,
+  },
+  {
+    id: 'cp3',
+    name: 'Saburtalo Green',
+    city: 'თბილისი',
+    district: 'საბურთალო',
+    developer: 'Domus Development',
+    units: 142,
+    priceFrom: 142000,
+    completion: '2026 Q3',
+    status: 'building',
+    image: PROPERTY_IMAGES.apt2,
+  },
+  {
+    id: 'cp4',
+    name: 'Mtskheta Hills',
+    city: 'მცხეთა',
+    district: 'ცენტრი',
+    developer: 'Heritage Build',
+    units: 64,
+    priceFrom: 118000,
+    completion: '2025 Q4',
+    status: 'completed',
+    image: PROPERTY_IMAGES.luxury8,
+  },
+];
+
+export interface FaqItem {
+  id: string;
+  question: string;
+  answer: string;
+}
+
+export const faqItems: FaqItem[] = [
+  {
+    id: 'f1',
+    question: 'როგორ გავაქვეყნო განცხადება TbilisiRealtors.ge-ზე?',
+    answer: 'დარეგისტრირდით, შექმენით პროფილი და დაამატეთ განცხადების ფოტოები, აღწერა და ფასი. განცხადება 24 საათში გადაიწ검ება და გამოჩნდება ძებნაში.',
+  },
+  {
+    id: 'f2',
+    question: 'რა არის SUPER VIP განცხადება?',
+    answer: 'SUPER VIP პაკეტი განცხადებას აჩვენებს საიტის პრიორიტეტულ ზონაში, ზრდის ხილვადობას და უზრუნველყოფს მეტ ვიზიტს პოტენციური მყიდველებისგან.',
+  },
+  {
+    id: 'f3',
+    question: 'შემიძლია უფასოდ ვიპოვო ბინა?',
+    answer: 'დიახ, პლატფორმის გამოყენება მყიდველებისთვის სრულიად უფასოა. შეგიძლიათ გაფილტროთ, შეადაროთ და დაუკავშირდეთ აგენტებს პირდაპირ.',
+  },
+  {
+    id: 'f4',
+    question: 'როგორ ხდება უძრავი განცხადების ვერიფიკაცია?',
+    answer: 'ჩვენი გუნდი ამოწმებს განცხადების ფოტოებს, მისამართს და საკადასტრო ინფორმაციას. ვერიფიცირებულ განცხადებებს აქვთ სპეციალური ნიშანი.',
+  },
+  {
+    id: 'f5',
+    question: 'რა საკომისიო ეკისრება გარიგებაზე?',
+    answer: 'საკომისიო დამოკიდებულია განცხადების ტიპზე და სერვისზე. დეტალური ინფორმაცია მიიღება კონსულტაციისას ან განცხადების განთავსებისას.',
+  },
+  {
+    id: 'f6',
+    question: 'შემიძლია იპოთეკის კონსულტაცია მივიღო?',
+    answer: 'ჩვენ ვთანამშრომლობთ საბანკო პარტნიორებთან და დაგეხმარებით იპოთეკის პირობების შედარებასა და დოკუმენტების მომზადებაში.',
+  },
+];
+
 export const stats = [
-  { label: 'დარეგისტრირებული ქონება', value: '12,400+', icon: 'Building' },
+  { label: 'დარეგისტრირებული განცხადება', value: '12,400+', icon: 'Building' },
   { label: 'დამდგენი კლიენტი', value: '8,200+', icon: 'Users' },
   { label: 'გამოცდილი აგენტი', value: '350+', icon: 'Award' },
   { label: 'წარმატებული გარიგება', value: '5,800+', icon: 'CheckCircle' },

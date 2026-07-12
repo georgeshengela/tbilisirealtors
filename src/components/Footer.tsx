@@ -70,7 +70,7 @@ const SOCIAL = [
 ];
 
 const STATS = [
-  { v: '12,400+', l: 'ქონება'  },
+  { v: '12,400+', l: 'განცხადება'  },
   { v: '350+',    l: 'აგენტი'  },
   { v: '8,200+',  l: 'კლიენტი' },
   { v: '8+',      l: 'წელი'    },
@@ -118,7 +118,7 @@ export default function Footer() {
               <div>
                 <h3 className="font-bold text-white text-lg mb-1">გამოიწერეთ სიახლეები</h3>
                 <p className="text-sm" style={{ color: 'rgba(255,255,255,0.45)', maxWidth: 380, lineHeight: 1.6 }}>
-                  ახალი ქონება, ბაზრის ანალიზი, სპეციალური შეთავაზებები — პირდაპირ თქვენს ელ-ფოსტაზე.
+                  ახალი განცხადება, ბაზრის ანალიზი, სპეციალური შეთავაზებები — პირდაპირ თქვენს ელ-ფოსტაზე.
                 </p>
               </div>
             </div>
@@ -191,7 +191,7 @@ export default function Footer() {
             </Link>
 
             <p className="text-sm leading-relaxed mb-7" style={{ color: 'rgba(255,255,255,0.45)', maxWidth: 280, lineHeight: 1.7 }}>
-              საქართველოს პრემიუმ უძრავი ქონების პლატფორმა. 2018 წლიდან ვეხმარებით 8,200+ კლიენტს სოციუმის პოვნაში.
+              საქართველოს პრემიუმ უძრავი განცხადების პლატფორმა. 2018 წლიდან ვეხმარებით 8,200+ კლიენტს სოციუმის პოვნაში.
             </p>
 
             {/* Contact details */}
@@ -256,7 +256,7 @@ export default function Footer() {
           <div className="lg:col-span-2">
             <h4 className="font-bold text-white text-sm mb-5 flex items-center gap-2">
               <Building size={14} style={{ color: '#497cff' }} strokeWidth={2} />
-              ქონება
+              განცხადება
             </h4>
             <ul className="space-y-1.5">
               {PROPERTY_LINKS.map(link => (
@@ -354,7 +354,7 @@ export default function Footer() {
             >
               <p className="font-bold text-white text-sm mb-1">მობილური აპლიკაცია</p>
               <p className="text-xs mb-3" style={{ color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>
-                იპოვეთ ქონება სადმეც გინდათ. iOS & Android.
+                იპოვეთ განცხადება სადმეც გინდათ. iOS & Android.
               </p>
               <div className="flex gap-2">
                 {['App Store', 'Google Play'].map(store => (

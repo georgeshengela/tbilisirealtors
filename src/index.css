@@ -315,6 +315,8 @@ input::placeholder, textarea::placeholder { color: var(--outline); }
 ───────────────────────────────────────────────── */
 .divider { height: 1px; background: var(--outline-variant); opacity: 0.5; }
 
+.listing-slider::-webkit-scrollbar { display: none; }
+
 /* ─────────────────────────────────────────────────
    MARQUEE / INFINITE SLIDER
 ───────────────────────────────────────────────── */

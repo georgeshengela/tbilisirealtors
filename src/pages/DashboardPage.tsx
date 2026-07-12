@@ -25,10 +25,10 @@ export default function DashboardPage() {
   const savedProps = properties.filter(p => p.isFeatured).slice(0, 4);
 
   const stats = [
-    { label: 'შენახული ქონება', value: '12', change: '+3', icon: Heart, color: 'text-red-500 bg-red-50 dark:bg-red-900/20' },
+    { label: 'შენახული განცხადება', value: '12', change: '+3', icon: Heart, color: 'text-red-500 bg-red-50 dark:bg-red-900/20' },
     { label: 'ბოლო ნახვები', value: '148', change: '+28', icon: Eye, color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' },
     { label: 'გამოგზავნილი შეთ.', value: '7', change: '+2', icon: MessageSquare, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' },
-    { label: 'განხ. ქონება', value: '3', change: '+1', icon: Star, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
+    { label: 'განხ. განცხადება', value: '3', change: '+1', icon: Star, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
   ];
 
   const activities = [
@@ -148,7 +148,7 @@ export default function DashboardPage() {
             {/* Saved Properties */}
             <div>
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white">შენახული ქონება</h2>
+                <h2 className="text-xl font-bold text-slate-900 dark:text-white">შენახული განცხადება</h2>
                 <Link to="/favorites" className="text-blue-600 text-sm font-semibold flex items-center gap-1">
                   ყველა <ArrowRight size={14} />
                 </Link>

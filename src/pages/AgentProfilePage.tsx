@@ -73,7 +73,7 @@ export default function AgentProfilePage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <Building2 size={18} className="text-blue-400" />
-                  <span>{agent.propertyCount} ქონება</span>
+                  <span>{agent.propertyCount} განცხადება</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Award size={18} className="text-amber-400" />
@@ -125,7 +125,7 @@ export default function AgentProfilePage() {
           {/* Stats bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 mt-12 pt-8 border-t border-white/10">
             {[
-              { label: 'ქონება', value: agent.propertyCount },
+              { label: 'განცხადება', value: agent.propertyCount },
               { label: 'შეფასება', value: agent.reviewCount },
               { label: 'წლის გამოცდ.', value: agent.yearsExperience },
               { label: 'დახურული გარ.', value: Math.round(agent.propertyCount * 0.85) },

@@ -12,11 +12,11 @@ import {
 const navItems = [
   { label: 'მთავარი', href: '/', icon: Home },
   {
-    label: 'ქონება',
+    label: 'განცხადება',
     href: '/listings',
     icon: Building2,
     mega: {
-      title: 'ქონების კატეგორიები',
+      title: 'განცხადების კატეგორიები',
       columns: [
         {
           heading: 'ტიპის მიხედვით',
@@ -30,7 +30,7 @@ const navItems = [
         {
           heading: 'სტატუსი',
           items: [
-            { label: 'გაყიდვა',   href: '/listings?status=sale',   icon: Tag,       desc: 'ქონება გაყიდვაში'  },
+            { label: 'გაყიდვა',   href: '/listings?status=sale',   icon: Tag,       desc: 'განცხადება გაყიდვაში'  },
             { label: 'გაქირავება', href: '/listings?status=rent',   icon: Key,       desc: 'ქირით ასაღები'     },
             { label: 'პრემიუმ',   href: '/listings?premium=true',  icon: Sparkles,  desc: 'ელიტური ობიექტები' },
             { label: 'ახალი',     href: '/listings?new=true',      icon: TrendingUp,desc: 'ახლახანს დამატ.'   },
@@ -394,7 +394,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
               <div style={{ padding: '12px 16px', borderBottom: '1px solid #eceef0' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f7f9fb', borderRadius: 12, padding: '10px 14px', border: '1.5px solid #e0e3e5' }}>
                   <Search size={15} style={{ color: '#76777d', flexShrink: 0 }} />
-                  <input placeholder="ქონების ძებნა..." style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: '#191c1e', flex: 1, boxShadow: 'none' }} />
+                  <input placeholder="განცხადების ძებნა..." style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: '#191c1e', flex: 1, boxShadow: 'none' }} />
                 </div>
               </div>
 
