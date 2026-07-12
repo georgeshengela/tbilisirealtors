@@ -1,0 +1,344 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@300;400;500;600;700;800;900&family=Noto+Sans:wght@300;400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+/* ─────────────────────────────────────────────────
+   DESIGN SYSTEM TOKENS  (Tbilisi Prestige Directives)
+───────────────────────────────────────────────── */
+:root {
+  /* Surfaces */
+  --surface:                  #FFFFFF;
+  --surface-dim:              #d8dadc;
+  --surface-bright:           #f7f9fb;
+  --surface-low:              #f2f4f6;
+  --surface-container:        #eceef0;
+  --surface-high:             #e6e8ea;
+  --surface-highest:          #e0e3e5;
+
+  /* On-surface */
+  --on-surface:               #191c1e;
+  --on-surface-variant:       #45464d;
+  --inverse-surface:          #2d3133;
+  --inverse-on-surface:       #eff1f3;
+
+  /* Outlines */
+  --outline:                  #76777d;
+  --outline-variant:          #c6c6cd;
+
+  /* Primary — editorial BLACK */
+  --primary:                  #000000;
+  --on-primary:               #ffffff;
+  --primary-container:        #131b2e;
+  --on-primary-container:     #7c839b;
+  --inverse-primary:          #bec6e0;
+
+  /* Secondary */
+  --secondary:                #545f73;
+  --on-secondary:             #ffffff;
+  --secondary-container:      #d5e0f8;
+  --on-secondary-container:   #586377;
+
+  /* Tertiary — electric blue accent */
+  --tertiary:                 #000000;
+  --tertiary-container:       #00174b;
+  --on-tertiary-container:    #497cff;   /* ← the star: vibrant interactive blue */
+
+  /* State */
+  --error:                    #ba1a1a;
+  --success:                  #10B981;
+
+  /* Background */
+  --background:               #f7f9fb;
+  --on-background:            #191c1e;
+
+  /* Glass */
+  --glass-bg:                 rgba(255,255,255,0.72);
+  --glass-border:             rgba(255,255,255,0.30);
+
+  /* Elevation shadows */
+  --shadow-1: 0px 4px 20px rgba(15,23,42,0.05);
+  --shadow-2: 0px 12px 32px rgba(15,23,42,0.12);
+  --shadow-3: 0px 24px 64px rgba(15,23,42,0.16);
+}
+
+/* ─────────────────────────────────────────────────
+   BASE RESET
+───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Noto Sans Georgian', 'Noto Sans', sans-serif;
+  background-color: var(--background);
+  color: var(--on-surface);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  line-height: 1.5;
+}
+
+/* ─────────────────────────────────────────────────
+   TYPOGRAPHY SCALE
+───────────────────────────────────────────────── */
+.display-lg      { font-size: 48px;  font-weight: 700; line-height: 1.10; letter-spacing: 0.02em; }
+.display-lg-mob  { font-size: 36px;  font-weight: 700; line-height: 1.20; }
+.headline-lg     { font-size: 32px;  font-weight: 600; line-height: 1.20; letter-spacing: 0.01em; }
+.headline-md     { font-size: 24px;  font-weight: 600; line-height: 1.30; }
+.body-lg         { font-size: 18px;  font-weight: 400; line-height: 1.60; }
+.body-md         { font-size: 16px;  font-weight: 400; line-height: 1.50; }
+.label-lg        { font-size: 14px;  font-weight: 600; line-height: 1.20; letter-spacing: 0.05em; }
+.label-md        { font-size: 12px;  font-weight: 500; line-height: 1.20; }
+
+/* ─────────────────────────────────────────────────
+   CONTAINER
+───────────────────────────────────────────────── */
+.container-xl {
+  width: 100%;
+  max-width: 1504px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
+}
+@media (max-width: 768px) {
+  .container-xl { padding-left: 20px; padding-right: 20px; }
+}
+
+/* ─────────────────────────────────────────────────
+   ELEVATION LEVELS
+───────────────────────────────────────────────── */
+.elevation-1 { box-shadow: var(--shadow-1); }
+.elevation-2 { box-shadow: var(--shadow-2); }
+.elevation-3 { box-shadow: var(--shadow-3); }
+
+.card-lift {
+  transition: box-shadow 0.25s cubic-bezier(0.4,0,0.2,1),
+              border-color 0.25s cubic-bezier(0.4,0,0.2,1);
+}
+.card-lift:hover {
+  box-shadow: var(--shadow-2);
+}
+
+/* ─────────────────────────────────────────────────
+   GLASSMORPHISM
+───────────────────────────────────────────────── */
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+}
+.glass-dark {
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+.glass-navy {
+  background: rgba(19,27,46,0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(73,124,255,0.18);
+}
+
+/* ─────────────────────────────────────────────────
+   BUTTONS
+───────────────────────────────────────────────── */
+.btn-primary {
+  background: var(--primary);
+  color: var(--on-primary);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  cursor: pointer;
+  border: none;
+}
+.btn-primary:hover {
+  background: #1a1a1a;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+}
+
+.btn-accent {
+  background: var(--on-tertiary-container);  /* #497cff */
+  color: #fff;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  cursor: pointer;
+}
+.btn-accent:hover {
+  background: #3567f5;
+  box-shadow: 0 4px 20px rgba(73,124,255,0.40);
+}
+
+.btn-ghost {
+  background: transparent;
+  color: var(--on-surface);
+  border: 1.5px solid var(--outline-variant);
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 24px;
+  cursor: pointer;
+}
+.btn-ghost:hover {
+  border-color: var(--primary);
+  background: rgba(0,0,0,0.04);
+}
+
+/* ─────────────────────────────────────────────────
+   INPUTS
+───────────────────────────────────────────────── */
+input, select, textarea {
+  font-family: 'Noto Sans Georgian', 'Noto Sans', sans-serif;
+  font-size: 16px;  /* prevent iOS zoom */
+  color: var(--on-surface);
+  background: var(--surface);
+  border: 1.5px solid var(--outline-variant);
+  border-radius: 8px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+}
+input:focus, select:focus, textarea:focus {
+  border-color: var(--on-tertiary-container);
+  box-shadow: 0 0 0 3px rgba(73,124,255,0.15);
+}
+input::placeholder, textarea::placeholder { color: var(--outline); }
+
+/* ─────────────────────────────────────────────────
+   SCROLLBAR
+───────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: var(--surface-low); }
+::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--outline); }
+
+/* ─────────────────────────────────────────────────
+   BADGES
+───────────────────────────────────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  line-height: 1;
+}
+.badge-blue   { background: rgba(73,124,255,0.12); color: #2060ff; }
+.badge-black  { background: #000; color: #fff; }
+.badge-gold   { background: rgba(202,138,4,0.12); color: #a16207; }
+.badge-green  { background: rgba(16,185,129,0.12); color: #059669; }
+
+/* ─────────────────────────────────────────────────
+   IMAGE CONTAINER (zoom removed — solid design)
+───────────────────────────────────────────────── */
+.img-zoom { overflow: hidden; }
+
+/* ─────────────────────────────────────────────────
+   SKELETON
+───────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -600px 0; }
+  100% { background-position:  600px 0; }
+}
+.skeleton {
+  background: linear-gradient(90deg, #e6e8ea 25%, #f2f4f6 50%, #e6e8ea 75%);
+  background-size: 600px 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────────────
+   LINE CLAMP
+───────────────────────────────────────────────── */
+.line-clamp-1 { overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:1; }
+.line-clamp-2 { overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+.line-clamp-3 { overflow:hidden; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; }
+
+/* ─────────────────────────────────────────────────
+   MAP PLACEHOLDER  
+───────────────────────────────────────────────── */
+.map-bg {
+  background: linear-gradient(135deg, #131b2e 0%, #00174b 100%);
+  position: relative;
+  overflow: hidden;
+}
+.map-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(73,124,255,.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(73,124,255,.15) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ─────────────────────────────────────────────────
+   HERO SECTION
+───────────────────────────────────────────────── */
+.hero-gradient {
+  background: linear-gradient(160deg,
+    rgba(0,0,0,0.80) 0%,
+    rgba(0,23,75,0.55) 55%,
+    rgba(0,0,0,0.20) 100%);
+}
+
+/* ─────────────────────────────────────────────────
+   SECTION LABELS
+───────────────────────────────────────────────── */
+.section-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--on-tertiary-container);
+}
+
+/* ─────────────────────────────────────────────────
+   DIVIDER
+───────────────────────────────────────────────── */
+.divider { height: 1px; background: var(--outline-variant); opacity: 0.5; }
+
+/* ─────────────────────────────────────────────────
+   MARQUEE / INFINITE SLIDER
+───────────────────────────────────────────────── */
+@keyframes marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 34s linear infinite;
+}
+.marquee-track:hover {
+  animation-play-state: paused;
+}
+
+/* ─────────────────────────────────────────────────
+   DARK MODE
+───────────────────────────────────────────────── */
+.dark body {
+  background: #0f1117;
+  color: var(--inverse-on-surface);
+}
+.dark .glass {
+  background: rgba(30,35,50,0.75);
+  border-color: rgba(255,255,255,0.08);
+}
