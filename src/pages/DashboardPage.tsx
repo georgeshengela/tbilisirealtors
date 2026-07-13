@@ -39,7 +39,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-20 flex">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-24 flex">
       {/* Sidebar */}
       <aside className={`fixed left-0 top-20 bottom-0 z-20 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-20'}`}>
         {/* User */}

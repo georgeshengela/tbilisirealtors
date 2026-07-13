@@ -73,7 +73,7 @@ export default function ListingsPage() {
   });
 
   return (
-    <div className="min-h-screen pt-[68px]" style={{ background: '#f7f9fb' }}>
+    <div className="min-h-screen pt-[52px] lg:pt-[96px]" style={{ background: '#f7f9fb' }}>
 
       {/* ── Sticky toolbar ── */}
       <div

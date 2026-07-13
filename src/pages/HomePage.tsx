@@ -3,9 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import {
   Search, MapPin, ChevronDown, ChevronLeft, ChevronRight, ArrowRight,
-  Sparkles, Phone,
+  Sparkles, Phone, X, Tag, Home, Maximize2, DollarSign,
   Bed, Bath, SlidersHorizontal,
   Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent,
+  TrendingUp, Shield, Building2,
 } from 'lucide-react';
 import { properties, blogPosts, constructionProjects, faqItems } from '../data/mockData';
 import type { Property, BlogPost, ConstructionProject } from '../data/mockData';
@@ -475,10 +476,12 @@ const BADGE_CONFIG: Record<CardBadge, {
 
 function VipListingCard({ property, badge = 'vip' }: { property: Property; badge?: CardBadge }) {
   const [liked, setLiked] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [imgIndex, setImgIndex] = useState(0);
   const cardRef = useRef<HTMLAnchorElement>(null);
   const cfg = BADGE_CONFIG[badge];
   const images = property.images;
+  const accentColor = badge === 'vip' ? '#497cff' : '#059669';
 
   const priceLabel = property.status === 'rent'
     ? `₾${property.price.toLocaleString()}/თვ.`
@@ -493,168 +496,144 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
     setImgIndex(Math.floor(ratio * images.length));
   };
 
-  const handleMouseLeave = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(15,23,42,0.08)';
-    setImgIndex(0);
-  };
-
   return (
     <Link
       ref={cardRef}
       to={`/property/${property.id}`}
-      className="group relative block overflow-hidden rounded-2xl"
+      className="group relative flex flex-col h-full rounded-2xl overflow-hidden bg-white"
       style={{
-        aspectRatio: '3/4',
-        boxShadow: '0 2px 10px rgba(15,23,42,0.08)',
-        transition: 'box-shadow 0.25s ease',
+        boxShadow: hovered ? '0 10px 28px rgba(15,23,42,0.12)' : '0 2px 10px rgba(15,23,42,0.06)',
+        border: `1px solid ${hovered ? `${accentColor}45` : '#eceef0'}`,
+        transition: 'box-shadow 0.25s ease, border-color 0.25s ease',
       }}
       onMouseMove={handleMouseMove}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 32px rgba(15,23,42,0.16)'; }}
-      onMouseLeave={handleMouseLeave}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => { setHovered(false); setImgIndex(0); }}
     >
-      {/* Photos — swap on horizontal mouse scrub */}
-      {images.map((src, i) => (
-        <img
-          key={src}
-          src={src}
-          alt={i === 0 ? property.title : ''}
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ opacity: i === imgIndex ? 1 : 0, transition: 'opacity 0.12s ease' }}
-          draggable={false}
+      {/* ── Image area ── */}
+      <div className="relative overflow-hidden flex-shrink-0" style={{ aspectRatio: '4/3' }}>
+        {images.map((src, i) => (
+          <img
+            key={src}
+            src={src}
+            alt={i === 0 ? property.title : ''}
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{
+              opacity: i === imgIndex ? 1 : 0,
+              transition: 'opacity 0.12s ease',
+              transform: hovered ? 'scale(1.04)' : 'scale(1)',
+              transitionProperty: 'opacity, transform',
+              transitionDuration: '0.12s, 0.4s',
+            }}
+            draggable={false}
+          />
+        ))}
+
+        {/* Photo scrub bars */}
+        {images.length > 1 && (
+          <div className="absolute top-2 left-2.5 right-2.5 z-20 flex gap-0.5 pointer-events-none">
+            {images.map((_, i) => (
+              <div
+                key={i}
+                className="flex-1 rounded-full transition-all duration-150"
+                style={{
+                  height: 2.5,
+                  background: i === imgIndex ? '#fff' : 'rgba(255,255,255,0.45)',
+                  boxShadow: i === imgIndex ? '0 0 4px rgba(0,0,0,0.35)' : 'none',
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Subtle base shade for badge legibility */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.28) 0%, transparent 28%)' }}
         />
-      ))}
 
-      {/* Photo scrub bars */}
-      {images.length > 1 && (
-        <div className="absolute top-2 left-2.5 right-2.5 z-20 flex gap-0.5 pointer-events-none">
-          {images.map((_, i) => (
-            <div
-              key={i}
-              className="flex-1 rounded-full transition-all duration-150"
-              style={{
-                height: 2,
-                background: i === imgIndex ? '#fff' : 'rgba(255,255,255,0.35)',
-                boxShadow: i === imgIndex ? '0 0 4px rgba(0,0,0,0.25)' : 'none',
-              }}
-            />
-          ))}
+        {/* Badge — top left */}
+        <div className="absolute top-2.5 left-2.5">
+          <span
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+            style={{ background: cfg.bg, color: cfg.color, boxShadow: cfg.shadow, letterSpacing: '0.03em' }}
+          >
+            {cfg.icon} {cfg.label}
+          </span>
         </div>
-      )}
 
-      {/* Gradient */}
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(to top, rgba(10,13,20,0.92) 0%, rgba(10,13,20,0.40) 48%, rgba(10,13,20,0.06) 100%)',
-        }}
-      />
-
-      {/* Hover tint */}
-      <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{
-          background: badge === 'vip'
-            ? 'linear-gradient(160deg, rgba(73,124,255,0.22) 0%, transparent 55%)'
-            : 'linear-gradient(160deg, rgba(16,185,129,0.22) 0%, transparent 55%)',
-        }}
-      />
-
-      {/* Hover ring */}
-      <div
-        className={`absolute inset-0 rounded-2xl border-2 border-transparent transition-all duration-300 ${
-          badge === 'vip'
-            ? 'group-hover:border-[rgba(73,124,255,0.55)]'
-            : 'group-hover:border-[rgba(16,185,129,0.55)]'
-        }`}
-      />
-
-      {/* Badge — top left */}
-      <div className="absolute top-2.5 left-2.5">
-        <span
-          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+        {/* Heart — top right */}
+        <button
+          onClick={e => { e.preventDefault(); e.stopPropagation(); setLiked(l => !l); }}
+          className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-200"
           style={{
-            background: cfg.bg,
-            color: cfg.color,
-            boxShadow: cfg.shadow,
-            letterSpacing: '0.04em',
+            background: liked ? '#ef4444' : 'rgba(255,255,255,0.92)',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.16)',
           }}
         >
-          {cfg.icon} {cfg.label}
-        </span>
+          <Heart size={12} strokeWidth={2} style={{ color: liked ? '#fff' : '#76777d', fill: liked ? '#fff' : 'none' }} />
+        </button>
+
+        {/* Status — bottom left over image */}
+        <div className="absolute bottom-2.5 left-2.5">
+          <span
+            className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
+            style={{ background: 'rgba(15,17,20,0.55)', color: '#fff', backdropFilter: 'blur(6px)' }}
+          >
+            {property.status === 'sale' ? 'იყიდება' : 'ქირავდება'}
+          </span>
+        </div>
       </div>
 
-      {/* Heart — top right */}
-      <button
-        onClick={e => { e.preventDefault(); e.stopPropagation(); setLiked(l => !l); }}
-        className="absolute top-2.5 right-2.5 w-8 h-8 rounded-xl flex items-center justify-center"
-        style={{
-          background: liked ? '#ef4444' : 'rgba(255,255,255,0.15)',
-          backdropFilter: 'blur(10px)',
-          border: liked ? 'none' : '1px solid rgba(255,255,255,0.22)',
-          transition: 'background 0.18s ease',
-        }}
-      >
-        <Heart size={13} strokeWidth={2} style={{ color: liked ? '#fff' : '#fff', fill: liked ? '#fff' : 'none' }} />
-      </button>
+      {/* ── White content area ── */}
+      <div className="flex flex-col flex-1 p-3">
+        <div className="flex items-start justify-between gap-2 mb-1">
+          <span className="font-extrabold" style={{ fontSize: 16, color: '#191c1e', lineHeight: 1.1, letterSpacing: '-0.01em' }}>
+            {priceLabel}
+          </span>
+          {property.floor && (
+            <span className="text-[10px] font-semibold flex-shrink-0 mt-0.5" style={{ color: '#9ea0a7' }}>
+              {property.floor}/{property.totalFloors} სთ.
+            </span>
+          )}
+        </div>
 
-      {/* Status — below badge */}
-      <div className="absolute top-11 left-2.5">
-        <span
-          className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
-          style={{
-            background: 'rgba(255,255,255,0.15)',
-            color: '#fff',
-            backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(255,255,255,0.20)',
-          }}
-        >
-          {property.status === 'sale' ? 'იყიდება' : 'ქირავდება'}
-        </span>
-      </div>
-
-      {/* Bottom info */}
-      <div className="absolute bottom-0 left-0 right-0 p-3">
         <p
-          className="text-white font-bold text-sm leading-tight line-clamp-1"
-          style={{ marginBottom: 4 }}
+          className="font-semibold line-clamp-1 leading-snug mb-1.5 transition-colors duration-200"
+          style={{ fontSize: 12.5, color: hovered ? accentColor : '#45464d' }}
         >
           {property.title}
         </p>
-        <div className="flex items-center gap-1 mb-2">
-          <MapPin size={10} strokeWidth={2} style={{ color: 'rgba(255,255,255,0.55)', flexShrink: 0 }} />
-          <span className="truncate text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.55)' }}>
+
+        <div className="flex items-center gap-1 mb-2.5">
+          <MapPin size={10} strokeWidth={2} style={{ color: accentColor, flexShrink: 0 }} />
+          <span className="truncate text-[11px] font-medium" style={{ color: '#9ea0a7' }}>
             {property.district}, {property.city}
           </span>
         </div>
 
         {/* Stats row */}
-        <div className="flex items-center gap-2 mb-2">
+        <div className="mt-auto flex items-center gap-0 pt-2" style={{ borderTop: '1px solid #f0f2f5' }}>
           {property.bedrooms > 0 && (
-            <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.70)' }}>
-              <Bed size={10} /> {property.bedrooms}
-            </span>
+            <div className="flex items-center gap-1 pr-2.5" style={{ borderRight: '1px solid #f0f2f5' }}>
+              <Bed size={11} strokeWidth={2} style={{ color: '#b0b2ba' }} />
+              <span className="text-[11px] font-bold" style={{ color: '#191c1e' }}>{property.bedrooms}</span>
+            </div>
           )}
-          <span className="flex items-center gap-1 text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.70)' }}>
-            <Square size={10} /> {property.area} მ²
-          </span>
-          {property.floor && (
-            <span className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.50)' }}>
-              {property.floor}/{property.totalFloors}სთ
-            </span>
-          )}
-        </div>
-
-        {/* Price */}
-        <p className="text-white font-bold" style={{ fontSize: 15, lineHeight: 1, letterSpacing: '-0.01em' }}>
-          {priceLabel}
-        </p>
-
-        {/* Hover CTA */}
-        <div className="flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <span className="text-[11px] font-bold" style={{ color: badge === 'vip' ? '#7aabff' : '#34d399' }}>
-            ნახვა
-          </span>
-          <ArrowRight size={11} style={{ color: badge === 'vip' ? '#7aabff' : '#34d399' }} />
+          <div className="flex items-center gap-1 px-2.5" style={{ borderRight: '1px solid #f0f2f5' }}>
+            <Bath size={11} strokeWidth={2} style={{ color: '#b0b2ba' }} />
+            <span className="text-[11px] font-bold" style={{ color: '#191c1e' }}>{property.bathrooms}</span>
+          </div>
+          <div className="flex items-center gap-1 px-2.5">
+            <Square size={11} strokeWidth={2} style={{ color: '#b0b2ba' }} />
+            <span className="text-[11px] font-bold" style={{ color: '#191c1e' }}>{property.area}მ²</span>
+          </div>
+          <ArrowRight
+            size={13}
+            strokeWidth={2.5}
+            className="ml-auto transition-colors duration-200"
+            style={{ color: hovered ? accentColor : '#c0c2ca' }}
+          />
         </div>
       </div>
     </Link>
@@ -774,8 +753,14 @@ function ListingSlider({
 export default function HomePage() {
   const navigate = useNavigate();
   const [tab, setTab] = useState<'sale' | 'rent'>('sale');
-  const [form, setForm] = useState({ city: '', type: '', bedrooms: '', priceMax: '' });
+  const [form, setForm] = useState({
+    city: '', type: '', bedrooms: '',
+    priceMin: '', priceMax: '',
+    areaMin: '', areaMax: '',
+    propType: '',
+  });
   const [openField, setOpenField] = useState<string | null>(null);
+  const [filterModalOpen, setFilterModalOpen] = useState(false);
   const searchPanelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -791,10 +776,12 @@ export default function HomePage() {
   const featured = featuredFilter === 'all' ? featuredAll : featuredAll.filter(p => p.type === featuredFilter);
   const newest = properties.filter(p => p.isNew).slice(0, 12);
   const handleSearch = () => {
-    const p = new URLSearchParams({ status: tab, ...form });
-    Object.keys(form).forEach(k => { if (!form[k as keyof typeof form]) p.delete(k); });
+    const p = new URLSearchParams({ status: tab, city: form.city, type: form.propType || form.type, bedrooms: form.bedrooms, priceMin: form.priceMin, priceMax: form.priceMax, areaMin: form.areaMin, areaMax: form.areaMax });
+    p.forEach((v, k) => { if (!v) p.delete(k); });
     navigate(`/listings?${p}`);
+    setFilterModalOpen(false);
   };
+  const clearFilters = () => setForm({ city: '', type: '', bedrooms: '', priceMin: '', priceMax: '', areaMin: '', areaMax: '', propType: '' });
 
   return (
     <div className="min-h-screen" style={{ background: '#f7f9fb' }}>
@@ -802,7 +789,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           HERO — contained, border-radius background
       ══════════════════════════════════════════════════════ */}
-      <section className="pt-[84px] md:pt-[96px]" style={{ background: '#f7f9fb' }}>
+      <section className="pt-[60px] lg:pt-[96px]" style={{ background: '#f7f9fb' }}>
         <div className="container-xl">
           {/* Contained hero card — hidden on mobile, search panel takes over */}
           <div
@@ -979,6 +966,227 @@ export default function HomePage() {
             </div>
           </div>
 
+          {/* ── FILTER MODAL ── */}
+          <AnimatePresence>
+            {filterModalOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center"
+                style={{ background: 'rgba(15,20,30,0.55)', backdropFilter: 'blur(4px)' }}
+                onClick={e => { if (e.target === e.currentTarget) setFilterModalOpen(false); }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 40, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 30, scale: 0.97 }}
+                  transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                  className="w-full sm:w-[560px] max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-t-3xl sm:rounded-3xl"
+                  style={{ background: '#fff', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}
+                >
+                  {/* Modal header */}
+                  <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid #f0f2f5' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(73,124,255,0.10)' }}>
+                        <SlidersHorizontal size={16} strokeWidth={2.2} style={{ color: '#497cff' }} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 16 }}>დეტალური ფილტრი</p>
+                        <p style={{ fontSize: 12, color: '#9ea0a7' }}>გაფილტრეთ განცხადებები</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setFilterModalOpen(false)} className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors" style={{ background: '#f2f4f6' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#eceef0'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#f2f4f6'}>
+                      <X size={16} strokeWidth={2.5} style={{ color: '#45464d' }} />
+                    </button>
+                  </div>
+
+                  <div className="px-6 py-2">
+
+                    {/* ── Property type ── */}
+                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(73,124,255,0.10)' }}>
+                          <Home size={13} strokeWidth={2.3} style={{ color: '#497cff' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>ქონების ტიპი</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { v: '', l: 'ყველა' },
+                          { v: 'apartment', l: 'ბინა' },
+                          { v: 'house', l: 'კერძო სახლი' },
+                          { v: 'villa', l: 'აგარაკი' },
+                          { v: 'land', l: 'მინის ნაკვეთი' },
+                          { v: 'commercial', l: 'კომერციული ფართი' },
+                          { v: 'hotel', l: 'სასტუმრო' },
+                        ].map(c => (
+                          <button key={c.v}
+                            onClick={() => setForm(f => ({ ...f, propType: c.v }))}
+                            className="px-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
+                            style={{
+                              background: form.propType === c.v ? '#191c1e' : '#f4f5f7',
+                              color: form.propType === c.v ? '#fff' : '#4b5563',
+                              border: `1.5px solid ${form.propType === c.v ? '#191c1e' : '#eceef0'}`,
+                            }}>{c.l}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Deal type ── */}
+                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(34,197,94,0.10)' }}>
+                          <Tag size={13} strokeWidth={2.3} style={{ color: '#16a34a' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>გარიგების ტიპი</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { v: 'sale', l: 'იყიდება' },
+                          { v: 'rent', l: 'ქირავდება' },
+                          { v: 'mortgage', l: 'გირავდება' },
+                          { v: 'daily', l: 'ქირავდება დღიურად' },
+                        ].map(c => (
+                          <button key={c.v}
+                            onClick={() => setTab(c.v as 'sale' | 'rent')}
+                            className="px-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
+                            style={{
+                              background: tab === c.v ? '#497cff' : '#f4f5f7',
+                              color: tab === c.v ? '#fff' : '#4b5563',
+                              border: `1.5px solid ${tab === c.v ? '#497cff' : '#eceef0'}`,
+                            }}>{c.l}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Bedrooms ── */}
+                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.10)' }}>
+                          <Bed size={13} strokeWidth={2.3} style={{ color: '#d97706' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>საძინებლების რაოდენობა</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {[{ v: '', l: 'ნებ.' }, { v: '1', l: '1' }, { v: '2', l: '2' }, { v: '3', l: '3' }, { v: '4', l: '4' }, { v: '5', l: '5+' }].map(c => (
+                          <button key={c.v}
+                            onClick={() => setForm(f => ({ ...f, bedrooms: c.v }))}
+                            className="flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-all duration-150 text-center"
+                            style={{
+                              background: form.bedrooms === c.v ? '#191c1e' : '#f4f5f7',
+                              color: form.bedrooms === c.v ? '#fff' : '#4b5563',
+                              border: `1.5px solid ${form.bedrooms === c.v ? '#191c1e' : '#eceef0'}`,
+                            }}>{c.l}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Price range ── */}
+                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(16,185,129,0.10)' }}>
+                          <DollarSign size={13} strokeWidth={2.3} style={{ color: '#059669' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>სრული ფასი</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-2xl transition-all" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}
+                          onFocus={() => {}} onBlur={() => {}}>
+                          <span style={{ color: '#9ea0a7', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>₾</span>
+                          <input type="number" placeholder="დან" value={form.priceMin}
+                            onChange={e => setForm(f => ({ ...f, priceMin: e.target.value }))}
+                            className="bare-input" />
+                        </div>
+                        <div className="flex-shrink-0 w-5 h-px" style={{ background: '#d1d5db' }} />
+                        <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-2xl transition-all" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                          <span style={{ color: '#9ea0a7', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>₾</span>
+                          <input type="number" placeholder="მდე" value={form.priceMax}
+                            onChange={e => setForm(f => ({ ...f, priceMax: e.target.value }))}
+                            className="bare-input" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Area range ── */}
+                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(139,92,246,0.10)' }}>
+                          <Maximize2 size={13} strokeWidth={2.3} style={{ color: '#7c3aed' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>ფართობი</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 flex items-center justify-between gap-2 px-4 py-3 rounded-2xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                          <input type="number" placeholder="დან" value={form.areaMin}
+                            onChange={e => setForm(f => ({ ...f, areaMin: e.target.value }))}
+                            className="bare-input" />
+                          <span style={{ color: '#b0b2ba', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>მ²</span>
+                        </div>
+                        <div className="flex-shrink-0 w-5 h-px" style={{ background: '#d1d5db' }} />
+                        <div className="flex-1 flex items-center justify-between gap-2 px-4 py-3 rounded-2xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                          <input type="number" placeholder="მდე" value={form.areaMax}
+                            onChange={e => setForm(f => ({ ...f, areaMax: e.target.value }))}
+                            className="bare-input" />
+                          <span style={{ color: '#b0b2ba', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>მ²</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── City ── */}
+                    <div className="py-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.10)' }}>
+                          <MapPin size={13} strokeWidth={2.3} style={{ color: '#dc2626' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>ქალაქი</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {[
+                          { v: '', l: 'ყველა' }, { v: 'თბილისი', l: 'თბილისი' }, { v: 'ბათუმი', l: 'ბათუმი' },
+                          { v: 'ქუთაისი', l: 'ქუთაისი' }, { v: 'მცხეთა', l: 'მცხეთა' }, { v: 'გორი', l: 'გორი' },
+                          { v: 'სიღნაღი', l: 'სიღნაღი' },
+                        ].map(c => (
+                          <button key={c.v}
+                            onClick={() => setForm(f => ({ ...f, city: c.v }))}
+                            className="px-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
+                            style={{
+                              background: form.city === c.v ? '#497cff' : '#f4f5f7',
+                              color: form.city === c.v ? '#fff' : '#4b5563',
+                              border: `1.5px solid ${form.city === c.v ? '#497cff' : '#eceef0'}`,
+                            }}>{c.l}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Modal footer */}
+                  <div className="flex items-center justify-between px-6 py-4 gap-3" style={{ borderTop: '1px solid #f0f2f5' }}>
+                    <button onClick={clearFilters}
+                      className="px-5 py-3 rounded-2xl text-sm font-bold transition-all duration-150"
+                      style={{ background: '#f2f4f6', color: '#45464d' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#eceef0'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#f2f4f6'}>
+                      გასუფთავება
+                    </button>
+                    <button onClick={handleSearch}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white transition-all duration-200"
+                      style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', boxShadow: '0 4px 18px rgba(34,197,94,0.30)' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 24px rgba(34,197,94,0.45)'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 18px rgba(34,197,94,0.30)'}>
+                      <Search size={15} strokeWidth={2.5} />
+                      ძებნა
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {/* ── PREMIUM SEARCH PANEL ── */}
           <motion.div
             initial={{ opacity: 0, y: 14 }}
@@ -986,145 +1194,144 @@ export default function HomePage() {
             transition={{ duration: 0.65, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="relative z-10 mt-3 md:-mt-10 mx-3 sm:mx-6 lg:mx-12"
           >
+            {/* ── NEW SEARCH CARD ── */}
             <div
               ref={searchPanelRef}
-              className="rounded-3xl overflow-visible"
+              className="rounded-3xl"
               style={{
                 background: '#fff',
-                border: '1px solid #eceef0',
+                border: '1px solid #e4e6ea',
+                boxShadow: '0 8px 40px rgba(15,20,35,0.13), 0 2px 8px rgba(15,20,35,0.06)',
               }}
             >
-              {/* ── Top bar: tabs + type chips + badge ── */}
-              <div className="flex items-center justify-between px-5 pt-4 pb-0 gap-3 flex-wrap">
-                {/* Sale / Rent pills */}
-                <div className="flex rounded-xl p-1 gap-1" style={{ background: '#f2f4f6' }}>
+              {/* ── Row 1: Deal type tabs + property type chips ── */}
+              <div className="flex items-center gap-3 px-4 pt-4 pb-3 flex-wrap" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                {/* Sale / Rent tabs */}
+                <div className="flex rounded-xl p-1 gap-0.5 flex-shrink-0" style={{ background: '#f2f4f6' }}>
                   {([{ v: 'sale', l: 'იყიდება' }, { v: 'rent', l: 'ქირავდება' }] as const).map(({ v, l }) => (
-                    <button
-                      key={v}
-                      onClick={() => setTab(v)}
-                      className="px-4 py-1.5 rounded-lg text-sm font-bold transition-all duration-200"
+                    <button key={v} onClick={() => setTab(v)}
+                      className="px-4 py-1.5 rounded-lg text-[13px] font-bold transition-all duration-200"
                       style={{
                         background: tab === v ? '#191c1e' : 'transparent',
                         color: tab === v ? '#fff' : '#76777d',
-                        boxShadow: tab === v ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
-                      }}
-                    >{l}</button>
+                        boxShadow: tab === v ? '0 2px 8px rgba(0,0,0,0.18)' : 'none',
+                      }}>{l}</button>
                   ))}
                 </div>
 
-                {/* Type chips */}
-                <div className="hidden md:flex items-center gap-1.5">
+                {/* Property type chips */}
+                <div className="flex items-center gap-1.5 flex-wrap">
                   {([
-                    { v: '', l: 'ყველა' }, { v: 'apartment', l: 'ბინა' },
-                    { v: 'house', l: 'სახლი' }, { v: 'villa', l: 'ვილა' },
+                    { v: '', l: 'ყველა' },
+                    { v: 'apartment', l: 'ბინა' },
+                    { v: 'house', l: 'სახლი' },
+                    { v: 'villa', l: 'აგარაკი' },
                     { v: 'commercial', l: 'კომერც.' },
                   ] as const).map(c => (
-                    <button
-                      key={c.v}
-                      onClick={() => setForm(f => ({ ...f, type: c.v }))}
-                      className="px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-150"
+                    <button key={c.v}
+                      onClick={() => setForm(f => ({ ...f, propType: c.v }))}
+                      className="px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150"
                       style={{
-                        background: form.type === c.v ? '#497cff' : 'transparent',
-                        color: form.type === c.v ? '#fff' : '#76777d',
-                        border: `1.5px solid ${form.type === c.v ? '#497cff' : '#e0e3e5'}`,
-                      }}
-                    >{c.l}</button>
+                        background: form.propType === c.v ? 'rgba(73,124,255,0.10)' : 'transparent',
+                        color: form.propType === c.v ? '#497cff' : '#76777d',
+                        border: `1.5px solid ${form.propType === c.v ? '#497cff' : '#e4e6ea'}`,
+                      }}>{c.l}</button>
                   ))}
                 </div>
 
-                {/* Live count */}
-                <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full"
-                  style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.20)' }}>
+                {/* Live count badge */}
+                <div className="hidden sm:flex items-center gap-1.5 ml-auto px-3 py-1.5 rounded-full"
+                  style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.22)' }}>
                   <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                  <span className="text-xs font-bold" style={{ color: '#10B981' }}>12,400+ განცხადება</span>
+                  <span className="text-[11px] font-bold" style={{ color: '#10B981' }}>12,400+ განცხადება</span>
                 </div>
               </div>
 
-              {/* ── Fields row ── */}
-              <div className="flex flex-col lg:flex-row items-stretch gap-2.5 lg:gap-0 px-4 py-4">
+              {/* ── Row 2: Search fields ── */}
+              <div className="flex flex-col lg:flex-row items-stretch p-3 gap-2 lg:gap-0">
 
-                {/* ① District / keyword dropdown */}
-                <div className="relative flex-[2] lg:mr-1.5">
+                {/* ① Location field */}
+                <div className="relative flex-[2.2] lg:pr-px">
                   <div
-                    className="flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all duration-200 h-full"
+                    className="group flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 h-full"
                     style={{
-                      border: `1.5px solid ${openField === 'keyword' ? '#497cff' : '#eceef0'}`,
-                      background: openField === 'keyword' ? 'rgba(73,124,255,0.03)' : '#fafbfc',
-                      boxShadow: openField === 'keyword' ? '0 0 0 4px rgba(73,124,255,0.10)' : '0 1px 3px rgba(0,0,0,0.04)',
+                      border: `1.5px solid ${openField === 'location' ? '#497cff' : '#eceef0'}`,
+                      background: openField === 'location' ? 'rgba(73,124,255,0.02)' : '#fafbfc',
+                      boxShadow: openField === 'location' ? '0 0 0 3px rgba(73,124,255,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
                     }}
-                    onClick={() => setOpenField(openField === 'keyword' ? null : 'keyword')}
+                    onClick={() => setOpenField(openField === 'location' ? null : 'location')}
                   >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: openField === 'keyword' ? 'rgba(73,124,255,0.12)' : '#f0f2f5' }}>
-                      <Search size={16} strokeWidth={2.2} style={{ color: openField === 'keyword' ? '#497cff' : '#76777d' }} />
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ background: openField === 'location' ? 'rgba(73,124,255,0.12)' : '#eef0f3' }}>
+                      <MapPin size={14} strokeWidth={2.3} style={{ color: openField === 'location' ? '#497cff' : '#6b7280' }} />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: openField === 'keyword' ? '#497cff' : '#9ea0a7', marginBottom: 2 }}>
-                        მისამართი / რაიონი
+                    <div className="flex-1 min-w-0 overflow-hidden">
+                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: openField === 'location' ? '#497cff' : '#9ea0a7', marginBottom: 1 }}>
+                        ადგილმდებარეობა
                       </p>
-                      <p className="text-sm font-semibold truncate" style={{ color: form.type ? '#191c1e' : '#c0c2ca' }}>
-                        სად გსურთ ცხოვრება?
+                      <p className="text-sm font-semibold truncate" style={{ color: form.city ? '#191c1e' : '#bbbdc4' }}>
+                        {form.city || 'ქალაქი, რაიონი, მისამართი...'}
                       </p>
                     </div>
-                    <ChevronDown size={14} strokeWidth={2.5} style={{ color: '#9ea0a7', flexShrink: 0, transform: openField === 'keyword' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                    <ChevronDown size={13} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0, transform: openField === 'location' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                   </div>
+
                   <AnimatePresence>
-                    {openField === 'keyword' && (
+                    {openField === 'location' && (
                       <motion.div
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 4 }}
+                        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}
                         transition={{ duration: 0.18 }}
-                        className="absolute top-full left-0 mt-2 rounded-2xl overflow-hidden z-50 w-[calc(100vw-3.5rem)] sm:w-auto sm:min-w-[280px]"
-                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)', maxWidth: 320 }}
+                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-50"
+                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.06)', minWidth: 280 }}
                       >
-                        {/* Search input at top */}
-                        <div className="px-4 pt-3 pb-2" style={{ borderBottom: '1px solid #f0f2f5' }}>
-                          <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{ background: '#f7f9fb', border: '1.5px solid #eceef0' }}>
-                            <Search size={13} style={{ color: '#9ea0a7', flexShrink: 0 }} />
-                            <input
-                              autoFocus
-                              type="text"
-                              placeholder="ძებნა..."
-                              onClick={e => e.stopPropagation()}
-                              className="flex-1 text-sm font-medium text-[#191c1e] bg-transparent border-none p-0 placeholder-[#c0c2ca] outline-none"
-                            />
+                        {/* City quick picks */}
+                        <div className="px-4 pt-4 pb-2" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 8 }}>ქალაქი</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[
+                              { v: '', l: 'ყველა' }, { v: 'თბილისი', l: 'თბილისი' },
+                              { v: 'ბათუმი', l: 'ბათუმი' }, { v: 'ქუთაისი', l: 'ქუთაისი' },
+                              { v: 'მცხეთა', l: 'მცხეთა' }, { v: 'გორი', l: 'გორი' },
+                            ].map(c => (
+                              <button key={c.v}
+                                onClick={() => { setForm(f => ({ ...f, city: c.v })); setOpenField(null); }}
+                                className="px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all duration-100"
+                                style={{
+                                  background: form.city === c.v ? '#191c1e' : '#f2f4f6',
+                                  color: form.city === c.v ? '#fff' : '#45464d',
+                                }}>{c.l}</button>
+                            ))}
                           </div>
                         </div>
                         {/* Popular districts */}
-                        <div className="px-3 py-2">
-                          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#9ea0a7', padding: '4px 8px 6px' }}>
+                        <div className="px-3 pb-3">
+                          <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ea0a7', padding: '10px 4px 6px' }}>
                             პოპულარული რაიონები
                           </p>
                           {[
-                            { v: 'ვაკე',        city: 'თბილისი', count: 842 },
-                            { v: 'საბურთალო',   city: 'თბილისი', count: 614 },
-                            { v: 'ისანი',       city: 'თბილისი', count: 398 },
-                            { v: 'ნაძალადევი',  city: 'თბილისი', count: 271 },
-                            { v: 'ბულვარი',     city: 'ბათუმი',  count: 503 },
-                            { v: 'ცენტრი',      city: 'ბათუმი',  count: 389 },
-                            { v: 'გლდანი',      city: 'თბილისი', count: 203 },
-                          ].map((opt, i) => (
-                            <div
-                              key={opt.v}
+                            { v: 'ვაკე', city: 'თბილისი', count: 842 },
+                            { v: 'საბურთალო', city: 'თბილისი', count: 614 },
+                            { v: 'ისანი', city: 'თბილისი', count: 398 },
+                            { v: 'ნაძალადევი', city: 'თბილისი', count: 271 },
+                            { v: 'ბულვარი', city: 'ბათუმი', count: 503 },
+                            { v: 'ცენტრი', city: 'ბათუმი', count: 389 },
+                          ].map(opt => (
+                            <div key={opt.v}
                               className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors duration-100"
-                              style={{ background: 'transparent' }}
-                              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f7f9fb'; }}
-                              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f7f9fb'}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                               onClick={() => { setForm(f => ({ ...f, city: opt.city })); setOpenField(null); }}
                             >
                               <div className="flex items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-                                  style={{ background: i % 2 === 0 ? 'rgba(73,124,255,0.08)' : '#f0f2f5' }}>
-                                  <MapPin size={12} style={{ color: i % 2 === 0 ? '#497cff' : '#9ea0a7' }} />
+                                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#f0f2f5' }}>
+                                  <MapPin size={11} style={{ color: '#9ea0a7' }} />
                                 </div>
                                 <div>
                                   <p className="text-sm font-semibold" style={{ color: '#191c1e', lineHeight: 1.2 }}>{opt.v}</p>
                                   <p style={{ fontSize: 11, color: '#9ea0a7' }}>{opt.city}</p>
                                 </div>
                               </div>
-                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                                style={{ background: '#f0f2f5', color: '#76777d' }}>
+                              <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#f0f2f5', color: '#76777d' }}>
                                 {opt.count.toLocaleString()}
                               </span>
                             </div>
@@ -1135,275 +1342,264 @@ export default function HomePage() {
                   </AnimatePresence>
                 </div>
 
-                {/* ② City custom dropdown */}
-                <div className="relative flex-1 lg:mr-1.5">
-                  <div
-                    className="flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all duration-200 h-full"
-                    style={{
-                      border: `1.5px solid ${openField === 'city' ? '#497cff' : '#eceef0'}`,
-                      background: openField === 'city' ? 'rgba(73,124,255,0.03)' : '#fafbfc',
-                      boxShadow: openField === 'city' ? '0 0 0 4px rgba(73,124,255,0.10)' : '0 1px 3px rgba(0,0,0,0.04)',
-                    }}
-                    onClick={() => setOpenField(openField === 'city' ? null : 'city')}
-                  >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: openField === 'city' ? 'rgba(73,124,255,0.12)' : '#f0f2f5' }}>
-                      <MapPin size={16} strokeWidth={2.2} style={{ color: openField === 'city' ? '#497cff' : '#76777d' }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: openField === 'city' ? '#497cff' : '#9ea0a7', marginBottom: 2 }}>
-                        ქალაქი
-                      </p>
-                      <p className="text-sm font-semibold truncate" style={{ color: form.city ? '#191c1e' : '#c0c2ca' }}>
-                        {form.city || 'ყველა ქ.'}
-                      </p>
-                    </div>
-                    <ChevronDown size={14} strokeWidth={2.5} style={{ color: '#9ea0a7', flexShrink: 0, transform: openField === 'city' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
-                  </div>
-                  <AnimatePresence>
-                    {openField === 'city' && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 4 }}
-                        transition={{ duration: 0.18 }}
-                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-50 sm:min-w-[200px]"
-                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)' }}
-                      >
-                        {[
-                          { v: '', l: 'ყველა ქ.', count: 5103 },
-                          { v: 'თბილისი', l: 'თბილისი', count: 2847 },
-                          { v: 'ბათუმი', l: 'ბათუმი', count: 1234 },
-                          { v: 'ქუთაისი', l: 'ქუთაისი', count: 567 },
-                          { v: 'მცხეთა', l: 'მცხეთა', count: 234 },
-                          { v: 'სიღნაღი', l: 'სიღნაღი', count: 123 },
-                          { v: 'გორი', l: 'გორი', count: 98 },
-                        ].map((opt, i) => (
-                          <div
-                            key={opt.v}
-                            className="flex items-center justify-between px-4 py-3 cursor-pointer transition-colors duration-100"
-                            style={{
-                              background: form.city === opt.v ? 'rgba(73,124,255,0.08)' : 'transparent',
-                              borderTop: i > 0 ? '1px solid #f0f2f5' : 'none',
-                            }}
-                            onMouseEnter={e => { if (form.city !== opt.v) (e.currentTarget as HTMLElement).style.background = '#f7f9fb'; }}
-                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = form.city === opt.v ? 'rgba(73,124,255,0.08)' : 'transparent'; }}
-                            onClick={() => { setForm(f => ({ ...f, city: opt.v })); setOpenField(null); }}
-                          >
-                            <div className="flex items-center gap-2.5">
-                              <MapPin size={13} style={{ color: form.city === opt.v ? '#497cff' : '#b0b2ba' }} />
-                              <span className="text-sm font-semibold" style={{ color: form.city === opt.v ? '#497cff' : '#191c1e' }}>{opt.l}</span>
-                            </div>
-                            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full"
-                              style={{ background: '#f0f2f5', color: '#76777d' }}>
-                              {opt.count.toLocaleString()}
-                            </span>
-                          </div>
-                        ))}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
+                {/* Divider */}
+                <div className="hidden lg:flex items-center px-1">
+                  <div className="w-px h-10" style={{ background: '#e8eaed' }} />
                 </div>
 
-                {/* ③ Bedrooms dropdown */}
-                <div className="relative flex-1 lg:mr-1.5">
+                {/* ② Bedrooms field */}
+                <div className="relative flex-1 lg:px-px">
                   <div
-                    className="flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all duration-200 h-full"
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 h-full"
                     style={{
                       border: `1.5px solid ${openField === 'beds' ? '#497cff' : '#eceef0'}`,
-                      background: openField === 'beds' ? 'rgba(73,124,255,0.03)' : '#fafbfc',
-                      boxShadow: openField === 'beds' ? '0 0 0 4px rgba(73,124,255,0.10)' : '0 1px 3px rgba(0,0,0,0.04)',
+                      background: openField === 'beds' ? 'rgba(73,124,255,0.02)' : '#fafbfc',
+                      boxShadow: openField === 'beds' ? '0 0 0 3px rgba(73,124,255,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
                     }}
                     onClick={() => setOpenField(openField === 'beds' ? null : 'beds')}
                   >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: openField === 'beds' ? 'rgba(73,124,255,0.12)' : '#f0f2f5' }}>
-                      <Bed size={16} strokeWidth={2.2} style={{ color: openField === 'beds' ? '#497cff' : '#76777d' }} />
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ background: openField === 'beds' ? 'rgba(73,124,255,0.12)' : '#eef0f3' }}>
+                      <Bed size={14} strokeWidth={2.3} style={{ color: openField === 'beds' ? '#497cff' : '#6b7280' }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: openField === 'beds' ? '#497cff' : '#9ea0a7', marginBottom: 2 }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: openField === 'beds' ? '#497cff' : '#9ea0a7', marginBottom: 1 }}>
                         საძინებელი
                       </p>
-                      <p className="text-sm font-semibold" style={{ color: form.bedrooms ? '#191c1e' : '#c0c2ca' }}>
+                      <p className="text-sm font-semibold" style={{ color: form.bedrooms ? '#191c1e' : '#bbbdc4' }}>
                         {form.bedrooms ? `${form.bedrooms}+ ოთახი` : 'ნებისმიერი'}
                       </p>
                     </div>
-                    <ChevronDown size={14} strokeWidth={2.5} style={{ color: '#9ea0a7', flexShrink: 0, transform: openField === 'beds' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                    <ChevronDown size={13} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0, transform: openField === 'beds' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                   </div>
+
                   <AnimatePresence>
                     {openField === 'beds' && (
                       <motion.div
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 4 }}
+                        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}
                         transition={{ duration: 0.18 }}
-                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl p-4 z-50 sm:min-w-[220px]"
-                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)' }}
+                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl p-4 z-50"
+                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.06)', minWidth: 200 }}
                       >
-                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 10 }}>
-                          საძინებლების რაოდენობა
-                        </p>
-                        <div className="grid grid-cols-4 gap-2">
-                          {[
-                            { v: '', l: 'ნებ.' },
-                            { v: '1', l: '1+' },
-                            { v: '2', l: '2+' },
-                            { v: '3', l: '3+' },
-                            { v: '4', l: '4+' },
-                            { v: '5', l: '5+' },
-                          ].map(opt => (
-                            <button
-                              key={opt.v}
+                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 10 }}>ოთახების რაოდენობა</p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[{ v: '', l: 'ნებ.' }, { v: '1', l: '1' }, { v: '2', l: '2' }, { v: '3', l: '3' }, { v: '4', l: '4' }, { v: '5', l: '5+' }].map(opt => (
+                            <button key={opt.v}
                               onClick={() => { setForm(f => ({ ...f, bedrooms: opt.v })); setOpenField(null); }}
-                              className="py-2.5 rounded-xl text-sm font-bold transition-all duration-150"
+                              className="py-2.5 rounded-xl text-sm font-bold transition-all duration-150 text-center"
                               style={{
-                                background: form.bedrooms === opt.v ? '#191c1e' : '#f0f2f5',
+                                background: form.bedrooms === opt.v ? '#191c1e' : '#f2f4f6',
                                 color: form.bedrooms === opt.v ? '#fff' : '#45464d',
-                                border: '1.5px solid transparent',
-                              }}
-                            >{opt.l}</button>
+                              }}>{opt.l}</button>
                           ))}
-                        </div>
-                        <div className="mt-3 pt-3 border-t border-[#f0f2f5] flex items-center gap-2">
-                          <Bath size={13} style={{ color: '#9ea0a7' }} />
-                          <span style={{ fontSize: 11, color: '#9ea0a7' }}>სველი წ. ცალკე ფილტრში</span>
                         </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
 
-                {/* ④ Price dropdown */}
-                <div className="relative flex-1 lg:mr-2">
+                {/* Divider */}
+                <div className="hidden lg:flex items-center px-1">
+                  <div className="w-px h-10" style={{ background: '#e8eaed' }} />
+                </div>
+
+                {/* ③ Price field */}
+                <div className="relative flex-[1.4] lg:px-px">
                   <div
-                    className="flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all duration-200 h-full"
+                    className="flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 h-full"
                     style={{
                       border: `1.5px solid ${openField === 'price' ? '#497cff' : '#eceef0'}`,
-                      background: openField === 'price' ? 'rgba(73,124,255,0.03)' : '#fafbfc',
-                      boxShadow: openField === 'price' ? '0 0 0 4px rgba(73,124,255,0.10)' : '0 1px 3px rgba(0,0,0,0.04)',
+                      background: openField === 'price' ? 'rgba(73,124,255,0.02)' : '#fafbfc',
+                      boxShadow: openField === 'price' ? '0 0 0 3px rgba(73,124,255,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
                     }}
                     onClick={() => setOpenField(openField === 'price' ? null : 'price')}
                   >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                      style={{ background: openField === 'price' ? 'rgba(73,124,255,0.12)' : '#f0f2f5' }}>
-                      <span style={{ fontSize: 16, fontWeight: 800, color: openField === 'price' ? '#497cff' : '#76777d', lineHeight: 1 }}>₾</span>
+                    <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ background: openField === 'price' ? 'rgba(73,124,255,0.12)' : '#eef0f3' }}>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: openField === 'price' ? '#497cff' : '#6b7280', lineHeight: 1 }}>₾</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: openField === 'price' ? '#497cff' : '#9ea0a7', marginBottom: 2 }}>
-                        ბიუჯეტი
+                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: openField === 'price' ? '#497cff' : '#9ea0a7', marginBottom: 1 }}>
+                        ფასი
                       </p>
-                      <p className="text-sm font-semibold truncate" style={{ color: form.priceMax ? '#191c1e' : '#c0c2ca' }}>
-                        {form.priceMax ? `მდე ₾${Number(form.priceMax).toLocaleString()}` : 'შეუზღუდავი'}
+                      <p className="text-sm font-semibold truncate" style={{ color: (form.priceMin || form.priceMax) ? '#191c1e' : '#bbbdc4' }}>
+                        {form.priceMin && form.priceMax
+                          ? `₾${Number(form.priceMin).toLocaleString()} – ₾${Number(form.priceMax).toLocaleString()}`
+                          : form.priceMax
+                          ? `მდე ₾${Number(form.priceMax).toLocaleString()}`
+                          : form.priceMin
+                          ? `₾${Number(form.priceMin).toLocaleString()}+`
+                          : 'ნებისმიერი'}
                       </p>
                     </div>
-                    <ChevronDown size={14} strokeWidth={2.5} style={{ color: '#9ea0a7', flexShrink: 0, transform: openField === 'price' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s ease' }} />
+                    <ChevronDown size={13} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0, transform: openField === 'price' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                   </div>
+
                   <AnimatePresence>
                     {openField === 'price' && (
                       <motion.div
-                        initial={{ opacity: 0, y: 6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 4 }}
+                        initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 5 }}
                         transition={{ duration: 0.18 }}
-                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl p-4 z-50 sm:min-w-[240px]"
-                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)' }}
+                        className="absolute top-full left-0 mt-2 rounded-2xl p-4 z-50"
+                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.06)', width: 280 }}
                       >
-                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 10 }}>
-                          მაქს. ბიუჯეტი
-                        </p>
-                        <div className="grid grid-cols-3 gap-2 mb-4">
-                          {[
-                            { v: '50000', l: '₾50K' },
-                            { v: '100000', l: '₾100K' },
-                            { v: '200000', l: '₾200K' },
-                            { v: '350000', l: '₾350K' },
-                            { v: '500000', l: '₾500K' },
-                            { v: '1000000', l: '₾1M+' },
-                          ].map(opt => (
-                            <button
-                              key={opt.v}
-                              onClick={() => { setForm(f => ({ ...f, priceMax: opt.v })); setOpenField(null); }}
-                              className="py-2 rounded-xl text-xs font-bold transition-all duration-150"
-                              style={{
-                                background: form.priceMax === opt.v ? '#497cff' : '#f0f2f5',
-                                color: form.priceMax === opt.v ? '#fff' : '#45464d',
-                              }}
-                            >{opt.l}</button>
-                          ))}
-                        </div>
-                        <div className="border-t border-[#f0f2f5] pt-3">
-                          <p style={{ fontSize: 10, fontWeight: 600, color: '#9ea0a7', marginBottom: 6 }}>ან შეიყვანეთ ხელით</p>
-                          <div className="flex items-center gap-2 px-3 py-2 rounded-xl"
-                            style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
-                            <span style={{ color: '#497cff', fontWeight: 800, fontSize: 14 }}>₾</span>
-                            <input
-                              type="number"
-                              placeholder="მაქს. ფასი"
-                              value={form.priceMax}
+                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 10 }}>ფასის დიაპაზონი</p>
+                        {/* Min/Max inputs at top */}
+                        <div className="flex items-center gap-2 mb-4">
+                          <div className="flex-1 flex items-center gap-1.5 px-3 py-2.5 rounded-xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                            <span style={{ color: '#b0b2ba', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>₾</span>
+                            <input type="number" placeholder="დან" value={form.priceMin}
+                              onChange={e => setForm(f => ({ ...f, priceMin: e.target.value }))}
+                              onClick={e => e.stopPropagation()}
+                              className="bare-input" />
+                          </div>
+                          <span style={{ color: '#b0b2ba', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>—</span>
+                          <div className="flex-1 flex items-center gap-1.5 px-3 py-2.5 rounded-xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                            <span style={{ color: '#b0b2ba', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>₾</span>
+                            <input type="number" placeholder="მდე" value={form.priceMax}
                               onChange={e => setForm(f => ({ ...f, priceMax: e.target.value }))}
                               onClick={e => e.stopPropagation()}
-                              className="flex-1 text-sm font-semibold text-[#191c1e] bg-transparent border-none p-0 placeholder-[#c0c2ca] outline-none"
-                            />
+                              className="bare-input" />
                           </div>
+                        </div>
+                        {/* Quick presets */}
+                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#c0c2ca', marginBottom: 8 }}>სწრაფი არჩევა</p>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          {[
+                            { max: '50000', l: '₾50K' }, { max: '100000', l: '₾100K' },
+                            { max: '200000', l: '₾200K' }, { max: '350000', l: '₾350K' },
+                            { max: '500000', l: '₾500K' }, { max: '1000000', l: '₾1M+' },
+                          ].map(opt => (
+                            <button key={opt.max}
+                              onClick={() => { setForm(f => ({ ...f, priceMin: '', priceMax: opt.max })); setOpenField(null); }}
+                              className="py-2 rounded-xl text-xs font-bold transition-all duration-150"
+                              style={{
+                                background: form.priceMax === opt.max && !form.priceMin ? '#497cff' : '#f2f4f6',
+                                color: form.priceMax === opt.max && !form.priceMin ? '#fff' : '#45464d',
+                              }}>{opt.l}</button>
+                          ))}
                         </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
                 </div>
 
-                {/* ⑤ Search button */}
-                <button
-                  onClick={handleSearch}
-                  className="flex items-center justify-center gap-2 px-6 py-3.5 lg:py-3 rounded-2xl font-bold text-white text-sm w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px] transition-all duration-200"
-                  style={{
-                    background: 'linear-gradient(135deg, #191c1e 0%, #2d3133 100%)',
-                    boxShadow: '0 4px 18px rgba(0,0,0,0.22)',
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #497cff 0%, #3567f5 100%)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 24px rgba(73,124,255,0.42)';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #191c1e 0%, #2d3133 100%)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 18px rgba(0,0,0,0.22)';
-                  }}
-                >
-                  <Search size={16} strokeWidth={2.5} />
-                  ძებნა
-                </button>
+                {/* Divider */}
+                <div className="hidden lg:flex items-center px-1">
+                  <div className="w-px h-10" style={{ background: '#e8eaed' }} />
+                </div>
+
+                {/* ④ Filter button + Search button */}
+                <div className="flex items-stretch gap-2 lg:pl-px">
+                  {/* Advanced filter button */}
+                  <button
+                    onClick={() => { setOpenField(null); setFilterModalOpen(true); }}
+                    className="flex items-center gap-2 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-200 flex-shrink-0"
+                    style={{
+                      background: '#f2f4f6',
+                      color: '#45464d',
+                      border: '1.5px solid #eceef0',
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLElement).style.background = '#eceef0';
+                      (e.currentTarget as HTMLElement).style.borderColor = '#d0d2da';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.background = '#f2f4f6';
+                      (e.currentTarget as HTMLElement).style.borderColor = '#eceef0';
+                    }}
+                  >
+                    <SlidersHorizontal size={15} strokeWidth={2.3} />
+                    <span className="hidden sm:inline">ფილტრი</span>
+                  </button>
+
+                  {/* Search button */}
+                  <button
+                    onClick={handleSearch}
+                    className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-white text-sm transition-all duration-200 lg:min-w-[130px]"
+                    style={{
+                      background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                      boxShadow: '0 4px 18px rgba(34,197,94,0.32)',
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)';
+                      (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 24px rgba(34,197,94,0.45)';
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
+                      (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 18px rgba(34,197,94,0.32)';
+                    }}
+                  >
+                    <Search size={16} strokeWidth={2.5} />
+                    ძებნა
+                  </button>
+                </div>
               </div>
 
-              {/* ── Bottom: popular tags ── */}
-              <div
-                className="flex items-center gap-2 flex-wrap px-5 pb-4 pt-0"
-              >
-                <SlidersHorizontal size={12} style={{ color: '#b0b2ba', flexShrink: 0 }} />
+              {/* ── Row 3: Popular tags ── */}
+              <div className="flex items-center gap-2 flex-wrap px-4 pb-3.5 pt-0">
                 <span style={{ fontSize: 11, color: '#b0b2ba', fontWeight: 600 }}>პოპულარული:</span>
                 {[
                   { l: 'ვაკე, თბილისი', q: '?city=თბილისი&district=ვაკე' },
                   { l: 'ბათუმის ცენტრი', q: '?city=ბათუმი' },
                   { l: 'ახალი კომპლექსი', q: '?new=true' },
-                  { l: 'პრემიუმ', q: '?premium=true' },
                   { l: '3-ოთახიანი', q: '?bedrooms=3' },
+                  { l: 'ბინა ქირით', q: '?status=rent&propType=apartment' },
                 ].map(tag => (
-                  <button
-                    key={tag.l}
+                  <button key={tag.l}
                     onClick={() => navigate(`/listings${tag.q}`)}
-                    className="px-2.5 py-1 rounded-full text-xs font-semibold transition-all duration-150"
-                    style={{ background: '#f0f2f5', color: '#45464d' }}
+                    className="px-3 py-1 rounded-full text-[11px] font-semibold transition-all duration-150"
+                    style={{ background: '#f2f4f6', color: '#5a5c64' }}
                     onMouseEnter={e => {
                       (e.currentTarget as HTMLElement).style.background = 'rgba(73,124,255,0.10)';
                       (e.currentTarget as HTMLElement).style.color = '#497cff';
                     }}
                     onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.background = '#f0f2f5';
-                      (e.currentTarget as HTMLElement).style.color = '#45464d';
-                    }}
-                  >{tag.l}</button>
+                      (e.currentTarget as HTMLElement).style.background = '#f2f4f6';
+                      (e.currentTarget as HTMLElement).style.color = '#5a5c64';
+                    }}>{tag.l}</button>
                 ))}
               </div>
             </div>
           </motion.div>
+
+          {/* ── Quick-access pills ── */}
+          <InViewFade delay={0.1}>
+            <div className="mt-4 sm:mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mx-3 sm:mx-6 lg:mx-12">
+              {[
+                { icon: TrendingUp,  label: 'ფასების ანალიტიკა',   color: '#497cff', href: '/blog?cat=market' },
+                { icon: BadgePercent,label: 'ბინის შეფასება',      color: '#d97706', href: '/contact' },
+                { icon: HardHat,     label: 'ახალი პროექტები',     color: '#10B981', href: '/listings?type=apartment&new=true' },
+                { icon: Shield,      label: 'ვერიფიც. აგენტები',   color: '#8b5cf6', href: '/agents?verified=true' },
+                { icon: Building2,   label: 'კომერციული ფართები',  color: '#0ea5e9', href: '/listings?type=commercial' },
+              ].map(item => (
+                <Link
+                  key={item.label}
+                  to={item.href}
+                  className="group flex items-center gap-2.5 rounded-2xl px-3.5 py-3 transition-all duration-200"
+                  style={{ background: '#fff', border: '1px solid #eceef0' }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = `${item.color}55`;
+                    (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(15,23,42,0.08)';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.borderColor = '#eceef0';
+                    (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                  }}
+                >
+                  <div
+                    className="flex items-center justify-center flex-shrink-0 w-9 h-9 rounded-xl transition-transform duration-200 group-hover:scale-105"
+                    style={{ background: `${item.color}14` }}
+                  >
+                    <item.icon size={16} strokeWidth={2.2} style={{ color: item.color }} />
+                  </div>
+                  <span className="text-[12.5px] font-bold leading-tight" style={{ color: '#2c2d31' }}>
+                    {item.label}
+                  </span>
+                </Link>
+              ))}
+            </div>
+          </InViewFade>
         </div>
       </section>
 
