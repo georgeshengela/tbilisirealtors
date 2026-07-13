@@ -770,10 +770,8 @@ export default function HomePage() {
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  const [featuredFilter, setFeaturedFilter] = useState<'all'|'apartment'|'house'|'villa'|'commercial'>('all');
   const [openFaq, setOpenFaq] = useState<string | null>(faqItems[0]?.id ?? null);
-  const featuredAll = properties.filter(p => p.isFeatured).slice(0, 12);
-  const featured = featuredFilter === 'all' ? featuredAll : featuredAll.filter(p => p.type === featuredFilter);
+  const featured = properties.filter(p => p.isFeatured).slice(0, 12);
   const newest = properties.filter(p => p.isNew).slice(0, 12);
   const handleSearch = () => {
     const p = new URLSearchParams({ status: tab, city: form.city, type: form.propType || form.type, bedrooms: form.bedrooms, priceMin: form.priceMin, priceMax: form.priceMax, areaMin: form.areaMin, areaMax: form.areaMax });
@@ -1615,30 +1613,6 @@ export default function HomePage() {
               linkTo="/listings?vip=true"
               linkLabel="ყველა VIP"
             />
-          </InViewFade>
-          <InViewFade delay={0.05}>
-            <div className="flex items-center gap-2 flex-wrap mb-8">
-              {([
-                { v: 'all',        l: 'ყველა'   },
-                { v: 'apartment',  l: 'ბინა'    },
-                { v: 'house',      l: 'სახლი'   },
-                { v: 'villa',      l: 'ვილა'    },
-                { v: 'commercial', l: 'კომერც.' },
-              ] as const).map(chip => (
-                <button
-                  key={chip.v}
-                  onClick={() => setFeaturedFilter(chip.v)}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold transition-all duration-200"
-                  style={{
-                    background: featuredFilter === chip.v ? '#497cff' : '#f2f4f6',
-                    color: featuredFilter === chip.v ? '#fff' : '#45464d',
-                    border: `1px solid ${featuredFilter === chip.v ? '#497cff' : 'transparent'}`,
-                  }}
-                >
-                  {chip.l}
-                </button>
-              ))}
-            </div>
           </InViewFade>
           <ListingSlider items={featured} badge="vip" />
         </div>
