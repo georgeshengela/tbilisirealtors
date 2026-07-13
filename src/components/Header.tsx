@@ -383,131 +383,6 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                         )}
                       </Link>
 
-                      {/* ── Mega-menu dropdown ── */}
-                      {hasMega && (
-                        <AnimatePresence>
-                          {isOpen && (
-                            <motion.div
-                              initial={{ opacity: 0, y: 8, scale: 0.98 }}
-                              animate={{ opacity: 1, y: 0, scale: 1 }}
-                              exit={{ opacity: 0, y: 5, scale: 0.98 }}
-                              transition={{ duration: 0.16, ease: [0.2, 0.8, 0.4, 1] }}
-                              onMouseEnter={() => openDrop(item.label)}
-                              onMouseLeave={closeDrop}
-                              style={{
-                                position: 'absolute', top: 'calc(100% + 6px)', left: 0,
-                                zIndex: 100,
-                                minWidth: item.mega!.columns.length > 1 ? 720 : 280,
-                              }}
-                            >
-                              <div style={{
-                                background: '#fff', borderRadius: 20,
-                                boxShadow: '0 20px 60px rgba(15,23,42,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
-                                overflow: 'hidden',
-                              }}>
-                                {/* ── Top accent bar ── */}
-                                <div style={{
-                                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                  padding: '12px 22px 11px',
-                                  background: 'linear-gradient(135deg, #f8faff 0%, #f3f4f6 100%)',
-                                  borderBottom: '1px solid #edf0f3',
-                                }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <div style={{
-                                      width: 22, height: 22, borderRadius: 6,
-                                      background: 'linear-gradient(135deg, #497cff, #6366f1)',
-                                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    }}>
-                                      <item.icon size={11} color="#fff" strokeWidth={2.5} />
-                                    </div>
-                                    <span style={{ fontSize: 11, fontWeight: 700, color: '#6366f1', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                                      {item.mega!.title}
-                                    </span>
-                                  </div>
-                                  <Link to={item.href}
-                                    style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: '#6366f1', textDecoration: 'none' }}
-                                  >
-                                    ყველა <ArrowRight size={12} />
-                                  </Link>
-                                </div>
-
-                                <div style={{ display: 'flex' }}>
-                                  {/* ── Columns ── */}
-                                  <div style={{ display: 'flex', flex: 1, padding: '8px 0' }}>
-                                    {item.mega!.columns.map((col, ci) => (
-                                      <div key={ci}
-                                        style={{
-                                          flex: 1, padding: '8px 6px 8px 16px',
-                                          borderLeft: ci > 0 ? '1px solid #f0f2f5' : 'none',
-                                        }}
-                                      >
-                                        <p style={{
-                                          fontSize: 10, fontWeight: 700,
-                                          color: col.color ?? '#9ca3af',
-                                          letterSpacing: '0.10em', textTransform: 'uppercase',
-                                          marginBottom: 6, paddingLeft: 6,
-                                        }}>{col.heading}</p>
-                                        {col.items.map((nav) => (
-                                          <Link key={nav.label} to={nav.href}
-                                            style={{
-                                              display: 'flex', alignItems: 'center', gap: 10,
-                                              padding: '8px 8px', borderRadius: 11,
-                                              textDecoration: 'none', marginBottom: 2,
-                                              transition: 'background 0.12s',
-                                            }}
-                                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f7f8fb'}
-                                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                                          >
-                                            <div style={{
-                                              width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-                                              background: `${nav.color}14`,
-                                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                            }}>
-                                              <nav.icon size={15} strokeWidth={1.8} style={{ color: nav.color }} />
-                                            </div>
-                                            <div>
-                                              <p style={{ fontSize: 13, fontWeight: 600, color: '#111827', lineHeight: 1.25 }}>{nav.label}</p>
-                                              <p style={{ fontSize: 11, color: '#9ca3af', marginTop: 1 }}>{nav.desc}</p>
-                                            </div>
-                                          </Link>
-                                        ))}
-                                      </div>
-                                    ))}
-                                  </div>
-
-                                  {/* ── Featured card ── */}
-                                  {'featured' in item.mega! && item.mega!.featured && (
-                                    <div style={{ width: 196, flexShrink: 0, padding: 14, background: '#f8faff', borderLeft: '1px solid #edf0f3' }}>
-                                      <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 10 }}>
-                                        {item.mega!.featured!.label}
-                                      </p>
-                                      <Link to={item.mega!.featured!.href} style={{ display: 'block', textDecoration: 'none' }}>
-                                        <div style={{ borderRadius: 12, overflow: 'hidden', marginBottom: 10, aspectRatio: '4/3', boxShadow: '0 4px 12px rgba(0,0,0,0.12)' }}>
-                                          <img src={item.mega!.featured!.image} alt={item.mega!.featured!.title}
-                                            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.3s' }}
-                                            onMouseEnter={e => (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.05)'}
-                                            onMouseLeave={e => (e.currentTarget as HTMLImageElement).style.transform = 'none'}
-                                          />
-                                        </div>
-                                        <div style={{
-                                          display: 'inline-flex', alignItems: 'center', gap: 4,
-                                          padding: '2px 8px', borderRadius: 20, marginBottom: 6,
-                                          background: 'linear-gradient(135deg,#497cff,#6366f1)',
-                                        }}>
-                                          <Star size={9} color="#fff" strokeWidth={2.5} />
-                                          <span style={{ fontSize: 9, fontWeight: 800, color: '#fff', letterSpacing: '0.06em' }}>FEATURED</span>
-                                        </div>
-                                        <p style={{ fontSize: 12.5, fontWeight: 700, color: '#111827', lineHeight: 1.3 }}>{item.mega!.featured!.title}</p>
-                                        <p style={{ fontSize: 14.5, fontWeight: 800, color: '#4f46e5', marginTop: 4 }}>{item.mega!.featured!.price}</p>
-                                      </Link>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      )}
                     </div>
                   );
                 })}
@@ -545,6 +420,130 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
             </div>
           </div>
         </div>
+        {/* ── Full-width mega menu panel ── */}
+        <AnimatePresence>
+          {navItems.filter(n => n.label === activeDropdown && 'mega' in n && !!(n as any).mega).map(activeItem => {
+            const mega = (activeItem as any).mega;
+            return (
+              <motion.div
+                key={activeItem.label}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.18, ease: [0.2, 0.8, 0.4, 1] }}
+                onMouseEnter={() => openDrop(activeItem.label)}
+                onMouseLeave={closeDrop}
+                style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99,
+                  background: '#fff',
+                  borderTop: '2px solid #edf0f3',
+                  boxShadow: '0 24px 64px rgba(15,23,42,0.14), 0 0 0 1px rgba(0,0,0,0.04)',
+                }}
+              >
+                <div className="container-xl">
+                  {/* Accent header bar */}
+                  <div style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '14px 0 13px',
+                    borderBottom: '1px solid #f0f2f5',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 26, height: 26, borderRadius: 8,
+                        background: 'linear-gradient(135deg, #497cff, #6366f1)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <activeItem.icon size={13} color="#fff" strokeWidth={2.5} />
+                      </div>
+                      <span style={{ fontSize: 11.5, fontWeight: 700, color: '#6366f1', letterSpacing: '0.09em', textTransform: 'uppercase' }}>
+                        {mega.title}
+                      </span>
+                    </div>
+                    <Link to={activeItem.href}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 600, color: '#6366f1', textDecoration: 'none' }}
+                    >
+                      ყველა <ArrowRight size={13} />
+                    </Link>
+                  </div>
+
+                  {/* Columns + featured */}
+                  <div style={{ display: 'flex', padding: '16px 0 20px' }}>
+                    <div style={{ display: 'flex', flex: 1, gap: 0 }}>
+                      {mega.columns.map((col: any, ci: number) => (
+                        <div key={ci} style={{
+                          flex: 1,
+                          paddingRight: ci < mega.columns.length - 1 ? 24 : 0,
+                          marginRight: ci < mega.columns.length - 1 ? 24 : 0,
+                          borderRight: ci < mega.columns.length - 1 ? '1px solid #f0f2f5' : 'none',
+                        }}>
+                          <p style={{
+                            fontSize: 10, fontWeight: 700, color: col.color ?? '#9ca3af',
+                            letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 9,
+                          }}>{col.heading}</p>
+                          {col.items.map((nav: any) => (
+                            <Link key={nav.label} to={nav.href}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 12,
+                                padding: '9px 10px', borderRadius: 12,
+                                textDecoration: 'none', marginBottom: 2,
+                                transition: 'background 0.12s',
+                              }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f7f8fb'}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                            >
+                              <div style={{
+                                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                                background: `${nav.color}16`,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              }}>
+                                <nav.icon size={17} strokeWidth={1.8} style={{ color: nav.color }} />
+                              </div>
+                              <div>
+                                <p style={{ fontSize: 13.5, fontWeight: 600, color: '#111827', lineHeight: 1.2 }}>{nav.label}</p>
+                                <p style={{ fontSize: 11.5, color: '#9ca3af', marginTop: 2 }}>{nav.desc}</p>
+                              </div>
+                            </Link>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Featured card */}
+                    {'featured' in mega && mega.featured && (
+                      <div style={{
+                        width: 228, flexShrink: 0, paddingLeft: 28,
+                        borderLeft: '1px solid #f0f2f5',
+                      }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: '#9ca3af', letterSpacing: '0.10em', textTransform: 'uppercase', marginBottom: 13 }}>
+                          {mega.featured.label}
+                        </p>
+                        <Link to={mega.featured.href} style={{ display: 'block', textDecoration: 'none' }}>
+                          <div style={{ borderRadius: 14, overflow: 'hidden', marginBottom: 12, aspectRatio: '4/3', boxShadow: '0 6px 20px rgba(0,0,0,0.10)' }}>
+                            <img src={mega.featured.image} alt={mega.featured.title}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 0.35s' }}
+                              onMouseEnter={e => (e.currentTarget as HTMLImageElement).style.transform = 'scale(1.06)'}
+                              onMouseLeave={e => (e.currentTarget as HTMLImageElement).style.transform = 'none'}
+                            />
+                          </div>
+                          <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4,
+                            padding: '3px 10px', borderRadius: 20, marginBottom: 8,
+                            background: 'linear-gradient(135deg,#497cff,#6366f1)',
+                          }}>
+                            <Star size={9} color="#fff" strokeWidth={2.5} />
+                            <span style={{ fontSize: 9.5, fontWeight: 800, color: '#fff', letterSpacing: '0.06em' }}>FEATURED</span>
+                          </div>
+                          <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', lineHeight: 1.3 }}>{mega.featured.title}</p>
+                          <p style={{ fontSize: 16, fontWeight: 800, color: '#4f46e5', marginTop: 5 }}>{mega.featured.price}</p>
+                        </Link>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
       </header>
 
       {/* ══════════════════════════════════════════════
