@@ -790,7 +790,7 @@ export default function HomePage() {
           HERO — contained, border-radius background
       ══════════════════════════════════════════════════════ */}
       <section className="pt-[56px] lg:pt-[102px]" style={{ background: '#f7f9fb' }}>
-        <div className="container-xl">
+        <div className="container-xl pt-2 lg:pt-3">
           {/* Contained hero card — hidden on mobile, search panel takes over */}
           <div
             className="hidden md:block relative overflow-hidden"

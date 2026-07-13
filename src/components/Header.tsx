@@ -193,20 +193,14 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                 <Link to="/admin/listings/new" className="hidden sm:flex"
                   style={{
                     alignItems: 'center', gap: 7, padding: '8px 16px',
-                    borderRadius: 10, textDecoration: 'none',
-                    background: 'linear-gradient(135deg, #16a34a, #15803d)',
-                    color: '#fff', fontSize: 13, fontWeight: 700,
-                    flexShrink: 0, transition: 'all 0.15s',
-                    boxShadow: '0 2px 8px rgba(22,163,74,0.28)',
+                    borderRadius: 9, textDecoration: 'none',
+                    background: '#059669', color: '#fff',
+                    fontSize: 13, fontWeight: 700, flexShrink: 0,
+                    transition: 'background 0.15s',
+                    border: '1.5px solid #059669',
                   }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 14px rgba(22,163,74,0.38)';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.transform = 'none';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 8px rgba(22,163,74,0.28)';
-                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#047857'; (e.currentTarget as HTMLElement).style.borderColor = '#047857'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#059669'; (e.currentTarget as HTMLElement).style.borderColor = '#059669'; }}
                 >
                   <Plus size={14} strokeWidth={2.5} />
                   <span>განც. დამატება</span>
@@ -269,50 +263,35 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                 {/* ─ Divider ─ */}
                 <div className="hidden lg:block" style={{ width: 1, height: 24, background: '#e8eaed', margin: '0 2px', flexShrink: 0 }} />
 
-                {/* შესვლა — ghost outlined */}
+                {/* შესვლა */}
                 <Link to="/login" className="hidden lg:flex"
                   style={{
-                    alignItems: 'center', gap: 7, padding: '8px 16px',
-                    borderRadius: 10, border: '1.5px solid #e8eaed',
+                    alignItems: 'center', gap: 7, padding: '8px 15px',
+                    borderRadius: 9, border: '1.5px solid #d1d5db',
                     fontSize: 13.5, fontWeight: 600, color: '#374151',
-                    textDecoration: 'none', transition: 'all 0.15s', flexShrink: 0,
-                    background: 'transparent',
+                    textDecoration: 'none', background: '#fff',
+                    transition: 'border-color 0.15s, color 0.15s', flexShrink: 0,
                   }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = '#a5b4fc';
-                    (e.currentTarget as HTMLElement).style.background = '#f0f4ff';
-                    (e.currentTarget as HTMLElement).style.color = '#4f46e5';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = '#e8eaed';
-                    (e.currentTarget as HTMLElement).style.background = 'transparent';
-                    (e.currentTarget as HTMLElement).style.color = '#374151';
-                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#6b7280'; (e.currentTarget as HTMLElement).style.color = '#111827'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#d1d5db'; (e.currentTarget as HTMLElement).style.color = '#374151'; }}
                 >
                   <User size={15} strokeWidth={2} />
                   შესვლა
                 </Link>
 
-                {/* დარეგისტრირება — gradient */}
+                {/* დარეგისტრირება — solid dark */}
                 <Link to="/register" className="hidden sm:flex"
                   style={{
-                    alignItems: 'center', gap: 7, padding: '8px 18px',
-                    borderRadius: 10, textDecoration: 'none', flexShrink: 0,
-                    background: 'linear-gradient(135deg, #497cff 0%, #6366f1 100%)',
-                    color: '#fff', fontSize: 13.5, fontWeight: 700,
-                    boxShadow: '0 2px 10px rgba(99,102,241,0.30)',
-                    transition: 'all 0.15s',
+                    alignItems: 'center', gap: 7, padding: '8px 17px',
+                    borderRadius: 9, textDecoration: 'none', flexShrink: 0,
+                    background: '#111827', color: '#fff',
+                    fontSize: 13.5, fontWeight: 700,
+                    border: '1.5px solid #111827',
+                    transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 5px 18px rgba(99,102,241,0.42)';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.transform = 'none';
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(99,102,241,0.30)';
-                  }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#1f2937'; (e.currentTarget as HTMLElement).style.borderColor = '#1f2937'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#111827'; (e.currentTarget as HTMLElement).style.borderColor = '#111827'; }}
                 >
-                  <Star size={14} strokeWidth={2.2} />
                   დარეგ.
                 </Link>
 
@@ -729,8 +708,8 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                   <User size={16} strokeWidth={2} /> შესვლა
                 </Link>
                 <Link to="/register" onClick={() => setMobileOpen(false)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: 'linear-gradient(135deg, #497cff, #6366f1)', boxShadow: '0 4px 14px rgba(99,102,241,0.35)' }}>
-                  <Star size={15} strokeWidth={2.2} /> დარეგისტრირება
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: '#111827', border: '1.5px solid #111827' }}>
+                  დარეგისტრირება
                 </Link>
               </div>
             </motion.div>
