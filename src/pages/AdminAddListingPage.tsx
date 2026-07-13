@@ -3,11 +3,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft, ArrowRight, Building2, Home, Store, TreePine, Hotel,
-  Tag, DollarSign, Ruler, Bed, Bath, Layers, Calendar, MapPin,
+  DollarSign, Ruler, Bed, Layers, Calendar, MapPin,
   Image as ImageIcon, Sparkles, Star, Zap, User, Phone, Mail,
-  CheckCircle, Loader2, Crown, Key, FileText, Wrench, Shield,
+  CheckCircle, Loader2, Crown, Key, FileText, Wrench,
   Flame, Droplets, HardHat, Car, Link2, BadgeCheck,
-  ChevronDown, Hash, Package, MoveHorizontal, PlayCircle,
+  Hash, Package, MoveHorizontal, PlayCircle,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import LocationPickerMap, { type LocationValue } from '../components/LocationPickerMap';
@@ -114,33 +114,6 @@ const cardCls  = 'bg-white rounded-2xl border border-slate-100 shadow-sm';
 const labelCls = 'flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide';
 const sectionTitle = 'text-sm font-bold text-slate-700 mb-3';
 
-/* ─── ChipGroup helper ───────────────────────────────────── */
-function ChipGroup({
-  options, selected, onToggle, single = false, color = '#497cff',
-}: {
-  options: string[]; selected: string[]; onToggle: (v: string) => void;
-  single?: boolean; color?: string;
-}) {
-  return (
-    <div className="flex flex-wrap gap-2">
-      {options.map(o => {
-        const on = selected.includes(o);
-        return (
-          <button
-            key={o} type="button"
-            onClick={() => onToggle(o)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
-              on ? 'text-white shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-            }`}
-            style={on ? { background: color, borderColor: color } : {}}
-          >
-            {o}
-          </button>
-        );
-      })}
-    </div>
-  );
-}
 
 /* ─── Form state ─────────────────────────────────────────── */
 interface FormState {

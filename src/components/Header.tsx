@@ -5,7 +5,7 @@ import {
   Building2, Menu, X, ChevronDown, Heart, User, Moon, Sun, Search,
   Phone, Home, MapPin, Users, BookOpen, Info, MessageSquare,
   Tag, Key, Star, Layers, TrendingUp, DollarSign, Map,
-  ArrowRight, Sparkles, Shield, Plus, Globe, Newspaper,
+  ArrowRight, Sparkles, Plus, Globe, Newspaper,
   HardHat, Calculator, UserCheck, BarChart3,
 } from 'lucide-react';
 
