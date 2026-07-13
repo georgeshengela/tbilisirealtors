@@ -99,7 +99,7 @@ export default function ListingsPage() {
               onClick={() => setShowFilters(v => !v)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex-shrink-0"
               style={showFilters || activeCount > 0
-                ? { background: '#191c1e', color: '#fff', border: '1.5px solid #191c1e' }
+                ? { background: '#4f46e5', color: '#fff', border: '1.5px solid #4f46e5', boxShadow: '0 2px 8px rgba(79,70,229,0.28)' }
                 : { background: 'white', color: '#45464d', border: '1.5px solid #e0e3e5' }}
             >
               <SlidersHorizontal size={15} strokeWidth={2} />
@@ -128,7 +128,7 @@ export default function ListingsPage() {
               {([['grid', Grid3X3], ['list', List]] as const).map(([v, Icon]) => (
                 <button key={v} onClick={() => setView(v)}
                   className="p-2.5 transition-colors"
-                  style={view === v ? { background: '#191c1e', color: '#fff' } : { background: 'white', color: '#76777d' }}>
+                  style={view === v ? { background: '#4f46e5', color: '#fff' } : { background: 'white', color: '#76777d' }}>
                   <Icon size={15} strokeWidth={2} />
                 </button>
               ))}
@@ -139,7 +139,7 @@ export default function ListingsPage() {
               onClick={() => setShowMap(v => !v)}
               className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all flex-shrink-0"
               style={showMap
-                ? { background: '#497cff', color: '#fff', border: '1.5px solid #497cff' }
+                ? { background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: '#fff', border: '1.5px solid #059669', boxShadow: '0 2px 8px rgba(5,150,105,0.32)' }
                 : { background: 'white', color: '#45464d', border: '1.5px solid #e0e3e5' }}
             >
               <Map size={15} strokeWidth={2} />
@@ -328,7 +328,7 @@ export default function ListingsPage() {
                     key={i}
                     className="w-10 h-10 rounded-xl text-sm font-semibold transition-all"
                     style={page === 1
-                      ? { background: '#191c1e', color: '#fff' }
+                      ? { background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)', color: '#fff', boxShadow: '0 2px 8px rgba(79,70,229,0.30)' }
                       : { background: 'white', color: '#45464d', border: '1.5px solid #e0e3e5' }}
                   >
                     {page}

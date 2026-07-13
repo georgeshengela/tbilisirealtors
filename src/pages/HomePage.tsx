@@ -926,14 +926,20 @@ export default function HomePage() {
                     to="/listings"
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200"
                     style={{
-                      background: 'linear-gradient(135deg, #497cff 0%, #3567f5 100%)',
-                      boxShadow: '0 4px 20px rgba(73,124,255,0.45)',
+                      background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                      boxShadow: '0 4px 20px rgba(5,150,105,0.40)',
                     }}
                     onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 28px rgba(73,124,255,0.55)';
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
+                      el.style.boxShadow = '0 6px 28px rgba(5,150,105,0.52)';
+                      el.style.transform = 'translateY(-1px)';
                     }}
                     onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(73,124,255,0.45)';
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+                      el.style.boxShadow = '0 4px 20px rgba(5,150,105,0.40)';
+                      el.style.transform = 'none';
                     }}
                   >
                     განცხადებების ნახვა
@@ -1173,9 +1179,9 @@ export default function HomePage() {
                     </button>
                     <button onClick={handleSearch}
                       className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white transition-all duration-200"
-                      style={{ background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)', boxShadow: '0 4px 18px rgba(34,197,94,0.30)' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 24px rgba(34,197,94,0.45)'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 18px rgba(34,197,94,0.30)'}>
+                      style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', boxShadow: '0 4px 18px rgba(5,150,105,0.35)' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 24px rgba(5,150,105,0.48)'; (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 18px rgba(5,150,105,0.35)'; (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)'; }}>
                       <Search size={15} strokeWidth={2.5} />
                       ძებნა
                     </button>
@@ -1210,9 +1216,9 @@ export default function HomePage() {
                     <button key={v} onClick={() => setTab(v)}
                       className="px-4 py-1.5 rounded-lg text-[13px] font-bold transition-all duration-200"
                       style={{
-                        background: tab === v ? '#191c1e' : 'transparent',
+                        background: tab === v ? '#4f46e5' : 'transparent',
                         color: tab === v ? '#fff' : '#76777d',
-                        boxShadow: tab === v ? '0 2px 8px rgba(0,0,0,0.18)' : 'none',
+                        boxShadow: tab === v ? '0 2px 8px rgba(79,70,229,0.28)' : 'none',
                       }}>{l}</button>
                   ))}
                 </div>
@@ -1230,9 +1236,9 @@ export default function HomePage() {
                       onClick={() => setForm(f => ({ ...f, propType: c.v }))}
                       className="px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150"
                       style={{
-                        background: form.propType === c.v ? 'rgba(73,124,255,0.10)' : 'transparent',
-                        color: form.propType === c.v ? '#497cff' : '#76777d',
-                        border: `1.5px solid ${form.propType === c.v ? '#497cff' : '#e4e6ea'}`,
+                        background: form.propType === c.v ? 'rgba(79,70,229,0.08)' : 'transparent',
+                        color: form.propType === c.v ? '#4f46e5' : '#76777d',
+                        border: `1.5px solid ${form.propType === c.v ? '#a5b4fc' : '#e4e6ea'}`,
                       }}>{c.l}</button>
                   ))}
                 </div>
@@ -1516,16 +1522,20 @@ export default function HomePage() {
                     onClick={handleSearch}
                     className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-white text-sm transition-all duration-200 lg:min-w-[130px]"
                     style={{
-                      background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-                      boxShadow: '0 4px 18px rgba(34,197,94,0.32)',
+                      background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                      boxShadow: '0 4px 18px rgba(5,150,105,0.35)',
                     }}
                     onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)';
-                      (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 24px rgba(34,197,94,0.45)';
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
+                      el.style.boxShadow = '0 6px 24px rgba(5,150,105,0.48)';
+                      el.style.transform = 'translateY(-1px)';
                     }}
                     onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
-                      (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 18px rgba(34,197,94,0.32)';
+                      const el = e.currentTarget as HTMLElement;
+                      el.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+                      el.style.boxShadow = '0 4px 18px rgba(5,150,105,0.35)';
+                      el.style.transform = 'none';
                     }}
                   >
                     <Search size={16} strokeWidth={2.5} />

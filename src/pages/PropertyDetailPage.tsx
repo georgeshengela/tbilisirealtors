@@ -529,7 +529,7 @@ export default function PropertyDetailPage() {
                 <a
                   href={`tel:${property.agent.phone}`}
                   className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-200"
-                  style={{ background: 'linear-gradient(135deg, #497cff 0%, #3567f5 100%)', boxShadow: '0 4px 16px rgba(73,124,255,0.35)' }}
+                  style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', boxShadow: '0 4px 16px rgba(5,150,105,0.38)' }}
                 >
                   <Phone size={16} strokeWidth={2} />
                   {property.agent.phone}
@@ -544,7 +544,7 @@ export default function PropertyDetailPage() {
                 </a>
                 <button
                   className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-sm transition-all duration-200"
-                  style={{ background: 'rgba(16,185,129,0.08)', border: '1.5px solid rgba(16,185,129,0.25)', color: '#10B981' }}
+                  style={{ background: 'rgba(79,70,229,0.07)', border: '1.5px solid rgba(79,70,229,0.22)', color: '#4f46e5' }}
                 >
                   <Calendar size={16} strokeWidth={2} />
                   ნახვის ჩაწერა
@@ -599,9 +599,9 @@ export default function PropertyDetailPage() {
                   />
                   <button
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200"
-                    style={{ background: '#191c1e' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#497cff'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#191c1e'; }}
+                    style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', boxShadow: '0 3px 12px rgba(5,150,105,0.32)' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 5px 18px rgba(5,150,105,0.44)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 3px 12px rgba(5,150,105,0.32)'; }}
                   >
                     გაგზავნა <ArrowRight size={15} strokeWidth={2.5} />
                   </button>
