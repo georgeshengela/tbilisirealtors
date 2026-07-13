@@ -187,43 +187,16 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
               </Link>
 
               {/* ── Right utility strip ── */}
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
-
-                {/* + განცხადების დამატება — primary indigo CTA */}
-                <Link to="/admin/listings/new" className="hidden sm:flex"
-                  style={{
-                    alignItems: 'center', gap: 6,
-                    height: 36, padding: '0 15px',
-                    borderRadius: 9, textDecoration: 'none', flexShrink: 0,
-                    background: '#4f46e5', color: '#fff',
-                    fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.01em',
-                    border: '1.5px solid #4f46e5',
-                    transition: 'all 0.15s',
-                    boxShadow: '0 2px 8px rgba(79,70,229,0.28)',
-                  }}
-                  onMouseEnter={e => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.background = '#4338ca'; el.style.borderColor = '#4338ca';
-                    el.style.boxShadow = '0 4px 14px rgba(79,70,229,0.38)';
-                  }}
-                  onMouseLeave={e => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.background = '#4f46e5'; el.style.borderColor = '#4f46e5';
-                    el.style.boxShadow = '0 2px 8px rgba(79,70,229,0.28)';
-                  }}
-                >
-                  <Plus size={14} strokeWidth={2.5} />
-                  <span>განც. დამატება</span>
-                </Link>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
 
                 {/* Language/Currency */}
                 <button className="hidden xl:flex"
                   style={{
                     alignItems: 'center', gap: 5,
-                    height: 36, padding: '0 12px',
+                    height: 36, padding: '0 13px',
                     borderRadius: 9, border: '1.5px solid #e5e7eb',
                     background: 'transparent', cursor: 'pointer',
-                    fontSize: 13.5, fontWeight: 600, color: '#374151',
+                    fontSize: 13, fontWeight: 600, color: '#374151',
                     transition: 'all 0.15s', flexShrink: 0,
                   }}
                   onMouseEnter={e => {
@@ -246,77 +219,96 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     position: 'relative', width: 36, height: 36, borderRadius: 9,
                     border: '1.5px solid #e5e7eb', background: 'transparent',
-                    color: '#374151', textDecoration: 'none', transition: 'all 0.15s', flexShrink: 0,
+                    color: '#6b7280', textDecoration: 'none', transition: 'all 0.15s', flexShrink: 0,
                   }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = '#fecdd3'; el.style.background = '#fff1f2'; el.style.color = '#ef4444';
+                    el.style.borderColor = '#fca5a5'; el.style.background = '#fff1f2'; el.style.color = '#ef4444';
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = '#e5e7eb'; el.style.background = 'transparent'; el.style.color = '#374151';
+                    el.style.borderColor = '#e5e7eb'; el.style.background = 'transparent'; el.style.color = '#6b7280';
                   }}
                 >
                   <Heart size={15} strokeWidth={2} />
                   <span style={{
-                    position: 'absolute', top: -4, right: -4,
-                    width: 16, height: 16, borderRadius: '50%',
+                    position: 'absolute', top: -5, right: -5,
+                    width: 17, height: 17, borderRadius: '50%',
                     background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 800,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: '2px solid #fff', boxShadow: '0 1px 4px rgba(239,68,68,0.4)',
+                    border: '2px solid #fff', boxShadow: '0 2px 6px rgba(239,68,68,0.45)',
                   }}>3</span>
                 </Link>
 
                 {/* ─ Divider ─ */}
-                <div className="hidden lg:block" style={{ width: 1, height: 22, background: '#e5e7eb', margin: '0 1px', flexShrink: 0 }} />
+                <div className="hidden lg:block" style={{ width: 1, height: 24, background: '#e5e7eb', flexShrink: 0 }} />
 
-                {/* შესვლა — ghost */}
+                {/* Single auth button — შესვლა / დარეგ. */}
                 <Link to="/login" className="hidden lg:flex"
                   style={{
-                    alignItems: 'center', gap: 6,
-                    height: 36, padding: '0 15px',
+                    alignItems: 'center', gap: 7,
+                    height: 36, padding: '0 16px',
                     borderRadius: 9, border: '1.5px solid #e5e7eb',
                     fontSize: 13.5, fontWeight: 600, color: '#374151',
-                    textDecoration: 'none', background: 'transparent',
+                    textDecoration: 'none', background: '#fff',
                     transition: 'all 0.15s', flexShrink: 0,
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
                   }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = '#9ca3af'; el.style.color = '#111827'; el.style.background = '#f9fafb';
+                    el.style.borderColor = '#d1d5db'; el.style.color = '#111827';
+                    el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.10)';
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = '#e5e7eb'; el.style.color = '#374151'; el.style.background = 'transparent';
+                    el.style.borderColor = '#e5e7eb'; el.style.color = '#374151';
+                    el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
                   }}
                 >
-                  <User size={14} strokeWidth={2} />
+                  <div style={{
+                    width: 22, height: 22, borderRadius: 7, flexShrink: 0,
+                    background: '#f3f4f6',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <User size={12} strokeWidth={2.2} style={{ color: '#374151' }} />
+                  </div>
                   შესვლა
                 </Link>
 
-                {/* დარეგისტრირება — solid dark */}
-                <Link to="/register" className="hidden sm:flex"
+                {/* + განცხადების დამატება — pill, green gradient */}
+                <Link to="/admin/listings/new" className="hidden sm:flex"
                   style={{
-                    alignItems: 'center', gap: 6,
-                    height: 36, padding: '0 15px',
-                    borderRadius: 9, textDecoration: 'none', flexShrink: 0,
-                    background: '#111827', color: '#fff',
+                    alignItems: 'center', gap: 8,
+                    height: 38, padding: '0 18px 0 6px',
+                    borderRadius: 999, textDecoration: 'none', flexShrink: 0,
+                    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                    color: '#fff',
                     fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.01em',
-                    border: '1.5px solid #111827',
-                    transition: 'all 0.15s',
-                    boxShadow: '0 2px 8px rgba(17,24,39,0.20)',
+                    border: 'none',
+                    transition: 'all 0.18s',
+                    boxShadow: '0 3px 12px rgba(5,150,105,0.35)',
                   }}
                   onMouseEnter={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.background = '#1f2937'; el.style.borderColor = '#1f2937';
-                    el.style.boxShadow = '0 4px 14px rgba(17,24,39,0.30)';
+                    el.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
+                    el.style.boxShadow = '0 6px 20px rgba(5,150,105,0.45)';
+                    el.style.transform = 'translateY(-1px)';
                   }}
                   onMouseLeave={e => {
                     const el = e.currentTarget as HTMLElement;
-                    el.style.background = '#111827'; el.style.borderColor = '#111827';
-                    el.style.boxShadow = '0 2px 8px rgba(17,24,39,0.20)';
+                    el.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
+                    el.style.boxShadow = '0 3px 12px rgba(5,150,105,0.35)';
+                    el.style.transform = 'none';
                   }}
                 >
-                  დარეგ.
+                  <div style={{
+                    width: 26, height: 26, borderRadius: 999, flexShrink: 0,
+                    background: 'rgba(255,255,255,0.22)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Plus size={14} strokeWidth={2.8} />
+                  </div>
+                  განცხ. დამატება
                 </Link>
 
                 {/* Burger — mobile only */}
@@ -325,7 +317,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                   className="flex lg:hidden"
                   style={{
                     width: 38, height: 38, borderRadius: 10,
-                    border: '1.5px solid #e8eaed', background: 'transparent',
+                    border: '1.5px solid #e5e7eb', background: 'transparent',
                     alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', color: '#111827', flexShrink: 0, transition: 'all 0.15s',
                   }}
