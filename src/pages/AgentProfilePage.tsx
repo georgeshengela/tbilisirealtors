@@ -19,7 +19,7 @@ export default function AgentProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-24">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[102px]">
       {/* Profile Header */}
       <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10"

@@ -207,16 +207,48 @@ input, select, textarea {
   font-family: 'Noto Sans Georgian', 'Noto Sans', sans-serif;
   font-size: 16px;  /* prevent iOS zoom */
   color: var(--on-surface);
+  outline: none;
+}
+
+/* Standalone inputs (forms, admin, etc.) get full styling */
+.input-field {
   background: var(--surface);
   border: 1.5px solid var(--outline-variant);
   border-radius: 8px;
+  padding: 10px 14px;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
-  outline: none;
 }
-input:focus, select:focus, textarea:focus {
+.input-field:focus {
   border-color: var(--on-tertiary-container);
   box-shadow: 0 0 0 3px rgba(73,124,255,0.15);
 }
+
+/* Bare inputs — used INSIDE custom-styled containers (search, filter) */
+.bare-input {
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 100%;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--on-surface);
+}
+.bare-input:focus {
+  border: none !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+.bare-input::placeholder { color: #c0c2ca; }
+/* Hide number spin buttons */
+.bare-input::-webkit-outer-spin-button,
+.bare-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+.bare-input[type=number] { -moz-appearance: textfield; }
+
 input::placeholder, textarea::placeholder { color: var(--outline); }
 
 /* ─────────────────────────────────────────────────

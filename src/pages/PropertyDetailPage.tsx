@@ -43,7 +43,7 @@ export default function PropertyDetailPage() {
   };
 
   return (
-    <div className="min-h-screen pt-[52px] lg:pt-[96px]" style={{ background: '#f7f9fb' }}>
+    <div className="min-h-screen pt-[56px] lg:pt-[102px]" style={{ background: '#f7f9fb' }}>
 
       {/* Breadcrumb */}
       <div className="bg-white" style={{ borderBottom: '1px solid #eceef0' }}>

@@ -14,7 +14,7 @@ export default function FavoritesPage() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-24">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[102px]">
       {/* Header */}
       <div className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700">
         <div className="container-xl py-8">

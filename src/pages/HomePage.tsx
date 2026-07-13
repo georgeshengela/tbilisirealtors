@@ -789,7 +789,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           HERO — contained, border-radius background
       ══════════════════════════════════════════════════════ */}
-      <section className="pt-[60px] lg:pt-[96px]" style={{ background: '#f7f9fb' }}>
+      <section className="pt-[56px] lg:pt-[102px]" style={{ background: '#f7f9fb' }}>
         <div className="container-xl">
           {/* Contained hero card — hidden on mobile, search panel takes over */}
           <div
