@@ -302,7 +302,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                   style={{
                     width: 38, height: 38, borderRadius: 10,
                     border: '1.5px solid #e8eaed', background: 'transparent',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    alignItems: 'center', justifyContent: 'center',
                     cursor: 'pointer', color: '#111827', flexShrink: 0, transition: 'all 0.15s',
                   }}
                 >
