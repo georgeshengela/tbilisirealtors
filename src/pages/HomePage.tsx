@@ -44,16 +44,13 @@ function SectionIcon({
 }) {
   return (
     <div
-      className="flex items-center justify-center flex-shrink-0"
+      className="flex items-center justify-center flex-shrink-0 w-8 h-8 sm:w-[38px] sm:h-[38px] rounded-[9px] sm:rounded-[11px]"
       style={{
-        width: 38,
-        height: 38,
-        borderRadius: 11,
         border: `2px solid ${color}`,
         background: 'transparent',
       }}
     >
-      <Icon size={18} strokeWidth={2.5} style={{ color }} />
+      <Icon size={16} strokeWidth={2.5} style={{ color }} />
     </div>
   );
 }
@@ -95,7 +92,7 @@ function SectionTitle({
         </div>
         <h2
           className="font-extrabold"
-          style={{ fontSize: 'clamp(22px, 2.6vw, 28px)', color: '#14161a', lineHeight: 1.18, letterSpacing: '-0.02em' }}
+          style={{ fontSize: 'clamp(18px, 4.2vw, 28px)', color: '#14161a', lineHeight: 1.18, letterSpacing: '-0.02em' }}
         >
           {title}
         </h2>
@@ -104,12 +101,12 @@ function SectionTitle({
   }
 
   return (
-    <header className="mb-6 sm:mb-8 flex items-center justify-between gap-5">
-      <div className="flex items-center gap-3 min-w-0">
+    <header className="mb-5 sm:mb-8 flex items-center justify-between gap-4 sm:gap-5">
+      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
         <SectionIcon icon={Icon} color={a.color} />
         <h2
           className="font-extrabold min-w-0"
-          style={{ fontSize: 'clamp(21px, 2.4vw, 27px)', color: '#14161a', lineHeight: 1.18, letterSpacing: '-0.02em' }}
+          style={{ fontSize: 'clamp(17px, 4vw, 27px)', color: '#14161a', lineHeight: 1.18, letterSpacing: '-0.02em' }}
         >
           {title}
         </h2>
@@ -247,49 +244,49 @@ function ConstructionProjectCard({ project }: { project: ConstructionProject }) 
 
       <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-[rgba(73,124,255,0.55)] transition-all duration-300" />
 
-      <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">
+      <div className="absolute top-2 left-2 right-2 sm:top-3 sm:left-3 sm:right-3 flex items-start justify-between gap-1.5 sm:gap-2">
         <span
-          className="px-2.5 py-1 rounded-full text-[10px] font-bold"
+          className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-bold"
           style={{ background: status.bg, color: '#fff' }}
         >
           {status.label}
         </span>
         <span
-          className="px-2 py-1 rounded-full text-[9px] font-semibold truncate max-w-[48%]"
+          className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] font-semibold truncate max-w-[48%]"
           style={{ background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)' }}
         >
           {project.developer}
         </span>
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0 p-4">
-        <p className="text-white font-extrabold text-[15px] leading-tight mb-1">{project.name}</p>
-        <p className="flex items-center gap-1 text-[11px] mb-3" style={{ color: 'rgba(255,255,255,0.55)' }}>
-          <MapPin size={11} strokeWidth={2.5} />
-          {project.district}, {project.city}
+      <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
+        <p className="text-white font-extrabold text-[13px] sm:text-[15px] leading-tight mb-1">{project.name}</p>
+        <p className="flex items-center gap-1 text-[10px] sm:text-[11px] mb-2 sm:mb-3" style={{ color: 'rgba(255,255,255,0.55)' }}>
+          <MapPin size={10} strokeWidth={2.5} className="flex-shrink-0" />
+          <span className="truncate">{project.district}, {project.city}</span>
         </p>
 
-        <p className="font-extrabold text-xl mb-3" style={{ color: '#7aabff', letterSpacing: '-0.02em' }}>
+        <p className="font-extrabold text-base sm:text-xl mb-2 sm:mb-3" style={{ color: '#7aabff', letterSpacing: '-0.02em' }}>
           ₾{project.priceFrom.toLocaleString()}
-          <span className="text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.45)' }}>+</span>
+          <span className="text-[11px] sm:text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.45)' }}>+</span>
         </p>
 
         <div
-          className="flex items-center justify-between rounded-xl px-3 py-2 mb-2"
+          className="flex items-center justify-between rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 mb-1.5 sm:mb-2"
           style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)' }}
         >
-          <div className="text-center flex-1">
-            <p className="text-[13px] font-bold text-white leading-none">{project.units}</p>
-            <p className="text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>ბინა</p>
+          <div className="text-center flex-1 min-w-0">
+            <p className="text-[11px] sm:text-[13px] font-bold text-white leading-none truncate">{project.units}</p>
+            <p className="text-[8px] sm:text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>ბინა</p>
           </div>
-          <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.12)' }} />
-          <div className="text-center flex-1">
-            <p className="text-[13px] font-bold text-white leading-none">{project.completion}</p>
-            <p className="text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>დასრულება</p>
+          <div className="flex-shrink-0" style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.12)' }} />
+          <div className="text-center flex-1 min-w-0">
+            <p className="text-[11px] sm:text-[13px] font-bold text-white leading-none truncate">{project.completion}</p>
+            <p className="text-[8px] sm:text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>დასრულება</p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+        <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
           <span className="text-[11px] font-bold" style={{ color: '#7aabff' }}>დეტალები</span>
           <ArrowRight size={11} style={{ color: '#7aabff' }} />
         </div>
@@ -805,11 +802,11 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           HERO — contained, border-radius background
       ══════════════════════════════════════════════════════ */}
-      <section className="pt-[96px]" style={{ background: '#f7f9fb' }}>
+      <section className="pt-[84px] md:pt-[96px]" style={{ background: '#f7f9fb' }}>
         <div className="container-xl">
-          {/* Contained hero card */}
+          {/* Contained hero card — hidden on mobile, search panel takes over */}
           <div
-            className="relative overflow-hidden"
+            className="hidden md:block relative overflow-hidden"
             style={{
               borderRadius: '2rem',
               height: 'clamp(420px, 52vh, 560px)',
@@ -987,7 +984,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 14 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.65, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 -mt-10 mx-3 sm:mx-6 lg:mx-12"
+            className="relative z-10 mt-3 md:-mt-10 mx-3 sm:mx-6 lg:mx-12"
           >
             <div
               ref={searchPanelRef}
@@ -1413,12 +1410,12 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           SUPER VIP LISTINGS
       ══════════════════════════════════════════════════════ */}
-      <section className="py-16 sm:py-20" style={{ background: '#fff' }}>
+      <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#fff' }}>
         <div className="container-xl">
           <InViewFade>
             <SectionTitle
               icon={Rocket}
-              title="SUPER VIP განცხადებები"
+              title="VIP განცხადებები"
               linkTo="/listings?vip=true"
               linkLabel="ყველა VIP"
             />
@@ -1465,12 +1462,12 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           NEW LISTINGS
       ══════════════════════════════════════════════════════ */}
-      <section className="py-16 sm:py-20" style={{ background: '#f7f9fb' }}>
+      <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#f7f9fb' }}>
         <div className="container-xl">
           <InViewFade>
             <SectionTitle
               icon={Sparkles}
-              title="ახლახანს დამატებული"
+              title="ახალი განცხადებები"
               accent="green"
               linkTo="/listings?new=true"
               linkLabel="ყველა ახალი"
@@ -1495,12 +1492,12 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           NEW CONSTRUCTION PROJECTS
       ══════════════════════════════════════════════════════ */}
-      <section className="py-16 sm:py-20 bg-white">
+      <section className="py-10 sm:py-16 lg:py-20 bg-white">
         <div className="container-xl">
           <InViewFade>
             <SectionTitle
               icon={HardHat}
-              title="ახალი საცხოვრებელი პროექტები"
+              title="პროექტები"
               linkTo="/listings?type=apartment&new=true"
               linkLabel="ყველა პროექტი"
             />
@@ -1508,7 +1505,7 @@ export default function HomePage() {
 
           <InViewFade delay={0.05}>
             <div
-              className="relative rounded-3xl overflow-hidden p-5 sm:p-6"
+              className="relative rounded-2xl sm:rounded-3xl overflow-hidden p-4 sm:p-6"
               style={{ background: 'linear-gradient(135deg, #131b2e 0%, #1a2d5a 55%, #131b2e 100%)' }}
             >
               <div
@@ -1519,7 +1516,7 @@ export default function HomePage() {
                 }}
               />
 
-              <div className="relative flex flex-wrap items-center gap-2 mb-5">
+              <div className="relative flex flex-wrap items-center gap-1.5 sm:gap-2 mb-4 sm:mb-5">
                 {[
                   { label: 'პრე-გაყიდვა', color: '#497cff' },
                   { label: '0% საკომისიო', color: '#10B981' },
@@ -1527,7 +1524,7 @@ export default function HomePage() {
                 ].map(chip => (
                   <span
                     key={chip.label}
-                    className="px-3 py-1 rounded-full text-[10px] font-bold"
+                    className="px-2.5 sm:px-3 py-1 rounded-full text-[9px] sm:text-[10px] font-bold"
                     style={{ background: `${chip.color}22`, color: chip.color, border: `1px solid ${chip.color}44` }}
                   >
                     {chip.label}
@@ -1535,7 +1532,7 @@ export default function HomePage() {
                 ))}
               </div>
 
-              <div className="relative grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="relative grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
                 {constructionProjects.map((project, i) => (
                   <InViewFade key={project.id} delay={0.08 + i * 0.05}>
                     <ConstructionProjectCard project={project} />
@@ -1563,12 +1560,12 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           BLOG & BUYING GUIDES
       ══════════════════════════════════════════════════════ */}
-      <section className="py-16 sm:py-20" style={{ background: '#f7f9fb' }}>
+      <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#f7f9fb' }}>
         <div className="container-xl">
           <InViewFade>
             <SectionTitle
               icon={BookOpen}
-              title="ბლოგი და საყიდვის გზამკვლევები"
+              title="ბლოგი"
               linkTo="/blog"
               linkLabel="ყველა სტატია"
             />
@@ -1586,7 +1583,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           FAQ
       ══════════════════════════════════════════════════════ */}
-      <section className="py-16 sm:py-20 bg-white">
+      <section className="py-10 sm:py-16 lg:py-20 bg-white">
         <div className="container-xl">
           <InViewFade>
             <SectionTitle

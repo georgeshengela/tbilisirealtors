@@ -105,6 +105,7 @@ interface HeaderProps {
 export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
   const [scrolled, setScrolled]           = useState(false);
   const [mobileOpen, setMobileOpen]       = useState(false);
+  const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [dropdownTimeout, setDropdownTimeout] = useState<ReturnType<typeof setTimeout> | null>(null);
   const location = useLocation();
@@ -119,6 +120,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
   useEffect(() => {
     setMobileOpen(false);
     setActiveDropdown(null);
+    setMobileExpanded(null);
   }, [location]);
 
   const openMenu  = (label: string) => {
@@ -160,7 +162,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
             </Link>
 
             {/* ── Desktop Nav ── */}
-            <nav style={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1 }} className="hidden lg:flex">
+            <nav style={{ alignItems: 'center', gap: 2, flex: 1 }} className="hidden lg:flex">
               {navItems.map((item) => (
                 <div
                   key={item.label}
@@ -285,7 +287,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
               {/* Phone */}
               <a href="tel:+995322123456" className="hidden xl:flex"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#45464d', textDecoration: 'none' }}
+                style={{ alignItems: 'center', gap: 6, padding: '6px 10px', borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#45464d', textDecoration: 'none' }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f2f4f6'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
               >
@@ -294,7 +296,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
 
               {/* Dark mode */}
               <button onClick={toggleDarkMode}
-                style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'transparent', color: '#45464d' }}
+                style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'transparent', color: '#45464d' }}
                 className="hidden sm:flex"
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f2f4f6'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
@@ -313,7 +315,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
 
               {/* Search */}
               <Link to="/listings"
-                style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, color: '#45464d', textDecoration: 'none' }}
+                style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 8, color: '#45464d', textDecoration: 'none' }}
                 className="hidden sm:flex"
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f2f4f6'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
@@ -326,7 +328,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
 
               {/* Login */}
               <Link to="/login"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, fontSize: 13.5, fontWeight: 600, color: '#45464d', textDecoration: 'none' }}
+                style={{ alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8, fontSize: 13.5, fontWeight: 600, color: '#45464d', textDecoration: 'none' }}
                 className="hidden lg:flex"
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f2f4f6'; (e.currentTarget as HTMLElement).style.color = '#191c1e'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = '#45464d'; }}
@@ -336,7 +338,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
 
               {/* Register CTA */}
               <Link to="/register" className="hidden sm:flex"
-                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 9, background: '#000', color: '#fff', fontSize: 13.5, fontWeight: 700, textDecoration: 'none', transition: 'background 0.2s' }}
+                style={{ alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 9, background: '#000', color: '#fff', fontSize: 13.5, fontWeight: 700, textDecoration: 'none', transition: 'background 0.2s' }}
                 onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#1a1a1a'}
                 onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#000'}
               >
@@ -346,8 +348,8 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
               {/* Burger */}
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
-                style={{ width: 36, height: 36, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'transparent', color: '#191c1e' }}
-                className="lg:hidden"
+                style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', cursor: 'pointer', background: 'transparent', color: '#191c1e' }}
+                className="flex lg:hidden"
               >
                 {mobileOpen ? <X size={20} strokeWidth={2} /> : <Menu size={20} strokeWidth={2} />}
               </button>
@@ -371,50 +373,124 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
               transition={{ type: 'spring', damping: 28, stiffness: 260 }}
               style={{
                 position: 'fixed', right: 0, top: 0, bottom: 0, zIndex: 50,
-                width: 300, background: '#fff', display: 'flex', flexDirection: 'column',
+                width: 'min(84vw, 340px)', background: '#fff', flexDirection: 'column',
                 boxShadow: '-4px 0 40px rgba(0,0,0,0.18)',
               }}
-              className="lg:hidden"
+              className="flex lg:hidden"
             >
-              {/* Header */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', height: 64, borderBottom: '1px solid #e0e3e5' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 30, height: 30, background: '#000', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Building2 size={15} color="#fff" strokeWidth={2} />
+              {/* Brand header */}
+              <div
+                style={{
+                  padding: '18px 16px 16px', flexShrink: 0,
+                  background: 'linear-gradient(135deg, #131b2e 0%, #1a2d5a 100%)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 34, height: 34, background: 'rgba(255,255,255,0.14)', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <Building2 size={17} color="#fff" strokeWidth={2} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: 14, color: '#fff', lineHeight: 1.15 }}>TbilisiRealtors</div>
+                      <div style={{ fontWeight: 600, fontSize: 10.5, color: '#7aabff', lineHeight: 1 }}>.ge — პრემიუმ ბაზარი</div>
+                    </div>
                   </div>
-                  <span style={{ fontWeight: 800, fontSize: 14, color: '#191c1e' }}>TbilisiRealtors.ge</span>
+                  <button onClick={() => setMobileOpen(false)}
+                    style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 9, border: 'none', background: 'rgba(255,255,255,0.10)', cursor: 'pointer', color: '#fff', flexShrink: 0 }}>
+                    <X size={17} strokeWidth={2} />
+                  </button>
                 </div>
-                <button onClick={() => setMobileOpen(false)}
-                  style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, border: 'none', background: 'transparent', cursor: 'pointer', color: '#45464d' }}>
-                  <X size={18} strokeWidth={2} />
+
+                {/* Search */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 9, background: 'rgba(255,255,255,0.10)', borderRadius: 12, padding: '11px 14px', border: '1px solid rgba(255,255,255,0.16)' }}>
+                  <Search size={15} style={{ color: 'rgba(255,255,255,0.55)', flexShrink: 0 }} />
+                  <input placeholder="განცხადების ძებნა..." style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 13.5, color: '#fff', flex: 1, boxShadow: 'none' }} />
+                </div>
+              </div>
+
+              {/* Quick actions */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '14px 16px', borderBottom: '1px solid #eceef0', flexShrink: 0 }}>
+                <a href="tel:+995322123456"
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', borderRadius: 11, background: '#f7f9fb', color: '#191c1e', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', border: '1px solid #eceef0' }}
+                >
+                  <Phone size={14} strokeWidth={2} style={{ color: '#497cff' }} /> ზარი
+                </a>
+                <Link to="/favorites" onClick={() => setMobileOpen(false)}
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', borderRadius: 11, background: '#f7f9fb', color: '#191c1e', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', border: '1px solid #eceef0' }}
+                >
+                  <Heart size={14} strokeWidth={2} style={{ color: '#ef4444' }} /> ფავორ.
+                </Link>
+                <button onClick={toggleDarkMode}
+                  style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 11, background: '#f7f9fb', border: '1px solid #eceef0', color: '#191c1e', cursor: 'pointer', flexShrink: 0 }}
+                >
+                  {darkMode ? <Sun size={15} strokeWidth={2} /> : <Moon size={15} strokeWidth={2} />}
                 </button>
               </div>
 
-              {/* Search */}
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid #eceef0' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: '#f7f9fb', borderRadius: 12, padding: '10px 14px', border: '1.5px solid #e0e3e5' }}>
-                  <Search size={15} style={{ color: '#76777d', flexShrink: 0 }} />
-                  <input placeholder="განცხადების ძებნა..." style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: '#191c1e', flex: 1, boxShadow: 'none' }} />
-                </div>
-              </div>
-
               {/* Nav links */}
-              <nav style={{ flex: 1, overflowY: 'auto', padding: '12px 12px' }}>
-                {navItems.map(item => (
-                  <Link key={item.label} to={item.href}
-                    onClick={() => setMobileOpen(false)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '11px 14px', borderRadius: 10, fontSize: 14, fontWeight: 600, color: '#45464d', textDecoration: 'none', marginBottom: 2 }}
-                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f2f4f6'}
-                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                  >
-                    <item.icon size={17} strokeWidth={1.8} style={{ color: '#76777d' }} />
-                    {item.label}
-                  </Link>
-                ))}
+              <nav style={{ flex: 1, overflowY: 'auto', padding: '10px 10px' }}>
+                {navItems.map(item => {
+                  const expanded = mobileExpanded === item.label;
+                  const isActive = location.pathname === item.href;
+                  return (
+                    <div key={item.label} style={{ marginBottom: 2 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', borderRadius: 12, background: isActive ? '#f2f4f6' : 'transparent' }}>
+                        <Link
+                          to={item.href}
+                          onClick={() => setMobileOpen(false)}
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 11, padding: '10px 10px', fontSize: 14, fontWeight: 600, color: isActive ? '#191c1e' : '#45464d', textDecoration: 'none', minWidth: 0 }}
+                        >
+                          <div style={{
+                            width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+                            background: isActive ? 'rgba(73,124,255,0.14)' : '#f2f4f6',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}>
+                            <item.icon size={15} strokeWidth={2} style={{ color: isActive ? '#497cff' : '#76777d' }} />
+                          </div>
+                          {item.label}
+                        </Link>
+                        {item.mega && (
+                          <button
+                            onClick={() => setMobileExpanded(expanded ? null : item.label)}
+                            style={{ width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: '#9ea0a7', cursor: 'pointer', flexShrink: 0, marginRight: 4 }}
+                          >
+                            <ChevronDown size={15} strokeWidth={2.2} style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                          </button>
+                        )}
+                      </div>
+
+                      <AnimatePresence initial={false}>
+                        {item.mega && expanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                            style={{ overflow: 'hidden' }}
+                          >
+                            <div style={{ padding: '2px 6px 8px 44px', display: 'flex', flexDirection: 'column', gap: 1 }}>
+                              {item.mega.columns.flatMap(col => col.items).map(sub => (
+                                <Link
+                                  key={sub.label}
+                                  to={sub.href}
+                                  onClick={() => setMobileOpen(false)}
+                                  style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '8px 10px', borderRadius: 9, fontSize: 13, fontWeight: 500, color: '#65666d', textDecoration: 'none' }}
+                                >
+                                  <sub.icon size={13} strokeWidth={1.8} style={{ color: '#b0b2ba', flexShrink: 0 }} />
+                                  {sub.label}
+                                </Link>
+                              ))}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
               </nav>
 
               {/* Actions */}
-              <div style={{ padding: 16, borderTop: '1px solid #e0e3e5', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ padding: 14, borderTop: '1px solid #e0e3e5', display: 'flex', flexDirection: 'column', gap: 9, flexShrink: 0 }}>
                 <Link to="/login" onClick={() => setMobileOpen(false)}
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '12px', borderRadius: 12, fontSize: 14, fontWeight: 700, color: '#191c1e', border: '1.5px solid #c6c6cd', textDecoration: 'none' }}>
                   <User size={16} strokeWidth={2} /> შესვლა
