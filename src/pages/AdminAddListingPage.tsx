@@ -6,8 +6,8 @@ import {
   Tag, DollarSign, Ruler, Bed, Bath, Layers, Calendar, MapPin,
   Image as ImageIcon, Sparkles, Star, Zap, User, Phone, Mail,
   CheckCircle, Loader2, Crown, Key, FileText, Wrench, Shield,
-  Flame, Droplets, HardHat, Car, Youtube, Link2, BadgeCheck,
-  ChevronDown, Hash, Package, MoveHorizontal,
+  Flame, Droplets, HardHat, Car, Link2, BadgeCheck,
+  ChevronDown, Hash, Package, MoveHorizontal, PlayCircle,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import LocationPickerMap, { type LocationValue } from '../components/LocationPickerMap';
@@ -912,7 +912,7 @@ export default function AdminAddListingPage() {
                     <div className={`${cardCls} p-6 space-y-4`}>
                       <h2 className="font-extrabold text-slate-800 text-lg">ბმულები</h2>
                       <div>
-                        <label className={labelCls}><Youtube size={13} className="text-red-500" /> YouTube-ის ბმული</label>
+                        <label className={labelCls}><PlayCircle size={13} className="text-red-500" /> YouTube-ის ბმული</label>
                         <input type="url" value={form.youtubeUrl} onChange={e => set('youtubeUrl', e.target.value)}
                           className={inputCls} placeholder="https://youtube.com/watch?v=..." />
                       </div>
