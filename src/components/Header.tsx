@@ -187,20 +187,30 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
               </Link>
 
               {/* ── Right utility strip ── */}
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 5 }}>
 
-                {/* + განცხადების დამატება */}
+                {/* + განცხადების დამატება — primary indigo CTA */}
                 <Link to="/admin/listings/new" className="hidden sm:flex"
                   style={{
-                    alignItems: 'center', gap: 7, padding: '8px 16px',
-                    borderRadius: 9, textDecoration: 'none',
-                    background: '#059669', color: '#fff',
-                    fontSize: 13, fontWeight: 700, flexShrink: 0,
-                    transition: 'background 0.15s',
-                    border: '1.5px solid #059669',
+                    alignItems: 'center', gap: 6,
+                    height: 36, padding: '0 15px',
+                    borderRadius: 9, textDecoration: 'none', flexShrink: 0,
+                    background: '#4f46e5', color: '#fff',
+                    fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.01em',
+                    border: '1.5px solid #4f46e5',
+                    transition: 'all 0.15s',
+                    boxShadow: '0 2px 8px rgba(79,70,229,0.28)',
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#047857'; (e.currentTarget as HTMLElement).style.borderColor = '#047857'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#059669'; (e.currentTarget as HTMLElement).style.borderColor = '#059669'; }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.background = '#4338ca'; el.style.borderColor = '#4338ca';
+                    el.style.boxShadow = '0 4px 14px rgba(79,70,229,0.38)';
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.background = '#4f46e5'; el.style.borderColor = '#4f46e5';
+                    el.style.boxShadow = '0 2px 8px rgba(79,70,229,0.28)';
+                  }}
                 >
                   <Plus size={14} strokeWidth={2.5} />
                   <span>განც. დამატება</span>
@@ -209,24 +219,23 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                 {/* Language/Currency */}
                 <button className="hidden xl:flex"
                   style={{
-                    alignItems: 'center', gap: 5, padding: '7px 11px',
-                    borderRadius: 9, border: '1.5px solid #e8eaed',
+                    alignItems: 'center', gap: 5,
+                    height: 36, padding: '0 12px',
+                    borderRadius: 9, border: '1.5px solid #e5e7eb',
                     background: 'transparent', cursor: 'pointer',
-                    fontSize: 12.5, fontWeight: 600, color: '#374151',
+                    fontSize: 13.5, fontWeight: 600, color: '#374151',
                     transition: 'all 0.15s', flexShrink: 0,
                   }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = '#c7d2fe';
-                    (e.currentTarget as HTMLElement).style.background = '#f0f4ff';
-                    (e.currentTarget as HTMLElement).style.color = '#4f46e5';
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = '#c7d2fe'; el.style.background = '#f0f4ff'; el.style.color = '#4f46e5';
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = '#e8eaed';
-                    (e.currentTarget as HTMLElement).style.background = 'transparent';
-                    (e.currentTarget as HTMLElement).style.color = '#374151';
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = '#e5e7eb'; el.style.background = 'transparent'; el.style.color = '#374151';
                   }}
                 >
-                  <Globe size={14} strokeWidth={2} />
+                  <Globe size={13} strokeWidth={2} />
                   <span>ქართ. — ₾</span>
                   <ChevronDown size={11} strokeWidth={2.5} style={{ color: '#9ca3af' }} />
                 </button>
@@ -235,25 +244,23 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                 <Link to="/favorites"
                   style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    position: 'relative', width: 38, height: 38, borderRadius: 10,
-                    border: '1.5px solid #e8eaed', background: 'transparent',
+                    position: 'relative', width: 36, height: 36, borderRadius: 9,
+                    border: '1.5px solid #e5e7eb', background: 'transparent',
                     color: '#374151', textDecoration: 'none', transition: 'all 0.15s', flexShrink: 0,
                   }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = '#fecdd3';
-                    (e.currentTarget as HTMLElement).style.background = '#fff1f2';
-                    (e.currentTarget as HTMLElement).style.color = '#ef4444';
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = '#fecdd3'; el.style.background = '#fff1f2'; el.style.color = '#ef4444';
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = '#e8eaed';
-                    (e.currentTarget as HTMLElement).style.background = 'transparent';
-                    (e.currentTarget as HTMLElement).style.color = '#374151';
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = '#e5e7eb'; el.style.background = 'transparent'; el.style.color = '#374151';
                   }}
                 >
-                  <Heart size={16} strokeWidth={2} />
+                  <Heart size={15} strokeWidth={2} />
                   <span style={{
                     position: 'absolute', top: -4, right: -4,
-                    width: 17, height: 17, borderRadius: '50%',
+                    width: 16, height: 16, borderRadius: '50%',
                     background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 800,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     border: '2px solid #fff', boxShadow: '0 1px 4px rgba(239,68,68,0.4)',
@@ -261,36 +268,53 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                 </Link>
 
                 {/* ─ Divider ─ */}
-                <div className="hidden lg:block" style={{ width: 1, height: 24, background: '#e8eaed', margin: '0 2px', flexShrink: 0 }} />
+                <div className="hidden lg:block" style={{ width: 1, height: 22, background: '#e5e7eb', margin: '0 1px', flexShrink: 0 }} />
 
-                {/* შესვლა */}
+                {/* შესვლა — ghost */}
                 <Link to="/login" className="hidden lg:flex"
                   style={{
-                    alignItems: 'center', gap: 7, padding: '8px 15px',
-                    borderRadius: 9, border: '1.5px solid #d1d5db',
+                    alignItems: 'center', gap: 6,
+                    height: 36, padding: '0 15px',
+                    borderRadius: 9, border: '1.5px solid #e5e7eb',
                     fontSize: 13.5, fontWeight: 600, color: '#374151',
-                    textDecoration: 'none', background: '#fff',
-                    transition: 'border-color 0.15s, color 0.15s', flexShrink: 0,
+                    textDecoration: 'none', background: 'transparent',
+                    transition: 'all 0.15s', flexShrink: 0,
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = '#6b7280'; (e.currentTarget as HTMLElement).style.color = '#111827'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#d1d5db'; (e.currentTarget as HTMLElement).style.color = '#374151'; }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = '#9ca3af'; el.style.color = '#111827'; el.style.background = '#f9fafb';
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = '#e5e7eb'; el.style.color = '#374151'; el.style.background = 'transparent';
+                  }}
                 >
-                  <User size={15} strokeWidth={2} />
+                  <User size={14} strokeWidth={2} />
                   შესვლა
                 </Link>
 
                 {/* დარეგისტრირება — solid dark */}
                 <Link to="/register" className="hidden sm:flex"
                   style={{
-                    alignItems: 'center', gap: 7, padding: '8px 17px',
+                    alignItems: 'center', gap: 6,
+                    height: 36, padding: '0 15px',
                     borderRadius: 9, textDecoration: 'none', flexShrink: 0,
                     background: '#111827', color: '#fff',
-                    fontSize: 13.5, fontWeight: 700,
+                    fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.01em',
                     border: '1.5px solid #111827',
-                    transition: 'background 0.15s',
+                    transition: 'all 0.15s',
+                    boxShadow: '0 2px 8px rgba(17,24,39,0.20)',
                   }}
-                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#1f2937'; (e.currentTarget as HTMLElement).style.borderColor = '#1f2937'; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#111827'; (e.currentTarget as HTMLElement).style.borderColor = '#111827'; }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.background = '#1f2937'; el.style.borderColor = '#1f2937';
+                    el.style.boxShadow = '0 4px 14px rgba(17,24,39,0.30)';
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.background = '#111827'; el.style.borderColor = '#111827';
+                    el.style.boxShadow = '0 2px 8px rgba(17,24,39,0.20)';
+                  }}
                 >
                   დარეგ.
                 </Link>
