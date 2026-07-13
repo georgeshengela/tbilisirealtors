@@ -451,25 +451,31 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
             return (
               <motion.div
                 key={activeItem.label}
-                initial={{ opacity: 0, y: -10 }}
+                initial={{ opacity: 0, y: -6 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
+                exit={{ opacity: 0, y: -4 }}
                 transition={{ duration: 0.18, ease: [0.2, 0.8, 0.4, 1] }}
                 onMouseEnter={() => openDrop(activeItem.label)}
                 onMouseLeave={closeDrop}
                 style={{
                   position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 99,
-                  background: '#fff',
-                  borderTop: '2px solid #edf0f3',
-                  boxShadow: '0 24px 64px rgba(15,23,42,0.14), 0 0 0 1px rgba(0,0,0,0.04)',
+                  padding: '8px 0 0',
                 }}
               >
                 <div className="container-xl">
+                  <div style={{
+                    background: '#fff',
+                    borderRadius: 16,
+                    boxShadow: '0 20px 60px rgba(15,23,42,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
+                    overflow: 'hidden',
+                    marginBottom: 12,
+                  }}>
                   {/* Accent header bar */}
                   <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                    padding: '14px 0 13px',
+                    padding: '14px 22px 13px',
                     borderBottom: '1px solid #f0f2f5',
+                    background: 'linear-gradient(135deg, #fafbff 0%, #f8f9fb 100%)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{
@@ -491,7 +497,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                   </div>
 
                   {/* Columns + featured */}
-                  <div style={{ display: 'flex', padding: '16px 0 20px' }}>
+                  <div style={{ display: 'flex', padding: '16px 22px 20px' }}>
                     <div style={{ display: 'flex', flex: 1, gap: 0 }}>
                       {mega.columns.map((col: any, ci: number) => (
                         <div key={ci} style={{
@@ -563,7 +569,8 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                       </div>
                     )}
                   </div>
-                </div>
+                  </div>{/* card */}
+                </div>{/* container-xl */}
               </motion.div>
             );
           })}
