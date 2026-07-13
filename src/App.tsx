@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Header from './components/Header';
@@ -17,6 +17,7 @@ import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPage from './pages/AdminPage';
+import AdminAddListingPage from './pages/AdminAddListingPage';
 import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
 
 function ScrollToTop() {
@@ -27,10 +28,10 @@ function ScrollToTop() {
   return null;
 }
 
-function ProtectedAdminRoute() {
+function ProtectedAdminRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAdminAuth();
   if (loading) return null;
-  return user ? <AdminPage /> : <Navigate to="/admin/login" replace />;
+  return user ? <>{children}</> : <Navigate to="/admin/login" replace />;
 }
 
 function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMode: () => void }) {
@@ -43,7 +44,9 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
     return (
       <Routes>
         <Route path="/admin/login" element={<AdminLoginPage />} />
-        <Route path="/admin/*" element={<ProtectedAdminRoute />} />
+        <Route path="/admin/listings/new" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
+        <Route path="/admin/listings/:id/edit" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
+        <Route path="/admin/*" element={<ProtectedAdminRoute><AdminPage /></ProtectedAdminRoute>} />
       </Routes>
     );
   }

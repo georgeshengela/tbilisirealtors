@@ -7,6 +7,7 @@ import {
   Building2, Star, Eye, Home, ArrowRight, Maximize2, Sparkles, Layers
 } from 'lucide-react';
 import { properties } from '../data/mockData';
+import PropertyMap from '../components/PropertyMap';
 import PropertyCard from '../components/PropertyCard';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -380,27 +381,19 @@ export default function PropertyDetailPage() {
               <p className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#9ea0a7' }}>
                 მდებარეობა
               </p>
-              <div
-                className="relative rounded-2xl overflow-hidden flex items-center justify-center"
-                style={{ height: 240, background: 'linear-gradient(135deg, #e8edf5 0%, #d4dce8 100%)', border: '1px solid #dce0e8' }}
-              >
-                <div
-                  className="absolute inset-0 opacity-30 pointer-events-none"
-                  style={{
-                    backgroundImage: 'linear-gradient(rgba(73,124,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(73,124,255,0.15) 1px, transparent 1px)',
-                    backgroundSize: '40px 40px',
-                  }}
-                />
-                <div className="relative text-center">
-                  <div
-                    className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3"
-                    style={{ background: '#497cff', boxShadow: '0 4px 16px rgba(73,124,255,0.40)' }}
-                  >
-                    <MapPin size={22} color="#fff" />
-                  </div>
-                  <p className="font-bold text-sm" style={{ color: '#191c1e' }}>{property.address}</p>
-                  <p className="text-sm mt-0.5" style={{ color: '#76777d' }}>{property.district}, {property.city}</p>
-                </div>
+              <PropertyMap
+                lat={property.coordinates.lat}
+                lng={property.coordinates.lng}
+                address={property.address}
+                district={property.district}
+                city={property.city}
+                height={280}
+              />
+              <div className="flex items-center gap-2 mt-3">
+                <MapPin size={14} style={{ color: '#497cff' }} />
+                <p className="text-sm font-semibold" style={{ color: '#45464d' }}>
+                  {property.address}, {property.district}, {property.city}
+                </p>
               </div>
             </div>
 

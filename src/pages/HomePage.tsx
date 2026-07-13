@@ -817,7 +817,7 @@ export default function HomePage() {
           >
             {/* BG Image */}
             <img
-              src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=1920&q=90"
+              src="https://static.vecteezy.com/system/resources/previews/059/552/778/large_2x/aerial-view-of-saburtalo-and-vake-districts-of-tbilisi-photo.jpg"
               alt="Hero"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -910,7 +910,7 @@ export default function HomePage() {
                   initial={{ opacity: 0, y: 12 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.5, delay: 0.34 }}
-                  className="inline-flex items-stretch rounded-2xl overflow-hidden mb-7"
+                  className="inline-flex items-stretch rounded-2xl overflow-hidden mb-7 max-w-full"
                   style={{
                     background: 'rgba(255,255,255,0.08)',
                     border: '1px solid rgba(255,255,255,0.14)',
@@ -924,11 +924,11 @@ export default function HomePage() {
                   ].map((s, i) => (
                     <div
                       key={s.l}
-                      className="flex flex-col items-center px-5 py-3"
+                      className="flex flex-col items-center px-3 sm:px-5 py-2.5 sm:py-3"
                       style={{ borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.10)' : 'none' }}
                     >
-                      <span className="text-white font-bold text-base leading-none">{s.v}</span>
-                      <span className="text-white/45 text-[11px] font-medium mt-1">{s.l}</span>
+                      <span className="text-white font-bold text-sm sm:text-base leading-none">{s.v}</span>
+                      <span className="text-white/45 text-[10px] sm:text-[11px] font-medium mt-1 whitespace-nowrap">{s.l}</span>
                     </div>
                   ))}
                 </motion.div>
@@ -994,7 +994,7 @@ export default function HomePage() {
               className="rounded-3xl overflow-visible"
               style={{
                 background: '#fff',
-                boxShadow: '0 32px 80px rgba(15,23,42,0.22), 0 0 0 1px rgba(0,0,0,0.06)',
+                border: '1px solid #eceef0',
               }}
             >
               {/* ── Top bar: tabs + type chips + badge ── */}
@@ -1044,10 +1044,10 @@ export default function HomePage() {
               </div>
 
               {/* ── Fields row ── */}
-              <div className="flex flex-col lg:flex-row items-stretch gap-0 px-4 py-4">
+              <div className="flex flex-col lg:flex-row items-stretch gap-2.5 lg:gap-0 px-4 py-4">
 
                 {/* ① District / keyword dropdown */}
-                <div className="relative flex-[2]" style={{ marginRight: 6 }}>
+                <div className="relative flex-[2] lg:mr-1.5">
                   <div
                     className="flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all duration-200 h-full"
                     style={{
@@ -1078,8 +1078,8 @@ export default function HomePage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 4 }}
                         transition={{ duration: 0.18 }}
-                        className="absolute top-full left-0 mt-2 rounded-2xl overflow-hidden z-50"
-                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)', minWidth: 280 }}
+                        className="absolute top-full left-0 mt-2 rounded-2xl overflow-hidden z-50 w-[calc(100vw-3.5rem)] sm:w-auto sm:min-w-[280px]"
+                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)', maxWidth: 320 }}
                       >
                         {/* Search input at top */}
                         <div className="px-4 pt-3 pb-2" style={{ borderBottom: '1px solid #f0f2f5' }}>
@@ -1139,7 +1139,7 @@ export default function HomePage() {
                 </div>
 
                 {/* ② City custom dropdown */}
-                <div className="relative flex-1" style={{ marginRight: 6 }}>
+                <div className="relative flex-1 lg:mr-1.5">
                   <div
                     className="flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all duration-200 h-full"
                     style={{
@@ -1170,8 +1170,8 @@ export default function HomePage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 4 }}
                         transition={{ duration: 0.18 }}
-                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-50"
-                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)', minWidth: 200 }}
+                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl overflow-hidden z-50 sm:min-w-[200px]"
+                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)' }}
                       >
                         {[
                           { v: '', l: 'ყველა ქ.', count: 5103 },
@@ -1209,7 +1209,7 @@ export default function HomePage() {
                 </div>
 
                 {/* ③ Bedrooms dropdown */}
-                <div className="relative flex-1" style={{ marginRight: 6 }}>
+                <div className="relative flex-1 lg:mr-1.5">
                   <div
                     className="flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all duration-200 h-full"
                     style={{
@@ -1240,8 +1240,8 @@ export default function HomePage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 4 }}
                         transition={{ duration: 0.18 }}
-                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl p-4 z-50"
-                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)', minWidth: 220 }}
+                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl p-4 z-50 sm:min-w-[220px]"
+                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)' }}
                       >
                         <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 10 }}>
                           საძინებლების რაოდენობა
@@ -1277,7 +1277,7 @@ export default function HomePage() {
                 </div>
 
                 {/* ④ Price dropdown */}
-                <div className="relative flex-1" style={{ marginRight: 8 }}>
+                <div className="relative flex-1 lg:mr-2">
                   <div
                     className="flex items-center gap-3 px-4 py-3 rounded-2xl cursor-pointer transition-all duration-200 h-full"
                     style={{
@@ -1308,8 +1308,8 @@ export default function HomePage() {
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: 4 }}
                         transition={{ duration: 0.18 }}
-                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl p-4 z-50"
-                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)', minWidth: 240 }}
+                        className="absolute top-full left-0 right-0 mt-2 rounded-2xl p-4 z-50 sm:min-w-[240px]"
+                        style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)' }}
                       >
                         <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.09em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 10 }}>
                           მაქს. ბიუჯეტი
@@ -1357,11 +1357,10 @@ export default function HomePage() {
                 {/* ⑤ Search button */}
                 <button
                   onClick={handleSearch}
-                  className="flex items-center justify-center gap-2 px-6 py-3 rounded-2xl font-bold text-white text-sm flex-shrink-0 transition-all duration-200"
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 lg:py-3 rounded-2xl font-bold text-white text-sm w-full lg:w-auto lg:flex-shrink-0 lg:min-w-[140px] transition-all duration-200"
                   style={{
                     background: 'linear-gradient(135deg, #191c1e 0%, #2d3133 100%)',
                     boxShadow: '0 4px 18px rgba(0,0,0,0.22)',
-                    minWidth: 140,
                   }}
                   onMouseEnter={e => {
                     (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #497cff 0%, #3567f5 100%)';

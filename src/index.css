@@ -344,3 +344,26 @@ input::placeholder, textarea::placeholder { color: var(--outline); }
   background: rgba(30,35,50,0.75);
   border-color: rgba(255,255,255,0.08);
 }
+
+/* ─────────────────────────────────────────────────
+   LEAFLET MAP
+───────────────────────────────────────────────── */
+.property-map-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-container {
+  font-family: 'Noto Sans Georgian', 'Noto Sans', sans-serif;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+}
+
+.leaflet-popup-content {
+  margin: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+}

@@ -176,7 +176,7 @@ export default function AdminPage() {
   const [propFilter, setPropFilter] = useState<'all' | 'sale' | 'rent'>('all');
   const [propTypeFilter, setPropTypeFilter] = useState('all');
 
-  const [modal, setModal] = useState<{ type: 'property' | 'agent' | 'blog' | 'user'; mode: 'create' | 'edit'; data: Record<string, unknown> } | null>(null);
+  const [modal, setModal] = useState<{ type: 'agent' | 'blog' | 'user'; mode: 'create' | 'edit'; data: Record<string, unknown> } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ type: Section; id: string | number } | null>(null);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
@@ -492,7 +492,7 @@ export default function AdminPage() {
                 </div>
                 <span className="text-xs text-slate-400 ml-1">{filteredProps.length} განცხ.</span>
                 <div className="flex-1" />
-                <button onClick={() => setModal({ type: 'property', mode: 'create', data: {} })}
+                <button onClick={() => navigate('/admin/listings/new')}
                   className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm">
                   <Plus size={15} />განცხადება
                 </button>
@@ -563,7 +563,7 @@ export default function AdminPage() {
                           </td>
                           <td className="py-3 pr-5 pl-3">
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => setModal({ type: 'property', mode: 'edit', data: p as unknown as Record<string, unknown> })}
+                              <button onClick={() => navigate(`/admin/listings/${p.id}/edit`)}
                                 className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors">
                                 <Pencil size={13} />
                               </button>
@@ -751,9 +751,6 @@ export default function AdminPage() {
       </div>
 
       {/* ── MODALS ── */}
-      {modal?.type === 'property' && (
-        <PropertyModal mode={modal.mode} data={modal.data} onClose={() => setModal(null)} onSave={saveModal} />
-      )}
       {modal?.type === 'agent' && (
         <AgentModal mode={modal.mode} data={modal.data} onClose={() => setModal(null)} onSave={saveModal} />
       )}
@@ -788,191 +785,6 @@ export default function AdminPage() {
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
     </div>
-  );
-}
-
-// ─── PROPERTY MODAL ──────────────────────────────────────────────────────────
-
-function PropertyModal({ mode, data, onClose, onSave }: { mode: 'create' | 'edit'; data: Record<string, unknown>; onClose: () => void; onSave: (d: Record<string, unknown>) => Promise<void> }) {
-  const imgArr = Array.isArray(data.images) ? (data.images as string[]) : [];
-  const [form, setForm] = useState({
-    title: String(data.title || ''),
-    description: String(data.description || ''),
-    price: String(data.price || ''),
-    pricePerSqm: String(data.pricePerSqm || ''),
-    area: String(data.area || ''),
-    city: String(data.city || 'თბილისი'),
-    district: String(data.district || ''),
-    address: String(data.address || ''),
-    type: String(data.type || 'apartment'),
-    status: String(data.status || 'sale'),
-    bedrooms: String(data.bedrooms || ''),
-    bathrooms: String(data.bathrooms || ''),
-    floor: String(data.floor || ''),
-    totalFloors: String(data.totalFloors || ''),
-    yearBuilt: String(data.yearBuilt || ''),
-    agentName: String(data.agentName || ''),
-    agentPhone: String(data.agentPhone || ''),
-    agentEmail: String(data.agentEmail || ''),
-    isFeatured: Boolean(data.isFeatured),
-    isNew: data.isNew !== undefined ? Boolean(data.isNew) : true,
-    isPremium: Boolean(data.isPremium),
-    images: imgArr.join('\n'),
-    amenities: Array.isArray(data.amenities) ? (data.amenities as string[]).join(', ') : String(data.amenities || ''),
-    features: Array.isArray(data.features) ? (data.features as string[]).join(', ') : String(data.features || ''),
-  });
-  const [saving, setSaving] = useState(false);
-
-  const firstImg = form.images.split('\n').find(l => l.trim().startsWith('http'));
-
-  async function handleSave() {
-    if (!form.title || !form.price) return;
-    setSaving(true);
-    try {
-      await onSave({
-        ...form,
-        price: parseFloat(form.price) || 0,
-        pricePerSqm: parseFloat(form.pricePerSqm) || null,
-        area: parseFloat(form.area) || null,
-        bedrooms: parseInt(form.bedrooms) || 0,
-        bathrooms: parseInt(form.bathrooms) || 0,
-        floor: parseInt(form.floor) || null,
-        totalFloors: parseInt(form.totalFloors) || null,
-        yearBuilt: parseInt(form.yearBuilt) || null,
-        images: form.images.split('\n').map(s => s.trim()).filter(Boolean),
-        amenities: form.amenities.split(',').map(s => s.trim()).filter(Boolean),
-        features: form.features.split(',').map(s => s.trim()).filter(Boolean),
-      });
-    } finally { setSaving(false); }
-  }
-
-  const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }));
-
-  return (
-    <Modal title={mode === 'create' ? 'განცხადების დამატება' : 'განცხადების რედაქტირება'} onClose={onClose} wide>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <Field label="სათაური *">
-            <input type="text" value={form.title} onChange={e => set('title', e.target.value)} className={inputCls} placeholder="მაგ: 3-ოთახიანი ბინა ვაკეში" />
-          </Field>
-        </div>
-
-        <Field label="ფასი (₾) *">
-          <input type="number" value={form.price} onChange={e => set('price', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="ფასი/მ² (₾)">
-          <input type="number" value={form.pricePerSqm} onChange={e => set('pricePerSqm', e.target.value)} className={inputCls} />
-        </Field>
-
-        <Field label="ტიპი">
-          <select value={form.type} onChange={e => set('type', e.target.value)} className={selectCls}>
-            <option value="apartment">ბინა</option>
-            <option value="house">სახლი</option>
-            <option value="villa">ვილა</option>
-            <option value="commercial">კომერციული</option>
-            <option value="land">მიწა</option>
-          </select>
-        </Field>
-        <Field label="სტატუსი">
-          <select value={form.status} onChange={e => set('status', e.target.value)} className={selectCls}>
-            <option value="sale">იყიდება</option>
-            <option value="rent">ქირავდება</option>
-          </select>
-        </Field>
-
-        <Field label="ფართი (მ²)">
-          <input type="number" value={form.area} onChange={e => set('area', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="საძინებელი">
-          <input type="number" value={form.bedrooms} onChange={e => set('bedrooms', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="სააბაზანო">
-          <input type="number" value={form.bathrooms} onChange={e => set('bathrooms', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="სართული">
-          <input type="number" value={form.floor} onChange={e => set('floor', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="სართ. ჯამი">
-          <input type="number" value={form.totalFloors} onChange={e => set('totalFloors', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="აშ. წელი">
-          <input type="number" value={form.yearBuilt} onChange={e => set('yearBuilt', e.target.value)} className={inputCls} placeholder="2024" />
-        </Field>
-
-        <Field label="ქალაქი">
-          <input type="text" value={form.city} onChange={e => set('city', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="რაიონი">
-          <input type="text" value={form.district} onChange={e => set('district', e.target.value)} className={inputCls} />
-        </Field>
-        <div className="col-span-2">
-          <Field label="მისამართი">
-            <input type="text" value={form.address} onChange={e => set('address', e.target.value)} className={inputCls} />
-          </Field>
-        </div>
-
-        {/* Images */}
-        <div className="col-span-2">
-          <Field label="სურათების URL (თითო ხაზზე)" hint="ჩაწერეთ სურათების URL-ები, თითოეული ახალ ხაზზე">
-            <div className="flex gap-3">
-              <textarea value={form.images} onChange={e => set('images', e.target.value)} rows={4}
-                className={`${inputCls} resize-none flex-1`} placeholder="https://images.unsplash.com/..." />
-              {firstImg && (
-                <img src={firstImg} alt="" className="w-24 h-24 rounded-xl object-cover flex-shrink-0 bg-slate-100" />
-              )}
-            </div>
-          </Field>
-        </div>
-
-        <Field label="კომფ. სია (მძ.-ით)" hint="მაგ: ლიფტი, პარკინგი, ბასეინი">
-          <input type="text" value={form.amenities} onChange={e => set('amenities', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="მახასიათებლები (მძ.-ით)" hint="მაგ: სმარტ-ჰოუს, პანორამა">
-          <input type="text" value={form.features} onChange={e => set('features', e.target.value)} className={inputCls} />
-        </Field>
-
-        {/* Agent */}
-        <Field label="აგენტის სახელი">
-          <input type="text" value={form.agentName} onChange={e => set('agentName', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="აგენტის ტელ.">
-          <input type="text" value={form.agentPhone} onChange={e => set('agentPhone', e.target.value)} className={inputCls} />
-        </Field>
-        <div className="col-span-2">
-          <Field label="აგენტის Email">
-            <input type="email" value={form.agentEmail} onChange={e => set('agentEmail', e.target.value)} className={inputCls} />
-          </Field>
-        </div>
-
-        <div className="col-span-2">
-          <Field label="აღწერა">
-            <textarea value={form.description} onChange={e => set('description', e.target.value)} rows={3} className={`${inputCls} resize-none`} />
-          </Field>
-        </div>
-
-        {/* Flags */}
-        <div className="col-span-2 flex items-center gap-6 pt-2 pb-1">
-          {[
-            { k: 'isPremium', l: 'VIP / პრემიუმი', c: '#f59e0b' },
-            { k: 'isFeatured', l: 'გამორჩეული', c: '#497cff' },
-            { k: 'isNew', l: 'ახალი', c: '#10B981' },
-          ].map(opt => (
-            <label key={opt.k} className="flex items-center gap-2.5 cursor-pointer group">
-              <Toggle on={Boolean(form[opt.k as keyof typeof form])} onToggle={() => set(opt.k, !form[opt.k as keyof typeof form])} label={opt.l} color={opt.c} />
-              <span className="text-sm font-medium text-slate-700">{opt.l}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-slate-100">
-        <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50 transition-colors">გაუქმება</button>
-        <button onClick={handleSave} disabled={saving || !form.title || !form.price}
-          className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-60">
-          {saving ? 'მიმდინარეობს...' : mode === 'create' ? 'დამატება' : 'შენახვა'}
-        </button>
-      </div>
-    </Modal>
   );
 }
 
