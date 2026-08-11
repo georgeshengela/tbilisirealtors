@@ -5,7 +5,7 @@ import {
   Pencil, Trash2, X, ChevronRight, Eye, TrendingUp, UserCheck,
   BookOpen, Search, CheckCircle, XCircle, Shield, Home, Menu,
   Star, Zap, Sparkles, Filter, Image as ImageIcon,
-  Phone, Mail, Globe, RefreshCw,
+  Phone, Mail, Globe, RefreshCw, ArrowUpRight, MapPin, Clock,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 
@@ -114,21 +114,6 @@ function Toggle({ on, onToggle, label, color = '#10B981' }: { on: boolean; onTog
   );
 }
 
-function StatCard({ label, value, icon: Icon, color, sub }: { label: string; value: number | string; icon: React.ComponentType<{ size?: number; color?: string }>; color: string; sub?: string }) {
-  return (
-    <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
-      <div className="flex items-start justify-between mb-3">
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${color}18` }}>
-          <Icon size={20} color={color} />
-        </div>
-      </div>
-      <p className="text-2xl font-extrabold text-slate-800">{typeof value === 'number' ? value.toLocaleString() : value}</p>
-      <p className="text-sm text-slate-500 mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
-    </div>
-  );
-}
-
 function ImgThumb({ src }: { src?: string }) {
   if (!src) return (
     <div className="w-12 h-10 rounded-lg bg-slate-100 flex items-center justify-center flex-shrink-0">
@@ -151,6 +136,139 @@ function Field({ label, children, hint }: { label: string; children: ReactNode; 
       {hint && <p className="text-xs text-slate-400 mt-1">{hint}</p>}
     </div>
   );
+}
+
+// ─── CHART HELPERS ───────────────────────────────────────────────────────────
+
+const MONTHS_GEO = ['იან','თებ','მარ','აპრ','მაი','ივნ','ივლ','აგვ','სექ','ოქტ','ნოე','დეკ'];
+const MOCK_LISTINGS = [14, 20, 18, 26, 32, 28, 36, 30, 24, 22, 19, 16];
+const MOCK_VIEWS_K  = [9,  13, 11, 17, 21, 18, 23, 19, 15, 13, 11, 10];
+
+function SparkLine({ data, color }: { data: number[]; color: string }) {
+  if (data.length < 2) return null;
+  const max = Math.max(...data, 1), min = Math.min(...data);
+  const range = max - min || 1;
+  const W = 80, H = 30;
+  const pts = data.map((v, i) =>
+    `${(i / (data.length - 1)) * W},${H - 4 - ((v - min) / range) * (H - 10)}`
+  ).join(' ');
+  const areaBottom = H - 1;
+  const areaPts = [
+    `0,${areaBottom}`,
+    ...data.map((v, i) => `${(i / (data.length - 1)) * W},${H - 4 - ((v - min) / range) * (H - 10)}`),
+    `${W},${areaBottom}`,
+  ].join(' ');
+  const uid = color.replace('#', '');
+  return (
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} fill="none" style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id={`sg${uid}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.20" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <polyline points={areaPts} fill={`url(#sg${uid})`} stroke="none" />
+      <polyline points={pts} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function MonthlyBarChart() {
+  const maxV = Math.max(...MOCK_LISTINGS, ...MOCK_VIEWS_K, 1);
+  const H = 100, padT = 8, padB = 22, padL = 28, totalW = 620;
+  const slotW = (totalW - padL) / 12;
+  const bw = 11;
+  const curMonth = new Date().getMonth();
+  return (
+    <svg width="100%" viewBox={`0 0 ${totalW} ${H + padT + padB}`} preserveAspectRatio="xMidYMid meet">
+      {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => (
+        <g key={i}>
+          <line x1={padL} y1={padT + (1 - pct) * H} x2={totalW} y2={padT + (1 - pct) * H}
+            stroke={pct === 0 ? '#e2e8f0' : '#f8fafc'} strokeWidth="1" />
+          <text x={padL - 4} y={padT + (1 - pct) * H + 3.5} textAnchor="end" fontSize="7.5" fill="#cbd5e1">
+            {Math.round(pct * maxV)}
+          </text>
+        </g>
+      ))}
+      {MONTHS_GEO.map((m, i) => {
+        const cx = padL + i * slotW + slotW / 2;
+        const lh = (MOCK_LISTINGS[i] / maxV) * H;
+        const vh = (MOCK_VIEWS_K[i] / maxV) * H;
+        const active = i === curMonth;
+        return (
+          <g key={m}>
+            <rect x={cx - bw - 1.5} y={padT + H - vh} width={bw} height={vh} rx="3.5"
+              fill={active ? '#bbf7d0' : '#dcfce7'} />
+            <rect x={cx + 1.5} y={padT + H - lh} width={bw} height={lh} rx="3.5"
+              fill={active ? '#4f46e5' : '#c7d2fe'} />
+            <text x={cx} y={padT + H + padB - 4} textAnchor="middle" fontSize="8.5"
+              fill={active ? '#4f46e5' : '#94a3b8'} fontWeight={active ? '700' : '400'}>{m}</text>
+          </g>
+        );
+      })}
+    </svg>
+  );
+}
+
+function DonutSegments({
+  segments, total, demo,
+}: { segments: { label: string; value: number; color: string }[]; total: number; demo?: boolean }) {
+  const r = 46, cx = 62, cy = 62, sw = 14;
+  const circ = 2 * Math.PI * r;
+  let cum = 0;
+  return (
+    <div className="flex flex-col items-center gap-4">
+      <svg width={124} height={124} viewBox={`0 0 124 124`}>
+        {segments.map((seg, i) => {
+          const pct = seg.value / (total || 1);
+          const dash = pct * circ;
+          const rot = cum * 360 - 90;
+          cum += pct;
+          return (
+            <circle key={i} cx={cx} cy={cy} r={r}
+              fill="none" stroke={seg.color} strokeWidth={sw}
+              strokeDasharray={`${dash} ${circ - dash}`}
+              transform={`rotate(${rot} ${cx} ${cy})`} />
+          );
+        })}
+        <circle cx={cx} cy={cy} r={r - sw / 2 - 3} fill="white" />
+        <text x={cx} y={cy - 5} textAnchor="middle" fontSize="18" fontWeight="800" fill="#0f172a">{total}</text>
+        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="9" fill="#94a3b8">{demo ? 'demo' : 'სულ'}</text>
+      </svg>
+      <div className="w-full space-y-2">
+        {segments.map(seg => (
+          <div key={seg.label} className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: seg.color }} />
+              <span className="text-xs text-slate-600">{seg.label}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-800">{seg.value}</span>
+              <span className="text-xs text-slate-400 w-8 text-right">{Math.round(seg.value / (total || 1) * 100)}%</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function PropertyTypeChart({ properties }: { properties: PropertyRow[] }) {
+  const counts: Record<string, number> = {};
+  properties.forEach(p => { counts[p.type] = (counts[p.type] || 0) + 1; });
+  const segs = Object.entries(TYPE_COLORS)
+    .map(([t, c]) => ({ label: TYPE_LABELS[t] || t, value: counts[t] || 0, color: c }))
+    .filter(s => s.value > 0);
+  if (segs.length === 0) {
+    const demo = [
+      { label: 'ბინა',  value: 60, color: '#4f46e5' },
+      { label: 'სახლი', value: 20, color: '#10b981' },
+      { label: 'კომ.',  value: 12, color: '#f59e0b' },
+      { label: 'ვილა',  value: 8,  color: '#ec4899' },
+    ];
+    return <DonutSegments segments={demo} total={100} demo />;
+  }
+  return <DonutSegments segments={segs} total={segs.reduce((s, d) => s + d.value, 0)} />;
 }
 
 // ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
@@ -192,8 +310,12 @@ export default function AdminPage() {
     setLoading(true);
     try {
       if (s === 'dashboard') {
-        const data = await api('/stats');
-        setStats(data);
+        const [statsData, propsData] = await Promise.all([
+          api('/stats'),
+          api('/properties?limit=100'),
+        ]);
+        setStats(statsData);
+        setPropList(propsData.data ?? []);
       } else if (s === 'properties') {
         const data = await api('/properties?limit=100');
         setPropList(data.data);
@@ -387,79 +509,203 @@ export default function AdminPage() {
           {/* ── DASHBOARD ── */}
           {section === 'dashboard' && (
             <div className="space-y-5">
+
+              {/* ── Hero banner ── */}
+              <div className="rounded-2xl p-6 relative overflow-hidden" style={{
+                background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 45%, #1d4ed8 100%)',
+              }}>
+                <div style={{ position:'absolute', top:-50, right:-50, width:220, height:220, borderRadius:'50%', background:'rgba(99,102,241,0.13)', pointerEvents:'none' }} />
+                <div style={{ position:'absolute', bottom:-70, right:120, width:260, height:260, borderRadius:'50%', background:'rgba(16,185,129,0.08)', pointerEvents:'none' }} />
+                <div className="relative flex flex-wrap items-center justify-between gap-5">
+                  <div>
+                    <p style={{ color:'rgba(255,255,255,0.5)', fontSize:12, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:5 }}>
+                      <Clock size={10} style={{ display:'inline', marginRight:4, verticalAlign:'middle' }} />
+                      {new Date().toLocaleDateString('ka-GE', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
+                    </p>
+                    <h2 style={{ color:'#fff', fontSize:22, fontWeight:800, lineHeight:1.2, marginBottom:4 }}>
+                      გამარჯობა, {user.name.split(' ')[0]} 👋
+                    </h2>
+                    <p style={{ color:'rgba(255,255,255,0.4)', fontSize:12.5 }}>
+                      {user.role === 'super_admin' ? 'სუპერ ადმინი' : 'ადმინი'} · TbilisiRealtors.ge
+                    </p>
+                  </div>
+                  <div className="hidden sm:flex items-center gap-7">
+                    {[
+                      { label:'განცხ.', value: stats?.properties ?? 0, color:'#a5b4fc' },
+                      { label:'ნახვა',  value:(stats?.totalViews ?? 0).toLocaleString(), color:'#6ee7b7' },
+                      { label:'აგენტი', value: stats?.agents ?? 0,     color:'#fcd34d' },
+                      { label:'ბლოგი',  value: stats?.blogPosts ?? 0,  color:'#f9a8d4' },
+                    ].map(({ label, value, color }) => (
+                      <div key={label} className="text-center">
+                        <p style={{ color, fontSize:22, fontWeight:800, lineHeight:1 }}>{value}</p>
+                        <p style={{ color:'rgba(255,255,255,0.4)', fontSize:11, fontWeight:600, marginTop:3 }}>{label}</p>
+                      </div>
+                    ))}
+                  </div>
+                  <button onClick={() => navigate('/admin/listings/new')}
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
+                    style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1.5px solid rgba(255,255,255,0.18)', backdropFilter:'blur(8px)' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.22)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
+                  >
+                    <Plus size={15} strokeWidth={2.5} />განცხ. დამატება
+                  </button>
+                </div>
+              </div>
+
+              {/* ── KPI stat cards ── */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="სულ განცხადება" value={stats?.properties ?? 0} icon={Building2} color="#497cff" sub={`${premiumCount} VIP · ${featuredCount} გამ.`} />
-                <StatCard label="სულ ნახვა" value={stats?.totalViews ?? 0} icon={Eye} color="#10B981" />
-                <StatCard label="აგენტები" value={stats?.agents ?? 0} icon={UserCheck} color="#f59e0b" />
-                <StatCard label="ბლოგ სტატია" value={stats?.blogPosts ?? 0} icon={TrendingUp} color="#8b5cf6" />
+                {[
+                  { label:'სულ განცხადება', value: stats?.properties ?? 0,                 icon: Building2, color:'#4f46e5', bg:'#eef2ff', trend:'+8%',  spark:[8,10,9,12,14,11,15,13,16,14,18,stats?.properties??0] },
+                  { label:'სულ ნახვა',       value:(stats?.totalViews ?? 0).toLocaleString(), icon: Eye,       color:'#059669', bg:'#ecfdf5', trend:'+23%', spark:[400,600,700,900,1100,950,1200,1050,1300,1150,1400,stats?.totalViews??0] },
+                  { label:'აქტ. აგენტი',    value: stats?.agents ?? 0,                     icon: UserCheck, color:'#d97706', bg:'#fffbeb', trend:'+3%',  spark:[4,5,5,6,7,6,8,7,9,8,9,stats?.agents??0] },
+                  { label:'ბლოგ სტატია',    value: stats?.blogPosts ?? 0,                  icon: BookOpen,  color:'#7c3aed', bg:'#f5f3ff', trend:'+5%',  spark:[2,3,3,4,4,5,5,6,6,7,7,stats?.blogPosts??0] },
+                ].map(({ label, value, icon: Icon, color, bg, trend, spark }) => (
+                  <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: bg }}>
+                        <Icon size={18} style={{ color }} />
+                      </div>
+                      <span className="inline-flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-full"
+                        style={{ background:'#f0fdf4', color:'#16a34a' }}>
+                        <ArrowUpRight size={10} />{trend}
+                      </span>
+                    </div>
+                    <p className="text-2xl font-extrabold text-slate-800">{value}</p>
+                    <p className="text-xs text-slate-500 mt-0.5 mb-3">{label}</p>
+                    <SparkLine data={spark} color={color} />
+                  </div>
+                ))}
               </div>
 
-              {/* Sale vs Rent breakdown */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-3">სტატუსი</p>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600">იყიდება</span>
-                      <span className="font-bold text-amber-600">{forSaleCount}</span>
+              {/* ── Charts row ── */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+                {/* Monthly bar chart */}
+                <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <p className="font-bold text-slate-800 text-sm">ყოველთვიური აქტივობა</p>
+                      <p className="text-xs text-slate-400 mt-0.5">2024 — განცხადება vs ნახვა (×100)</p>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5">
-                      <div className="bg-amber-400 h-1.5 rounded-full transition-all" style={{ width: propList.length ? `${(forSaleCount / propList.length) * 100}%` : '0%' }} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600">ქირავდება</span>
-                      <span className="font-bold text-green-600">{forRentCount}</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5">
-                      <div className="bg-green-400 h-1.5 rounded-full transition-all" style={{ width: propList.length ? `${(forRentCount / propList.length) * 100}%` : '0%' }} />
+                    <div className="flex items-center gap-3">
+                      <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                        <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background:'#c7d2fe' }} />განცხ.
+                      </span>
+                      <span className="flex items-center gap-1.5 text-xs text-slate-500">
+                        <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background:'#bbf7d0' }} />ნახვა
+                      </span>
                     </div>
                   </div>
+                  <MonthlyBarChart />
                 </div>
+
+                {/* Property type donut */}
                 <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                  <p className="text-xs text-slate-500 font-semibold uppercase tracking-wide mb-3">VIP სტატუსი</p>
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600 flex items-center gap-1"><Zap size={12} className="text-amber-500" />VIP / პრემიუმი</span>
-                      <span className="font-bold text-amber-600">{premiumCount}</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5">
-                      <div className="bg-amber-400 h-1.5 rounded-full transition-all" style={{ width: propList.length ? `${(premiumCount / propList.length) * 100}%` : '0%' }} />
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm text-slate-600 flex items-center gap-1"><Star size={12} className="text-blue-500" />გამორჩეული</span>
-                      <span className="font-bold text-blue-600">{featuredCount}</span>
-                    </div>
-                    <div className="w-full bg-slate-100 rounded-full h-1.5">
-                      <div className="bg-blue-400 h-1.5 rounded-full transition-all" style={{ width: propList.length ? `${(featuredCount / propList.length) * 100}%` : '0%' }} />
-                    </div>
-                  </div>
+                  <p className="font-bold text-slate-800 text-sm mb-5">ქონების ტიპები</p>
+                  <PropertyTypeChart properties={propList} />
                 </div>
               </div>
 
-              {/* Top by views */}
-              <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                <div className="flex items-center justify-between mb-4">
-                  <p className="font-bold text-slate-800 text-sm">ყველაზე ნანახი განცხადებები</p>
-                  <button onClick={() => setSection('properties')} className="text-xs text-blue-600 font-semibold hover:underline">ყველა →</button>
-                </div>
-                <div className="space-y-2">
-                  {[...propList].sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0)).slice(0, 8).map(p => (
-                    <div key={p.id} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 transition-colors group">
-                      <ImgThumb src={p.images?.[0]} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-slate-700 truncate">{p.title}</p>
-                        <p className="text-xs text-slate-400">{p.city} · {TYPE_LABELS[p.type] || p.type}</p>
+              {/* ── Status breakdown row ── */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {[
+                  { label:'იყიდება',        count: forSaleCount,  total: propList.length, color:'#f59e0b', bg:'#fffbeb', icon: TrendingUp },
+                  { label:'ქირავდება',       count: forRentCount,  total: propList.length, color:'#10b981', bg:'#ecfdf5', icon: Home       },
+                  { label:'VIP / პრემიუმი', count: premiumCount,  total: propList.length, color:'#f59e0b', bg:'#fef9c3', icon: Zap        },
+                  { label:'გამორჩეული',      count: featuredCount, total: propList.length, color:'#4f46e5', bg:'#eef2ff', icon: Star       },
+                ].map(({ label, count, total, color, bg, icon: Icon }) => {
+                  const pct = total ? Math.round(count / total * 100) : 0;
+                  return (
+                    <div key={label} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
+                          <Icon size={16} style={{ color }} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-xs text-slate-500 truncate">{label}</p>
+                          <p className="text-xl font-extrabold text-slate-800 leading-none mt-0.5">{count}</p>
+                        </div>
+                        <span className="ml-auto text-xs font-bold" style={{ color }}>{pct}%</span>
                       </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-xs font-bold text-slate-600">{GEL(p.price)}</p>
-                        <p className="text-xs text-slate-400 flex items-center gap-1 justify-end"><Eye size={10} />{(p.viewCount ?? 0).toLocaleString()}</p>
+                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                        <div className="h-1.5 rounded-full transition-all duration-700"
+                          style={{ width:`${pct}%`, background: color }} />
                       </div>
-                      {p.isPremium && <Zap size={14} className="text-amber-500 flex-shrink-0" />}
+                      <p className="text-xs text-slate-400 mt-1.5">სულ {total} განცხ.-დან</p>
                     </div>
-                  ))}
-                  {propList.length === 0 && <p className="text-slate-400 text-sm text-center py-6">განცხადება ჯერ არ არის</p>}
+                  );
+                })}
+              </div>
+
+              {/* ── Top-viewed properties ── */}
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:'1px solid #f1f5f9' }}>
+                  <div>
+                    <p className="font-bold text-slate-800 text-sm">ყველაზე ნანახი განცხადებები</p>
+                    <p className="text-xs text-slate-400 mt-0.5">ნახვების მიხედვით დალაგებული</p>
+                  </div>
+                  <button onClick={() => setSection('properties')}
+                    className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                    style={{ color:'#4f46e5', background:'#eef2ff' }}>
+                    ყველა <ArrowUpRight size={12} />
+                  </button>
+                </div>
+                <div className="divide-y divide-slate-50">
+                  {[...(propList.length ? propList : (stats?.recentProperties ?? []))]
+                    .sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0))
+                    .slice(0, 8)
+                    .map((p, idx) => (
+                      <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/70 transition-colors group">
+                        <span className="text-xs font-bold w-5 text-slate-300 flex-shrink-0">{idx + 1}</span>
+                        <ImgThumb src={p.images?.[0]} />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-slate-700 truncate">{p.title}</p>
+                          <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                            <MapPin size={10} />{p.city}{p.district ? ` · ${p.district}` : ''}
+                          </p>
+                        </div>
+                        <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
+                          <Badge label={TYPE_LABELS[p.type] || p.type} color={TYPE_COLORS[p.type] || '#94a3b8'} />
+                          <Badge label={p.status === 'sale' ? 'იყ.' : 'ქირ.'} color={STATUS_COLOR[p.status] || '#94a3b8'} />
+                        </div>
+                        <div className="text-right flex-shrink-0 min-w-[80px]">
+                          <p className="text-sm font-bold text-slate-800">{GEL(p.price)}</p>
+                          <p className="text-xs text-slate-400 flex items-center gap-1 justify-end mt-0.5">
+                            <Eye size={10} />{(p.viewCount ?? 0).toLocaleString()}
+                          </p>
+                        </div>
+                        {p.isPremium && <Zap size={13} className="text-amber-400 flex-shrink-0" />}
+                      </div>
+                    ))}
+                  {propList.length === 0 && !stats?.recentProperties?.length && (
+                    <div className="py-10 text-center text-slate-400 text-sm">განცხადება ჯერ არ არის</div>
+                  )}
                 </div>
               </div>
+
+              {/* ── Quick actions ── */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                {[
+                  { label:'+ განცხადება',  color:'#4f46e5', bg:'#eef2ff',  icon: Plus,          action: () => navigate('/admin/listings/new') },
+                  { label:'განცხადებები',  color:'#059669', bg:'#ecfdf5',  icon: Building2,     action: () => setSection('properties') },
+                  { label:'აგენტები',      color:'#d97706', bg:'#fffbeb',  icon: UserCheck,     action: () => setSection('agents') },
+                  { label:'ბლოგი',         color:'#7c3aed', bg:'#f5f3ff',  icon: BookOpen,      action: () => setSection('blog') },
+                ].map(({ label, color, bg, icon: Icon, action }) => (
+                  <button key={label} onClick={action}
+                    className="flex items-center gap-3 p-4 rounded-2xl border transition-all hover:shadow-md text-left"
+                    style={{ background: bg, borderColor: `${color}22` }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = color; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = `${color}22`; }}
+                  >
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white shadow-sm">
+                      <Icon size={16} style={{ color }} />
+                    </div>
+                    <span className="text-sm font-bold" style={{ color }}>{label}</span>
+                  </button>
+                ))}
+              </div>
+
             </div>
           )}
 
