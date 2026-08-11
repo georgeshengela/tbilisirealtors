@@ -157,6 +157,38 @@ function detectSource(url: string): 'ss.ge' | 'myhome.ge' {
   throw new Error('მხოლოდ myhome.ge ან ss.ge ბმულებია დაშვებული');
 }
 
+function extractMyHomeId(url: string): string {
+  const match = url.match(/myhome\.ge\/(?:[^/?#]+\/)*(\d{5,})(?:\/|$|\?)/i);
+  if (!match) throw new Error('myhome.ge ბმულიდან ID ვერ მოიძებნა');
+  return match[1];
+}
+
+async function fetchMyHomeStatement(id: string): Promise<Record<string, unknown>> {
+  const apiUrl = `https://api-statements.tnet.ge/v1/statements/${id}?locale=ka`;
+  const res = await fetch(apiUrl, {
+    headers: {
+      'User-Agent': UA,
+      Accept: 'application/json',
+      Referer: 'https://www.myhome.ge/',
+      'X-Website-Key': 'myhome',
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`myhome.ge API ვერ მოიძებნა (${res.status})`);
+  }
+  const payload = (await res.json()) as {
+    result?: boolean;
+    data?: { statement?: Record<string, unknown> };
+    errors?: { message?: string[] };
+  };
+  const statement = payload.data?.statement;
+  if (!payload.result || !statement) {
+    const msg = payload.errors?.message?.[0];
+    throw new Error(msg || 'myhome.ge განცხადების მონაცემები ვერ მოიძებნა');
+  }
+  return statement;
+}
+
 function mapSsType(label: string): string {
   const l = label.toLowerCase();
   if (l.includes('ბინ')) return 'apartment';
@@ -339,17 +371,7 @@ function parseSsGe(html: string, sourceUrl: string): ImportedListingData {
   };
 }
 
-function parseMyHome(html: string, sourceUrl: string): ImportedListingData {
-  const next = extractNextData(html);
-  const pageProps = (next.props as { pageProps?: Record<string, unknown> })?.pageProps ?? {};
-  const dehydrated = pageProps.dehydratedState as { queries?: Array<{ queryKey?: unknown[]; state?: { data?: Record<string, unknown> } }> } | undefined;
-
-  const detailQuery = dehydrated?.queries?.find(q =>
-    Array.isArray(q.queryKey) && q.queryKey[0] === 'statements' && q.queryKey[1] === 'details'
-  );
-  const statement = (detailQuery?.state?.data?.data as { statement?: Record<string, unknown> } | undefined)?.statement;
-  if (!statement) throw new Error('myhome.ge განცხადების მონაცემები ვერ მოიძებნა');
-
+function parseMyHomeStatement(statement: Record<string, unknown>, sourceUrl: string): ImportedListingData {
   const seo = statement.seo as { h1?: string } | undefined;
   const title = String(statement.dynamic_title ?? seo?.h1 ?? '');
   const images = Array.isArray(statement.images)
@@ -463,8 +485,14 @@ export async function importListingFromUrl(rawUrl: string): Promise<ImportedList
   if (!/^https?:$/i.test(url.protocol)) throw new Error('URL უნდა იწყებოდეს http:// ან https://');
 
   const source = detectSource(url.href);
-  const html = await fetchPageHtml(url.href, source);
-  const data = source === 'ss.ge' ? parseSsGe(html, url.href) : parseMyHome(html, url.href);
+  let data: ImportedListingData;
+  if (source === 'myhome.ge') {
+    const statement = await fetchMyHomeStatement(extractMyHomeId(url.href));
+    data = parseMyHomeStatement(statement, url.href);
+  } else {
+    const html = await fetchPageHtml(url.href, source);
+    data = parseSsGe(html, url.href);
+  }
   data.meta.importedFields = countImportedFields(data);
   return data;
 }
