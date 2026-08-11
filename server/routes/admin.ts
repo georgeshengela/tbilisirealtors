@@ -5,11 +5,28 @@ import { properties, adminUsers, agents, blogPosts, siteSettings } from '../sche
 import { eq, desc, count, sql } from 'drizzle-orm';
 import { requireAdmin, AuthRequest } from '../middleware/auth.js';
 import { nanoid } from '../utils.js';
+import { importListingFromUrl } from '../services/listingImport.js';
 
 const router = Router();
 
 // All admin routes require admin auth
 router.use(requireAdmin);
+
+// ─── IMPORT LISTING FROM EXTERNAL URL ───────────────────────────────────────────
+
+router.post('/import-listing', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { url } = req.body as { url?: string };
+    if (!url?.trim()) {
+      res.status(400).json({ error: 'URL სავალდებულოა' });
+      return;
+    }
+    const data = await importListingFromUrl(url.trim());
+    res.json(data);
+  } catch (err) {
+    res.status(400).json({ error: err instanceof Error ? err.message : 'იმპორტი ვერ მოხერხდა' });
+  }
+});
 
 // ─── DASHBOARD STATS ───────────────────────────────────────────────────────────
 

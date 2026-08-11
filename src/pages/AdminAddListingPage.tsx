@@ -7,10 +7,11 @@ import {
   Image as ImageIcon, Sparkles, Star, Zap, User, Phone, Mail,
   CheckCircle, Loader2, Crown, Key, FileText, Wrench,
   Flame, Droplets, HardHat, Car, Link2, BadgeCheck,
-  Hash, Package, MoveHorizontal, PlayCircle,
+  Hash, Package, MoveHorizontal, PlayCircle, Download, ExternalLink, Globe2,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import LocationPickerMap, { type LocationValue } from '../components/LocationPickerMap';
+import type { ImportedListingData } from '../types/importListing';
 
 /* ─── Step definitions ───────────────────────────────────── */
 const STEPS = [
@@ -187,6 +188,11 @@ export default function AdminAddListingPage() {
   const [saving, setSaving]   = useState(false);
   const [loading, setLoading] = useState(isEdit);
   const [error, setError]     = useState('');
+  const [importUrl, setImportUrl] = useState('');
+  const [importing, setImporting] = useState(false);
+  const [importError, setImportError] = useState('');
+  const [importPreview, setImportPreview] = useState<ImportedListingData | null>(null);
+  const [importApplied, setImportApplied] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/admin/login');
@@ -252,6 +258,85 @@ export default function AdminAddListingPage() {
   };
   function handleLocationChange(loc: LocationValue) {
     setForm(f => ({ ...f, lat: loc.lat, lng: loc.lng, address: loc.address, city: loc.city, district: loc.district }));
+  }
+
+  function applyImportedData(data: ImportedListingData) {
+    setForm(f => ({
+      ...f,
+      title: data.title || f.title,
+      description: data.description || f.description,
+      type: data.type || f.type,
+      dealType: data.dealType || f.dealType,
+      buildingStatus: data.buildingStatus || f.buildingStatus,
+      condition: data.condition || f.condition,
+      price: data.price || f.price,
+      pricePerSqm: data.pricePerSqm || f.pricePerSqm,
+      currency: data.currency || f.currency,
+      area: data.area || f.area,
+      rooms: data.rooms || f.rooms,
+      bedrooms: data.bedrooms || f.bedrooms,
+      bathrooms: data.bathrooms || f.bathrooms,
+      floor: data.floor || f.floor,
+      totalFloors: data.totalFloors || f.totalFloors,
+      projectType: data.projectType || f.projectType,
+      yearBuilt: data.yearBuilt || f.yearBuilt,
+      ceilingHeight: data.ceilingHeight || f.ceilingHeight,
+      wetPoint: data.wetPoint || f.wetPoint,
+      balconyCount: data.balconyCount || f.balconyCount,
+      balconyArea: data.balconyArea || f.balconyArea,
+      verandaArea: data.verandaArea || f.verandaArea,
+      loggiaArea: data.loggiaArea || f.loggiaArea,
+      waitingArea: data.waitingArea || f.waitingArea,
+      livingRoomArea: data.livingRoomArea || f.livingRoomArea,
+      storageArea: data.storageArea || f.storageArea,
+      city: data.city || f.city,
+      district: data.district || f.district,
+      address: data.address || f.address,
+      street: data.street || f.street,
+      streetNumber: data.streetNumber || f.streetNumber,
+      cadastralCode: data.cadastralCode || f.cadastralCode,
+      lat: data.lat || f.lat,
+      lng: data.lng || f.lng,
+      images: data.images.length ? data.images.join('\n') : f.images,
+      youtubeUrl: data.youtubeUrl || f.youtubeUrl,
+      matterportUrl: data.matterportUrl || f.matterportUrl,
+      agentName: data.agentName || f.agentName,
+      agentPhone: data.agentPhone || f.agentPhone,
+      agentEmail: data.agentEmail || f.agentEmail,
+      parking: data.parking.length ? data.parking : f.parking,
+      heating: data.heating.length ? data.heating : f.heating,
+      hotWater: data.hotWater.length ? data.hotWater : f.hotWater,
+      buildingMaterials: data.buildingMaterials.length ? data.buildingMaterials : f.buildingMaterials,
+      windowsMaterials: data.windowsMaterials.length ? data.windowsMaterials : f.windowsMaterials,
+      furniture: data.furniture.length ? data.furniture : f.furniture,
+      propertyAmenities: data.propertyAmenities.length ? data.propertyAmenities : f.propertyAmenities,
+      buildingFeatures: data.buildingFeatures.length ? data.buildingFeatures : f.buildingFeatures,
+      badges: data.badges.length ? data.badges : f.badges,
+      isPremium: data.isPremium || f.isPremium,
+      isFeatured: data.isFeatured || f.isFeatured,
+      isNew: data.isNew,
+    }));
+    setImportApplied(true);
+    setStep(1);
+  }
+
+  async function handleImportListing() {
+    if (!importUrl.trim()) return;
+    setImporting(true);
+    setImportError('');
+    setImportPreview(null);
+    setImportApplied(false);
+    try {
+      const data = await api('/import-listing', {
+        method: 'POST',
+        body: JSON.stringify({ url: importUrl.trim() }),
+      }) as ImportedListingData;
+      setImportPreview(data);
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'იმპორტი ვერ მოხერხდა');
+    } finally {
+      setImporting(false);
+    }
   }
 
   function canProceed() {
@@ -400,6 +485,163 @@ export default function AdminAddListingPage() {
 
           {/* ─── Main form ─── */}
           <div className="min-w-0">
+
+            {/* ── Import from MyHome / SS.ge ── */}
+            {!isEdit && (
+              <div className="mb-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm"
+                style={{ background: 'linear-gradient(135deg, #f8faff 0%, #f0fdf4 100%)' }}>
+                <div className="p-5 sm:p-6">
+                  <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                          style={{ background: 'linear-gradient(135deg, #059669, #10b981)' }}>
+                          <Download size={18} className="text-white" />
+                        </div>
+                        <h2 className="font-extrabold text-slate-800 text-base sm:text-lg">სწრაფი იმპორტი</h2>
+                      </div>
+                      <p className="text-slate-500 text-sm max-w-xl">
+                        ჩასვით myhome.ge ან ss.ge ბმული — ყველა ველი, ფოტოები და კონტაქტი ავტომატურად შეივსება
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                        style={{ background: '#ecfdf5', color: '#059669', border: '1px solid #bbf7d0' }}>
+                        <Globe2 size={12} /> MyHome.ge
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
+                        style={{ background: '#eef2ff', color: '#4f46e5', border: '1px solid #c7d2fe' }}>
+                        <Globe2 size={12} /> SS.ge
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="relative flex-1">
+                      <Link2 size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input
+                        type="url"
+                        value={importUrl}
+                        onChange={e => { setImportUrl(e.target.value); setImportError(''); }}
+                        onKeyDown={e => e.key === 'Enter' && handleImportListing()}
+                        placeholder="https://www.myhome.ge/... ან https://home.ss.ge/..."
+                        className={`${inputCls} pl-10`}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleImportListing}
+                      disabled={importing || !importUrl.trim()}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50"
+                      style={{
+                        background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                        boxShadow: '0 3px 12px rgba(5,150,105,0.30)',
+                        minWidth: 140,
+                      }}
+                    >
+                      {importing ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                      {importing ? 'იტვირთება...' : 'მოძებნა'}
+                    </button>
+                  </div>
+
+                  {importError && (
+                    <p className="mt-3 text-sm text-red-600 font-medium">{importError}</p>
+                  )}
+
+                  {importPreview && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="mt-4 rounded-2xl border border-white bg-white/90 backdrop-blur p-4 sm:p-5 shadow-sm"
+                    >
+                      <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                              style={{
+                                background: importPreview.source === 'myhome.ge' ? '#ecfdf5' : '#eef2ff',
+                                color: importPreview.source === 'myhome.ge' ? '#059669' : '#4f46e5',
+                              }}>
+                              {importPreview.source}
+                            </span>
+                            {importPreview.meta.vipLabel && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                {importPreview.meta.vipLabel}
+                              </span>
+                            )}
+                            {importApplied && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                                ✓ შევსებულია
+                              </span>
+                            )}
+                          </div>
+                          <h3 className="font-bold text-slate-800 text-sm sm:text-base leading-snug">{importPreview.title}</h3>
+                          <p className="text-xs text-slate-500 mt-1">
+                            {importPreview.city}{importPreview.district ? ` · ${importPreview.district}` : ''}
+                            {importPreview.area ? ` · ${importPreview.area} მ²` : ''}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-extrabold text-slate-800">
+                            {Number(importPreview.price).toLocaleString()} {importPreview.currency}
+                          </p>
+                          {importPreview.pricePerSqm && (
+                            <p className="text-xs text-slate-400">
+                              {Number(importPreview.pricePerSqm).toLocaleString()} {importPreview.currency}/მ²
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {importPreview.images.length > 0 && (
+                        <div className="flex gap-2 overflow-x-auto pb-1 mb-4">
+                          {importPreview.images.slice(0, 8).map((img, i) => (
+                            <img key={i} src={img} alt="" className="w-20 h-16 rounded-xl object-cover flex-shrink-0 bg-slate-100 border border-slate-100" />
+                          ))}
+                          {importPreview.images.length > 8 && (
+                            <div className="w-20 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">
+                              +{importPreview.images.length - 8}
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
+                        {[
+                          { l: 'ფოტო', v: importPreview.images.length },
+                          { l: 'ოთახი', v: importPreview.rooms || '—' },
+                          { l: 'სართული', v: importPreview.floor ? `${importPreview.floor}/${importPreview.totalFloors || '?'}` : '—' },
+                          { l: 'ველები', v: importPreview.meta.importedFields ?? 0 },
+                        ].map(({ l, v }) => (
+                          <div key={l} className="rounded-xl bg-slate-50 px-3 py-2 text-center border border-slate-100">
+                            <p className="text-[10px] text-slate-400 font-semibold uppercase">{l}</p>
+                            <p className="text-sm font-bold text-slate-800">{v}</p>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => applyImportedData(importPreview)}
+                          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white"
+                          style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)', boxShadow: '0 3px 12px rgba(79,70,229,0.28)' }}
+                        >
+                          <CheckCircle size={16} />
+                          ფორმის ავტომატური შევსება
+                        </button>
+                        <a href={importPreview.sourceUrl} target="_blank" rel="noreferrer"
+                          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50">
+                          <ExternalLink size={15} />
+                          ორიგინალი
+                        </a>
+                      </div>
+                    </motion.div>
+                  )}
+                </div>
+              </div>
+            )}
+
             <AnimatePresence mode="wait">
               <motion.div key={step}
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
