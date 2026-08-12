@@ -72,7 +72,7 @@ export default function ContactPage() {
                   <p className="font-semibold text-slate-900 dark:text-white mb-1">{info.label}</p>
                   {'lines' in info ? (
                     <div className="space-y-2">
-                      {info.lines.map(line => (
+                      {(info.lines ?? []).map(line => (
                         <div key={line.tel} className="flex flex-wrap items-center gap-2">
                           <span className="text-slate-500 dark:text-slate-400 text-sm">{line.label}:</span>
                           <a href={`tel:${line.tel}`} className="text-slate-700 dark:text-slate-200 text-sm font-medium hover:text-blue-600 transition-colors">

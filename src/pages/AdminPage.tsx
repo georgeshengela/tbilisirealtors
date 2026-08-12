@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, Users, Settings, LogOut, Plus,
   Pencil, Trash2, X, Eye, TrendingUp, UserCheck,
   BookOpen, Search, CheckCircle, XCircle, Shield, Home,
   Star, Zap, Sparkles, Filter, Image as ImageIcon,
   Phone, Mail, Globe, RefreshCw, ArrowUpRight, MapPin, Clock,
-  ExternalLink,
+  ExternalLink, type LucideIcon,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 
@@ -276,10 +276,17 @@ function PropertyTypeChart({ properties }: { properties: PropertyRow[] }) {
 
 export default function AdminPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, logout, loading: authLoading } = useAdminAuth();
   const api = useApiRequest();
 
-  const [section, setSection] = useState<Section>('dashboard');
+  const sectionParam = searchParams.get('section');
+  const initialSection: Section =
+    sectionParam && ['dashboard', 'properties', 'agents', 'blog', 'users', 'settings'].includes(sectionParam)
+      ? (sectionParam as Section)
+      : 'dashboard';
+
+  const [section, setSection] = useState<Section>(initialSection);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [stats, setStats] = useState<Stats | null>(null);
@@ -296,6 +303,13 @@ export default function AdminPage() {
 
   const [modal, setModal] = useState<{ type: 'agent' | 'blog' | 'user'; mode: 'create' | 'edit'; data: Record<string, unknown> } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ type: Section; id: string | number } | null>(null);
+
+  useEffect(() => {
+    const param = searchParams.get('section');
+    if (param && ['dashboard', 'properties', 'agents', 'blog', 'users', 'settings'].includes(param)) {
+      setSection(param as Section);
+    }
+  }, [searchParams]);
 
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
@@ -393,7 +407,7 @@ export default function AdminPage() {
     }
   }
 
-  const navItems: { id: Section; label: string; icon: React.ComponentType<{ size?: number }> }[] = [
+  const navItems: { id: Section; label: string; icon: LucideIcon }[] = [
     { id: 'dashboard', label: 'მთავარი', icon: LayoutDashboard },
     { id: 'properties', label: 'განცხადებები', icon: Building2 },
     { id: 'agents', label: 'აგენტები', icon: Users },
@@ -512,7 +526,7 @@ export default function AdminPage() {
                         style={{ background: '#497cff' }}
                       />
                     )}
-                    <item.icon size={14} strokeWidth={active ? 2.3 : 2} style={{ opacity: active ? 1 : 0.75 }} />
+                    <item.icon size={14} strokeWidth={active ? 2.3 : 2} className={active ? undefined : 'opacity-75'} />
                     {item.label}
                   </button>
                 );

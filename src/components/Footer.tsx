@@ -5,7 +5,7 @@ import {
   Building, Home, Star, Key, Layers, Tag,
   Users, BookOpen, Info, MessageSquare, Briefcase,
   ArrowUpRight, CheckCircle, Globe,
-  Shield,
+  Shield, type LucideIcon,
 } from 'lucide-react';
 import { CONTACT } from '../data/contactInfo';
 import BusinessHours from './BusinessHours';
@@ -76,14 +76,14 @@ const SOCIAL = [
   { label: 'LinkedIn',  href: '#', color: '#0a66c2' },
 ];
 
-function SectionTitle({ icon: Icon, children }: { icon: React.ComponentType<{ size?: number; strokeWidth?: number }>; children: React.ReactNode }) {
+function SectionTitle({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
   return (
     <h4 className="font-bold text-white text-sm mb-5 flex items-center gap-2.5">
       <span
         className="w-7 h-7 rounded-lg flex items-center justify-center"
         style={{ background: 'rgba(73,124,255,0.15)', border: '1px solid rgba(73,124,255,0.25)' }}
       >
-        <Icon size={13} style={{ color: '#93c5fd' }} strokeWidth={2.2} />
+        <Icon size={13} color="#93c5fd" strokeWidth={2.2} />
       </span>
       {children}
     </h4>

@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import {
-  ArrowLeft, ArrowRight, Building2, Home, Store, TreePine, Hotel,
+  ArrowLeft, Building2, Home, Store, TreePine, Hotel,
   DollarSign, Ruler, Bed, Layers, Calendar, MapPin,
   Image as ImageIcon, Sparkles, Star, Zap, User, Phone, Mail,
   CheckCircle, Loader2, Crown, Key, FileText, Wrench,
@@ -11,15 +11,15 @@ import {
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import LocationPickerMap, { type LocationValue } from '../components/LocationPickerMap';
+import AdminLayout from '../components/admin/AdminLayout';
 import type { ImportedListingData } from '../types/importListing';
 
-/* ─── Step definitions ───────────────────────────────────── */
-const STEPS = [
-  { id: 1, label: 'ტიპი',        icon: Building2  },
-  { id: 2, label: 'დეტალები',    icon: FileText   },
-  { id: 3, label: 'მდებარეობა',  icon: MapPin     },
-  { id: 4, label: 'მახასიათ.',   icon: Wrench     },
-  { id: 5, label: 'გამოქვ.',     icon: Sparkles   },
+const SECTION_NAV = [
+  { id: 'section-type',     label: 'ტიპი',           icon: Building2  },
+  { id: 'section-details',  label: 'დეტალები',       icon: FileText   },
+  { id: 'section-location', label: 'მდებარეობა',     icon: MapPin     },
+  { id: 'section-features', label: 'მახასიათებლები', icon: Wrench     },
+  { id: 'section-media',    label: 'მედია & გამოქვ.', icon: Sparkles   },
 ];
 
 /* ─── Constants ──────────────────────────────────────────── */
@@ -115,6 +115,38 @@ const cardCls  = 'bg-white rounded-2xl border border-slate-100 shadow-sm';
 const labelCls = 'flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide';
 const sectionTitle = 'text-sm font-bold text-slate-700 mb-3';
 
+function FormSection({
+  id, title, desc, icon: Icon, children,
+}: {
+  id: string;
+  title: string;
+  desc?: string;
+  icon: React.ComponentType<{ size?: number; className?: string }>;
+  children: ReactNode;
+}) {
+  return (
+    <section id={id} className={`${cardCls} scroll-mt-28 overflow-hidden`}>
+      <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-slate-100 bg-slate-50/60">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+            style={{ background: 'rgba(73,124,255,0.1)', border: '1px solid rgba(73,124,255,0.15)' }}>
+            <Icon size={18} className="text-blue-600" />
+          </div>
+          <div>
+            <h2 className="font-extrabold text-slate-800 text-base sm:text-lg leading-tight">{title}</h2>
+            {desc && <p className="text-slate-500 text-xs sm:text-sm mt-0.5">{desc}</p>}
+          </div>
+        </div>
+      </div>
+      <div className="p-5 sm:p-6">{children}</div>
+    </section>
+  );
+}
+
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 
 /* ─── Form state ─────────────────────────────────────────── */
 interface FormState {
@@ -183,7 +215,6 @@ export default function AdminAddListingPage() {
   const { user, loading: authLoading } = useAdminAuth();
   const api = useApiRequest();
 
-  const [step, setStep]       = useState(1);
   const [form, setForm]       = useState<FormState>(defaultForm);
   const [saving, setSaving]   = useState(false);
   const [loading, setLoading] = useState(isEdit);
@@ -317,7 +348,6 @@ export default function AdminAddListingPage() {
       isNew: data.isNew,
     }));
     setImportApplied(true);
-    setStep(1);
   }
 
   async function handleImportListing() {
@@ -339,17 +369,19 @@ export default function AdminAddListingPage() {
     }
   }
 
-  function canProceed() {
-    if (step === 1) return form.type && form.dealType;
-    if (step === 2) return form.price.trim() !== '';
-    if (step === 3) return true;
-    if (step === 4) return true;
-    return true;
-  }
-
-  async function handleSubmit() {
-    if (!form.price) return;
+  async function handleSubmit(publish = true) {
+    if (!form.price) {
+      setError('ფასი სავალდებულოა');
+      scrollToSection('section-details');
+      return;
+    }
+    if (!form.type || !form.dealType) {
+      setError('აირჩიეთ ქონების და გარიგების ტიპი');
+      scrollToSection('section-type');
+      return;
+    }
     setSaving(true); setError('');
+    if (publish) set('isNew', true);
     try {
       const allFeatures = [
         ...form.features,
@@ -403,7 +435,7 @@ export default function AdminAddListingPage() {
       } else {
         await api('/properties', { method: 'POST', body: JSON.stringify(payload) });
       }
-      navigate('/admin');
+      navigate('/admin?section=properties');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'შეცდომა');
     } finally {
@@ -416,9 +448,11 @@ export default function AdminAddListingPage() {
 
   if (authLoading || !user) return null;
   if (loading) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
-      <Loader2 size={32} className="text-blue-600 animate-spin" />
-    </div>
+    <AdminLayout subtitle="იტვირთება..." activeSection="properties" hideAddButton>
+      <div className="container-xl py-24 flex items-center justify-center">
+        <Loader2 size={32} className="text-blue-600 animate-spin" />
+      </div>
+    </AdminLayout>
   );
 
   /* ── Chip button helper ── */
@@ -431,60 +465,67 @@ export default function AdminAddListingPage() {
     >{label}</button>
   );
 
+  const actionButtons = (
+    <>
+      <button
+        type="button"
+        onClick={() => handleSubmit(false)}
+        disabled={saving || !form.price}
+        className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 transition-colors disabled:opacity-40"
+      >
+        {saving ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
+        შენახვა
+      </button>
+      <button
+        type="button"
+        onClick={() => handleSubmit(true)}
+        disabled={saving || !form.price}
+        className="flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-colors disabled:opacity-40"
+        style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)', boxShadow: '0 4px 14px rgba(79,70,229,0.3)' }}
+      >
+        {saving ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+        გამოქვეყნება
+      </button>
+    </>
+  );
+
   return (
-    <div className="min-h-screen bg-slate-50">
-
-      {/* ── Header ── */}
-      <header className="sticky top-0 z-50 bg-white border-b border-slate-100 shadow-sm">
-        <div className="container-xl py-4 flex items-center gap-4">
-          <button onClick={() => navigate('/admin')}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 text-sm font-semibold transition-colors"
-          >
-            <ArrowLeft size={18} />
-            <span className="hidden sm:inline">უკან</span>
-          </button>
-
-          <div className="flex-1 min-w-0">
-            <h1 className="text-slate-800 font-extrabold text-base sm:text-lg truncate">
+    <AdminLayout
+      subtitle={isEdit ? 'განცხადების რედაქტირება' : 'ახალი განცხადება'}
+      activeSection="properties"
+      hideAddButton
+    >
+      <div className="container-xl py-6 sm:py-8 pb-28 lg:pb-10">
+        {/* Page header */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+          <div>
+            <button
+              type="button"
+              onClick={() => navigate('/admin?section=properties')}
+              className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-800 text-xs font-semibold mb-2 transition-colors"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              <ArrowLeft size={14} />
+              უკან განცხადებებში
+            </button>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">
               {isEdit ? 'განცხადების რედაქტირება' : 'ახალი განცხადება'}
             </h1>
-            <p className="text-slate-400 text-xs">ნაბიჯი {step} / {STEPS.length}</p>
+            <p className="text-slate-500 text-sm mt-1">ყველა ველი ერთ გვერდზე — შეავსეთ და გამოაქვეყნეთ</p>
           </div>
-
-          {/* Step pills */}
-          <div className="hidden lg:flex items-center gap-1.5">
-            {STEPS.map(s => {
-              const done   = s.id < step;
-              const active = s.id === step;
-              return (
-                <button key={s.id}
-                  onClick={() => s.id < step && setStep(s.id)}
-                  disabled={s.id > step}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all border ${
-                    active ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                    : done  ? 'bg-blue-50 text-blue-700 border-blue-100 cursor-pointer hover:bg-blue-100'
-                            : 'bg-white text-slate-400 border-slate-200'
-                  }`}
-                >
-                  {done ? <CheckCircle size={13} /> : <s.icon size={13} />}
-                  {s.label}
-                </button>
-              );
-            })}
+          <div className="hidden lg:flex items-center gap-3">
+            {actionButtons}
           </div>
         </div>
 
-        {/* Mobile progress */}
-        <div className="lg:hidden h-1 bg-slate-100">
-          <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${(step / STEPS.length) * 100}%` }} />
-        </div>
-      </header>
+        {error && (
+          <div className="mb-5 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
+            {error}
+          </div>
+        )}
 
-      <div className="container-xl py-6 sm:py-8">
-        <div className="grid lg:grid-cols-[1fr_290px] gap-6 lg:gap-8">
-
-          {/* ─── Main form ─── */}
-          <div className="min-w-0">
+        <div className="grid lg:grid-cols-[1fr_300px] gap-6 lg:gap-8">
+          <div className="min-w-0 space-y-5">
 
             {/* ── Import from MyHome / SS.ge ── */}
             {!isEdit && (
@@ -642,19 +683,9 @@ export default function AdminAddListingPage() {
               </div>
             )}
 
-            <AnimatePresence mode="wait">
-              <motion.div key={step}
-                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}
-              >
-
-                {/* ══════════════ STEP 1: Type ══════════════ */}
-                {step === 1 && (
-                  <div className="space-y-5">
-
-                    {/* Property type */}
-                    <div className={`${cardCls} p-6`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg mb-1">უძრავი ქონების ტიპი <span className="text-red-500">*</span></h2>
+            <FormSection id="section-type" title="ტიპი & სტატუსი" desc="აირჩიეთ ქონების, გარიგების ტიპი და მდგომარეობა" icon={Building2}>
+              <div className="space-y-6">
+                      <h3 className="font-bold text-slate-800 text-sm mb-1">უძრავი ქონების ტიპი <span className="text-red-500">*</span></h3>
                       <p className="text-slate-500 text-sm mb-5">რა ტიპის ქონება განვათავსოთ?</p>
                       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {PROPERTY_TYPES.map(t => {
@@ -676,96 +707,97 @@ export default function AdminAddListingPage() {
                           );
                         })}
                       </div>
-                    </div>
 
-                    {/* Deal type */}
-                    <div className={`${cardCls} p-6`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg mb-4">გარიგების ტიპი <span className="text-red-500">*</span></h2>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {DEAL_TYPES.map(d => {
-                          const on = form.dealType === d.id;
-                          return (
-                            <button key={d.id} type="button" onClick={() => set('dealType', d.id)}
-                              className={`py-3 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
-                                on ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
-                                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                              }`}
-                            >{d.label}</button>
-                          );
-                        })}
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm mb-4">გარიგების ტიპი <span className="text-red-500">*</span></h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {DEAL_TYPES.map(d => {
+                      const on = form.dealType === d.id;
+                      return (
+                        <button key={d.id} type="button" onClick={() => set('dealType', d.id)}
+                          className={`py-3 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
+                            on ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                               : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                          }`}
+                        >{d.label}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm mb-4">სტატუსი</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    {BUILDING_STATUSES.map(s => {
+                      const on = form.buildingStatus === s.id;
+                      return (
+                        <button key={s.id} type="button" onClick={() => toggleSingle('buildingStatus', s.id)}
+                          className={`py-3 px-3 rounded-xl border-2 text-sm font-bold transition-all text-center ${
+                            on ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                               : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                          }`}
+                        >{s.label}</button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm mb-4">მდგომარეობა</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {CONDITIONS.map(c => chip(c, form.condition === c, () => toggleSingle('condition', c), '#8b5cf6'))}
+                  </div>
+                </div>
+              </div>
+            </FormSection>
+
+            <FormSection id="section-details" title="დეტალები & ფასი" desc="ფასი, ზომები, აღწერა და სხვა პარამეტრები" icon={FileText}>
+              <div className="space-y-6">
+
+                <div>
+                  <label className={labelCls}>სათაური</label>
+                  <input
+                    type="text"
+                    value={form.title}
+                    onChange={e => set('title', e.target.value)}
+                    className={inputCls}
+                    placeholder="მაგ: 3-ოთახიანი ბინა ვაკეში"
+                  />
+                </div>
+
+                <div>
+                  <h3 className="font-bold text-slate-800 text-sm mb-4">ფასი <span className="text-red-500">*</span></h3>
+                  <div className="flex items-center gap-2 mb-4">
+                    {['₾', '$'].map(c => (
+                      <button key={c} type="button" onClick={() => set('currency', c)}
+                        className={`w-10 h-10 rounded-xl border-2 font-bold text-base transition-all ${
+                          form.currency === c ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 bg-white text-slate-600'
+                        }`}
+                      >{c}</button>
+                    ))}
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className={labelCls}><DollarSign size={13} /> სრული ფასი</label>
+                      <div className="relative">
+                        <input type="number" value={form.price} onChange={e => set('price', e.target.value)}
+                          className={`${inputCls} pr-8`} placeholder="250000" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">{form.currency}</span>
                       </div>
                     </div>
-
-                    {/* Building status */}
-                    <div className={`${cardCls} p-6`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg mb-4">სტატუსი <span className="text-red-500">*</span></h2>
-                      <div className="grid grid-cols-3 gap-3">
-                        {BUILDING_STATUSES.map(s => {
-                          const on = form.buildingStatus === s.id;
-                          return (
-                            <button key={s.id} type="button" onClick={() => toggleSingle('buildingStatus', s.id)}
-                              className={`py-3 px-3 rounded-xl border-2 text-sm font-bold transition-all text-center ${
-                                on ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
-                                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                              }`}
-                            >{s.label}</button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Condition */}
-                    <div className={`${cardCls} p-6`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg mb-4">მდგომარეობა <span className="text-red-500">*</span></h2>
-                      <div className="flex flex-wrap gap-2">
-                        {CONDITIONS.map(c => chip(c, form.condition === c, () => toggleSingle('condition', c), '#8b5cf6'))}
+                    <div>
+                      <label className={labelCls}><Ruler size={13} /> კვ.მ ფასი</label>
+                      <div className="relative">
+                        <input type="number" value={form.pricePerSqm} onChange={e => set('pricePerSqm', e.target.value)}
+                          className={`${inputCls} pr-8`} placeholder="1800" />
+                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">{form.currency}</span>
                       </div>
                     </div>
                   </div>
-                )}
+                </div>
 
-                {/* ══════════════ STEP 2: Details ══════════════ */}
-                {step === 2 && (
-                  <div className="space-y-5">
-
-                    {/* Price */}
-                    <div className={`${cardCls} p-6`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg mb-5">ფასი <span className="text-red-500">*</span></h2>
-
-                      {/* Currency toggle */}
-                      <div className="flex items-center gap-2 mb-4">
-                        {['₾', '$'].map(c => (
-                          <button key={c} type="button" onClick={() => set('currency', c)}
-                            className={`w-10 h-10 rounded-xl border-2 font-bold text-base transition-all ${
-                              form.currency === c ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 bg-white text-slate-600'
-                            }`}
-                          >{c}</button>
-                        ))}
-                      </div>
-
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className={labelCls}><DollarSign size={13} /> სრული ფასი</label>
-                          <div className="relative">
-                            <input type="number" value={form.price} onChange={e => set('price', e.target.value)}
-                              className={`${inputCls} pr-8`} placeholder="250000" />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">{form.currency}</span>
-                          </div>
-                        </div>
-                        <div>
-                          <label className={labelCls}><Ruler size={13} /> კვ.მ ფასი</label>
-                          <div className="relative">
-                            <input type="number" value={form.pricePerSqm} onChange={e => set('pricePerSqm', e.target.value)}
-                              className={`${inputCls} pr-8`} placeholder="1800" />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">{form.currency}</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Area & Dimensions */}
-                    <div className={`${cardCls} p-6 space-y-5`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg">ზომები</h2>
+                <div className="space-y-5">
+                  <h3 className="font-bold text-slate-800 text-sm">ზომები</h3>
 
                       <div>
                         <label className={labelCls}><MoveHorizontal size={13} /> ფართი <span className="text-red-500">*</span></label>
@@ -803,19 +835,17 @@ export default function AdminAddListingPage() {
                       )}
                     </div>
 
-                    {/* Project type */}
-                    {(form.type === 'apartment' || form.type === 'house') && (
-                      <div className={`${cardCls} p-6`}>
-                        <h2 className="font-extrabold text-slate-800 text-lg mb-4">პროექტის ტიპი <span className="text-red-500">*</span></h2>
-                        <div className="flex flex-wrap gap-2">
-                          {PROJECT_TYPES.map(p => chip(p, form.projectType === p, () => toggleSingle('projectType', p), '#f59e0b'))}
-                        </div>
-                      </div>
-                    )}
+                {(form.type === 'apartment' || form.type === 'house') && (
+                  <div>
+                    <h3 className="font-bold text-slate-800 text-sm mb-4">პროექტის ტიპი</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {PROJECT_TYPES.map(p => chip(p, form.projectType === p, () => toggleSingle('projectType', p), '#f59e0b'))}
+                    </div>
+                  </div>
+                )}
 
-                    {/* Extra dimensions */}
-                    <div className={`${cardCls} p-6 space-y-5`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg">სხვა მახასიათებლები</h2>
+                <div className="space-y-5 pt-2 border-t border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-sm">სხვა მახასიათებლები</h3>
 
                       {/* Wet point */}
                       <div>
@@ -919,32 +949,26 @@ export default function AdminAddListingPage() {
                           </div>
                         </div>
                       </div>
-                    </div>
+                </div>
 
-                    {/* Description */}
-                    <div className={`${cardCls} p-6`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg mb-1">აღწერა <span className="text-red-500">*</span></h2>
-                      <p className="text-slate-400 text-xs mb-4">მაქსიმუმ 3000 სიმბოლო</p>
-                      <textarea value={form.description} onChange={e => set('description', e.target.value)}
-                        rows={5} placeholder="დეტალური აღწერა ქართულ ენაზე..."
-                        className={`${inputCls} resize-none`}
-                        maxLength={3000}
-                      />
-                      <div className="text-right text-xs text-slate-400 mt-1">{form.description.length}/3000</div>
-                    </div>
-                  </div>
-                )}
+                <div className="pt-2 border-t border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-sm mb-1">აღწერა</h3>
+                  <p className="text-slate-400 text-xs mb-4">მაქსიმუმ 3000 სიმბოლო</p>
+                  <textarea value={form.description} onChange={e => set('description', e.target.value)}
+                    rows={5} placeholder="დეტალური აღწერა ქართულ ენაზე..."
+                    className={`${inputCls} resize-none`}
+                    maxLength={3000}
+                  />
+                  <div className="text-right text-xs text-slate-400 mt-1">{form.description.length}/3000</div>
+                </div>
+              </div>
+            </FormSection>
 
-                {/* ══════════════ STEP 3: Location ══════════════ */}
-                {step === 3 && (
-                  <div className="space-y-5">
-                    <div className={`${cardCls} p-6`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg mb-1">მდებარეობა <span className="text-red-500">*</span></h2>
-                      <p className="text-slate-500 text-sm mb-5">მოძებნეთ ან კარტაზე მონიშნეთ</p>
-                      <LocationPickerMap value={locationValue} onChange={handleLocationChange} height={360} />
-                    </div>
+            <FormSection id="section-location" title="მდებარეობა" desc="მოძებნეთ ან კარტაზე მონიშნეთ ლოკაცია" icon={MapPin}>
+              <div className="space-y-5">
+                <LocationPickerMap value={locationValue} onChange={handleLocationChange} height={360} />
 
-                    <div className={`${cardCls} p-6 space-y-4`}>
+                <div className="space-y-4 pt-2 border-t border-slate-100">
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div>
                           <label className={labelCls}><MapPin size={12} /> ქალაქი</label>
@@ -977,155 +1001,142 @@ export default function AdminAddListingPage() {
                           className={inputCls} placeholder="01.13.15.123.456" />
                         <p className="text-xs text-slate-400 mt-1">კოდის ჩაწერა ზრდის განცხადების სანდოობას</p>
                       </div>
-                    </div>
+                </div>
+              </div>
+            </FormSection>
+
+            <FormSection id="section-features" title="მახასიათებლები" desc="პარკირება, გათბობა, ავეჯი და სხვა" icon={Wrench}>
+              <div className="space-y-6">
+
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Car size={16} className="text-slate-600" />
+                    <h3 className="font-bold text-slate-800 text-sm">პარკირება</h3>
                   </div>
-                )}
-
-                {/* ══════════════ STEP 4: Features ══════════════ */}
-                {step === 4 && (
-                  <div className="space-y-5">
-
-                    {/* Parking */}
-                    <div className={`${cardCls} p-6`}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Car size={18} className="text-slate-600" />
-                        <h2 className="font-extrabold text-slate-800 text-lg">პარკირება</h2>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {PARKING_OPTIONS.map(p => chip(p, form.parking.includes(p), () => toggleArr('parking', p), '#64748b'))}
-                      </div>
-                    </div>
-
-                    {/* Heating */}
-                    <div className={`${cardCls} p-6`}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Flame size={18} className="text-orange-500" />
-                        <h2 className="font-extrabold text-slate-800 text-lg">გათბობა</h2>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {HEATING_OPTIONS.map(h => chip(h, form.heating.includes(h), () => toggleArr('heating', h), '#f97316'))}
-                      </div>
-                    </div>
-
-                    {/* Hot water */}
-                    <div className={`${cardCls} p-6`}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Droplets size={18} className="text-blue-500" />
-                        <h2 className="font-extrabold text-slate-800 text-lg">ცხელი წყალი</h2>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {HOT_WATER_OPTIONS.map(h => chip(h, form.hotWater.includes(h), () => toggleArr('hotWater', h), '#0ea5e9'))}
-                      </div>
-                    </div>
-
-                    {/* Building materials */}
-                    <div className={`${cardCls} p-6`}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <HardHat size={18} className="text-amber-600" />
-                        <h2 className="font-extrabold text-slate-800 text-lg">სამშენებლო მასალა</h2>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {BUILDING_MATERIALS.map(m => chip(m, form.buildingMaterials.includes(m), () => toggleArr('buildingMaterials', m), '#d97706'))}
-                      </div>
-                    </div>
-
-                    {/* Windows */}
-                    <div className={`${cardCls} p-6`}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Package size={18} className="text-slate-600" />
-                        <h2 className="font-extrabold text-slate-800 text-lg">კარ-ფანჯარა</h2>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {WINDOW_MATERIALS.map(w => chip(w, form.windowsMaterials.includes(w), () => toggleArr('windowsMaterials', w), '#475569'))}
-                      </div>
-                    </div>
-
-                    {/* Property amenities */}
-                    <div className={`${cardCls} p-6`}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Zap size={18} className="text-yellow-500" />
-                        <h2 className="font-extrabold text-slate-800 text-lg">ქონების მახასიათებლები</h2>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {PROPERTY_AMENITIES.map(a => chip(a, form.propertyAmenities.includes(a), () => toggleArr('propertyAmenities', a), '#eab308'))}
-                      </div>
-                    </div>
-
-                    {/* Furniture & appliances */}
-                    <div className={`${cardCls} p-6`}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Wrench size={18} className="text-indigo-500" />
-                        <h2 className="font-extrabold text-slate-800 text-lg">ავეჯი და ტექნიკა</h2>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {FURNITURE_ITEMS.map(f => chip(f, form.furniture.includes(f), () => toggleArr('furniture', f), '#6366f1'))}
-                      </div>
-                    </div>
-
-                    {/* Building features */}
-                    <div className={`${cardCls} p-6`}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Building2 size={18} className="text-teal-600" />
-                        <h2 className="font-extrabold text-slate-800 text-lg">კორპ. / კომპლ. მახასიათ.</h2>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {BUILDING_FEATURES.map(b => chip(b, form.buildingFeatures.includes(b), () => toggleArr('buildingFeatures', b), '#0d9488'))}
-                      </div>
-                    </div>
-
-                    {/* Badges */}
-                    <div className={`${cardCls} p-6`}>
-                      <div className="flex items-center gap-2 mb-4">
-                        <Star size={18} className="text-amber-500" />
-                        <h2 className="font-extrabold text-slate-800 text-lg">ბეჯები</h2>
-                      </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                        {BADGE_OPTIONS.map(b => {
-                          const on = form.badges.includes(b.id);
-                          return (
-                            <button key={b.id} type="button" onClick={() => toggleArr('badges', b.id)}
-                              className={`flex items-center gap-2 p-3 rounded-xl border-2 text-xs font-bold transition-all ${
-                                on ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                                   : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
-                              }`}
-                            >
-                              <b.icon size={14} />
-                              {b.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                  <div className="flex flex-wrap gap-2">
+                    {PARKING_OPTIONS.map(p => chip(p, form.parking.includes(p), () => toggleArr('parking', p), '#64748b'))}
                   </div>
-                )}
+                </div>
 
-                {/* ══════════════ STEP 5: Media & Publish ══════════════ */}
-                {step === 5 && (
-                  <div className="space-y-5">
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Flame size={16} className="text-orange-500" />
+                    <h3 className="font-bold text-slate-800 text-sm">გათბობა</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {HEATING_OPTIONS.map(h => chip(h, form.heating.includes(h), () => toggleArr('heating', h), '#f97316'))}
+                  </div>
+                </div>
 
-                    {/* Photos */}
-                    <div className={`${cardCls} p-6`}>
-                      <div className="flex items-center gap-2 mb-2">
-                        <ImageIcon size={18} className="text-blue-500" />
-                        <h2 className="font-extrabold text-slate-800 text-lg">ფოტოგალერეა <span className="text-red-500">*</span></h2>
-                      </div>
-                      <p className="text-slate-400 text-xs mb-4">სურათების URL — თითო ხაზზე (მაქს. 16)</p>
-                      <textarea value={form.images} onChange={e => set('images', e.target.value)}
-                        rows={5} placeholder="https://images.unsplash.com/..."
-                        className={`${inputCls} resize-none font-mono text-xs`}
-                      />
-                      {firstImg && (
-                        <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
-                          {form.images.split('\n').filter(l => l.trim().startsWith('http')).slice(0, 8).map((url, i) => (
-                            <img key={i} src={url.trim()} alt="" className="w-20 h-20 rounded-xl object-cover flex-shrink-0 bg-slate-100 border border-slate-200" />
-                          ))}
-                        </div>
-                      )}
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Droplets size={16} className="text-blue-500" />
+                    <h3 className="font-bold text-slate-800 text-sm">ცხელი წყალი</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {HOT_WATER_OPTIONS.map(h => chip(h, form.hotWater.includes(h), () => toggleArr('hotWater', h), '#0ea5e9'))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <HardHat size={16} className="text-amber-600" />
+                    <h3 className="font-bold text-slate-800 text-sm">სამშენებლო მასალა</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {BUILDING_MATERIALS.map(m => chip(m, form.buildingMaterials.includes(m), () => toggleArr('buildingMaterials', m), '#d97706'))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Package size={16} className="text-slate-600" />
+                    <h3 className="font-bold text-slate-800 text-sm">კარ-ფანჯარა</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {WINDOW_MATERIALS.map(w => chip(w, form.windowsMaterials.includes(w), () => toggleArr('windowsMaterials', w), '#475569'))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Zap size={16} className="text-yellow-500" />
+                    <h3 className="font-bold text-slate-800 text-sm">ქონების მახასიათებლები</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {PROPERTY_AMENITIES.map(a => chip(a, form.propertyAmenities.includes(a), () => toggleArr('propertyAmenities', a), '#eab308'))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Wrench size={16} className="text-indigo-500" />
+                    <h3 className="font-bold text-slate-800 text-sm">ავეჯი და ტექნიკა</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {FURNITURE_ITEMS.map(f => chip(f, form.furniture.includes(f), () => toggleArr('furniture', f), '#6366f1'))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 size={16} className="text-teal-600" />
+                    <h3 className="font-bold text-slate-800 text-sm">კორპ. / კომპლ. მახასიათ.</h3>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {BUILDING_FEATURES.map(b => chip(b, form.buildingFeatures.includes(b), () => toggleArr('buildingFeatures', b), '#0d9488'))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Star size={16} className="text-amber-500" />
+                    <h3 className="font-bold text-slate-800 text-sm">ბეჯები</h3>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    {BADGE_OPTIONS.map(b => {
+                      const on = form.badges.includes(b.id);
+                      return (
+                        <button key={b.id} type="button" onClick={() => toggleArr('badges', b.id)}
+                          className={`flex items-center gap-2 p-3 rounded-xl border-2 text-xs font-bold transition-all ${
+                            on ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                               : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                          }`}
+                        >
+                          <b.icon size={14} />
+                          {b.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </FormSection>
+
+            <FormSection id="section-media" title="მედია & გამოქვეყნება" desc="ფოტოები, ბმულები, კონტაქტი და სტიკერები" icon={Sparkles}>
+              <div className="space-y-6">
+
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <ImageIcon size={16} className="text-blue-500" />
+                    <h3 className="font-bold text-slate-800 text-sm">ფოტოგალერეა</h3>
+                  </div>
+                  <p className="text-slate-400 text-xs mb-4">სურათების URL — თითო ხაზზე (მაქს. 16)</p>
+                  <textarea value={form.images} onChange={e => set('images', e.target.value)}
+                    rows={5} placeholder="https://images.unsplash.com/..."
+                    className={`${inputCls} resize-none font-mono text-xs`}
+                  />
+                  {firstImg && (
+                    <div className="mt-3 flex gap-2 overflow-x-auto pb-1">
+                      {form.images.split('\n').filter(l => l.trim().startsWith('http')).slice(0, 8).map((url, i) => (
+                        <img key={i} src={url.trim()} alt="" className="w-20 h-20 rounded-xl object-cover flex-shrink-0 bg-slate-100 border border-slate-200" />
+                      ))}
                     </div>
+                  )}
+                </div>
 
-                    {/* Links */}
-                    <div className={`${cardCls} p-6 space-y-4`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg">ბმულები</h2>
+                <div className="space-y-4 pt-2 border-t border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-sm">ბმულები</h3>
                       <div>
                         <label className={labelCls}><PlayCircle size={13} className="text-red-500" /> YouTube-ის ბმული</label>
                         <input type="url" value={form.youtubeUrl} onChange={e => set('youtubeUrl', e.target.value)}
@@ -1136,110 +1147,77 @@ export default function AdminAddListingPage() {
                         <input type="url" value={form.matterportUrl} onChange={e => set('matterportUrl', e.target.value)}
                           className={inputCls} placeholder="https://my.matterport.com/show/..." />
                       </div>
-                    </div>
-
-                    {/* Contact */}
-                    <div className={`${cardCls} p-6 space-y-4`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg">საკონტაქტო ინფ. <span className="text-red-500">*</span></h2>
-                      <div className="grid sm:grid-cols-3 gap-4">
-                        <div>
-                          <label className={labelCls}><User size={12} /> სახელი</label>
-                          <input type="text" value={form.agentName} onChange={e => set('agentName', e.target.value)} className={inputCls} />
-                        </div>
-                        <div>
-                          <label className={labelCls}><Phone size={12} /> ტელეფ.</label>
-                          <input type="text" value={form.agentPhone} onChange={e => set('agentPhone', e.target.value)} className={inputCls} placeholder="+995 5XX XXX XXX" />
-                        </div>
-                        <div>
-                          <label className={labelCls}><Mail size={12} /> Email</label>
-                          <input type="email" value={form.agentEmail} onChange={e => set('agentEmail', e.target.value)} className={inputCls} />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Publication flags */}
-                    <div className={`${cardCls} p-6`}>
-                      <h2 className="font-extrabold text-slate-800 text-lg mb-4">სტიკერები & გამოქვ.</h2>
-                      <div className="grid sm:grid-cols-3 gap-3">
-                        {([
-                          { key: 'isPremium'  as const, label: 'VIP / პრემიუმი', icon: Crown,  color: '#f59e0b', desc: 'ოქროს ბეიჯი'     },
-                          { key: 'isFeatured' as const, label: 'გამორჩეული',     icon: Star,   color: '#497cff', desc: 'მთ. გვ. ბანერი'  },
-                          { key: 'isNew'      as const, label: 'ახალი',           icon: Zap,    color: '#10B981', desc: 'NEW ბეიჯი'       },
-                        ]).map(opt => {
-                          const on = form[opt.key];
-                          return (
-                            <button key={opt.key} type="button" onClick={() => set(opt.key, !on)}
-                              className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${
-                                on ? 'shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
-                              }`}
-                              style={on ? { background: `${opt.color}12`, borderColor: opt.color } : {}}
-                            >
-                              <opt.icon size={20} style={{ color: on ? opt.color : '#94a3b8' }} />
-                              <div>
-                                <p className="font-bold text-slate-800 text-sm">{opt.label}</p>
-                                <p className="text-xs text-slate-500">{opt.desc}</p>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {error && (
-                      <div className="px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
-                        {error}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-
-            {/* Nav buttons */}
-            <div className={`${cardCls} flex items-center justify-between mt-6 px-5 py-4`}>
-              <button type="button"
-                onClick={() => step > 1 ? setStep(step - 1) : navigate('/admin')}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-sm font-semibold transition-colors"
-              >
-                <ArrowLeft size={16} />
-                {step === 1 ? 'გაუქმება' : 'უკან'}
-              </button>
-
-              {step < STEPS.length ? (
-                <button type="button"
-                  onClick={() => canProceed() && setStep(step + 1)}
-                  disabled={!canProceed()}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  შემდეგი <ArrowRight size={16} />
-                </button>
-              ) : (
-                <div className="flex gap-3">
-                  <button type="button"
-                    onClick={() => handleSubmit()}
-                    disabled={saving || !form.price}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 transition-colors disabled:opacity-40"
-                  >
-                    {saving ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
-                    შენახვა
-                  </button>
-                  <button type="button"
-                    onClick={() => { set('isNew', true); handleSubmit(); }}
-                    disabled={saving || !form.price}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors disabled:opacity-40"
-                  >
-                    {saving ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
-                    გამოქვეყნება
-                  </button>
                 </div>
-              )}
-            </div>
+
+                <div className="space-y-4 pt-2 border-t border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-sm">საკონტაქტო ინფორმაცია</h3>
+                  <div className="grid sm:grid-cols-3 gap-4">
+                    <div>
+                      <label className={labelCls}><User size={12} /> სახელი</label>
+                      <input type="text" value={form.agentName} onChange={e => set('agentName', e.target.value)} className={inputCls} />
+                    </div>
+                    <div>
+                      <label className={labelCls}><Phone size={12} /> ტელეფ.</label>
+                      <input type="text" value={form.agentPhone} onChange={e => set('agentPhone', e.target.value)} className={inputCls} placeholder="+995 5XX XXX XXX" />
+                    </div>
+                    <div>
+                      <label className={labelCls}><Mail size={12} /> Email</label>
+                      <input type="email" value={form.agentEmail} onChange={e => set('agentEmail', e.target.value)} className={inputCls} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100">
+                  <h3 className="font-bold text-slate-800 text-sm mb-4">სტიკერები & გამოქვეყნება</h3>
+                  <div className="grid sm:grid-cols-3 gap-3">
+                    {([
+                      { key: 'isPremium'  as const, label: 'VIP / პრემიუმი', icon: Crown,  color: '#f59e0b', desc: 'ოქროს ბეიჯი'     },
+                      { key: 'isFeatured' as const, label: 'გამორჩეული',     icon: Star,   color: '#497cff', desc: 'მთ. გვ. ბანერი'  },
+                      { key: 'isNew'      as const, label: 'ახალი',           icon: Zap,    color: '#10B981', desc: 'NEW ბეიჯი'       },
+                    ]).map(opt => {
+                      const on = form[opt.key];
+                      return (
+                        <button key={opt.key} type="button" onClick={() => set(opt.key, !on)}
+                          className={`flex items-center gap-3 p-4 rounded-xl border-2 text-left transition-all ${
+                            on ? 'shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
+                          }`}
+                          style={on ? { background: `${opt.color}12`, borderColor: opt.color } : {}}
+                        >
+                          <opt.icon size={20} style={{ color: on ? opt.color : '#94a3b8' }} />
+                          <div>
+                            <p className="font-bold text-slate-800 text-sm">{opt.label}</p>
+                            <p className="text-xs text-slate-500">{opt.desc}</p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </FormSection>
           </div>
 
-          {/* ─── Live preview sidebar ─── */}
+          {/* Sidebar */}
           <div className="hidden lg:block">
-            <div className="sticky top-28">
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">პრევიუ</p>
+            <div className="sticky top-28 space-y-4">
+              <div className={`${cardCls} p-4`}>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">სექციები</p>
+                <nav className="space-y-1">
+                  {SECTION_NAV.map(s => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => scrollToSection(s.id)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
+                    >
+                      <s.icon size={14} className="text-blue-500 flex-shrink-0" />
+                      {s.label}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+
+              <p className="text-xs font-bold uppercase tracking-widest text-slate-400">პრევიუ</p>
               <div className={`${cardCls} overflow-hidden`}>
                 {firstImg ? (
                   <div className="aspect-[4/3] bg-slate-100">
@@ -1324,10 +1302,34 @@ export default function AdminAddListingPage() {
                   </div>
                 ))}
               </div>
+
+              <div className={`${cardCls} p-4 space-y-3`}>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">მოქმედებები</p>
+                <div className="flex flex-col gap-2">
+                  {actionButtons}
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
+
+      {/* Mobile sticky actions */}
+      <div
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 px-4 py-3 flex items-center gap-2 border-t border-slate-200 bg-white/95 backdrop-blur"
+        style={{ boxShadow: '0 -4px 20px rgba(0,0,0,0.08)' }}
+      >
+        <button
+          type="button"
+          onClick={() => navigate('/admin?section=properties')}
+          className="flex items-center justify-center px-3 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold"
+        >
+          <ArrowLeft size={16} />
+        </button>
+        <div className="flex-1 flex gap-2">
+          {actionButtons}
+        </div>
+      </div>
+    </AdminLayout>
   );
 }
