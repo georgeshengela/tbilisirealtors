@@ -4,11 +4,12 @@ import {
   LayoutDashboard, Building2, Users, Settings, LogOut, Plus,
   Pencil, Trash2, X, Eye, TrendingUp, UserCheck,
   BookOpen, Search, CheckCircle, XCircle, Shield, Home,
-  Star, Zap, Sparkles, Filter, Image as ImageIcon,
+  Star, Zap, Sparkles, Image as ImageIcon,
   Phone, Mail, Globe, RefreshCw, ArrowUpRight, MapPin, Clock,
   ExternalLink, type LucideIcon,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
+import AdminPropertiesSection from '../components/admin/AdminPropertiesSection';
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -63,7 +64,6 @@ const TYPE_LABELS: Record<string, string> = {
 const TYPE_COLORS: Record<string, string> = {
   apartment: '#497cff', house: '#10B981', commercial: '#f59e0b', land: '#8b5cf6', villa: '#ec4899',
 };
-const STATUS_LABEL: Record<string, string> = { sale: 'იყიდება', rent: 'ქირავდება' };
 const STATUS_COLOR: Record<string, string> = { sale: '#f59e0b', rent: '#10B981' };
 
 // ─── SMALL COMPONENTS ───────────────────────────────────────────────────────
@@ -298,8 +298,6 @@ export default function AdminPage() {
 
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [propFilter, setPropFilter] = useState<'all' | 'sale' | 'rent'>('all');
-  const [propTypeFilter, setPropTypeFilter] = useState('all');
 
   const [modal, setModal] = useState<{ type: 'agent' | 'blog' | 'user'; mode: 'create' | 'edit'; data: Record<string, unknown> } | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ type: Section; id: string | number } | null>(null);
@@ -416,11 +414,6 @@ export default function AdminPage() {
     { id: 'settings', label: 'პარამეტრები', icon: Settings },
   ];
 
-  const filteredProps = propList
-    .filter(p => propFilter === 'all' || p.status === propFilter)
-    .filter(p => propTypeFilter === 'all' || p.type === propTypeFilter)
-    .filter(p => !search || p.title?.toLowerCase().includes(search.toLowerCase()) || p.city?.toLowerCase().includes(search.toLowerCase()) || p.district?.toLowerCase().includes(search.toLowerCase()));
-
   const filteredAgents = agentList.filter(a =>
     !search || a.name?.toLowerCase().includes(search.toLowerCase()) || a.email?.toLowerCase().includes(search.toLowerCase())
   );
@@ -535,7 +528,7 @@ export default function AdminPage() {
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {['properties', 'agents', 'blog', 'users'].includes(section) && (
+              {['agents', 'blog', 'users'].includes(section) && (
                 <div className="relative hidden xl:block">
                   <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'rgba(148,163,184,0.7)' }} />
                   <input
@@ -708,7 +701,7 @@ export default function AdminPage() {
       <main className="flex-1 overflow-y-auto">
         <div className="container-xl py-6">
           {/* Mobile search */}
-          {['properties', 'agents', 'blog', 'users'].includes(section) && (
+          {['agents', 'blog', 'users'].includes(section) && (
             <div className="relative mb-5 md:hidden">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -938,121 +931,11 @@ export default function AdminPage() {
 
           {/* ── PROPERTIES ── */}
           {section === 'properties' && (
-            <div className="space-y-4">
-              {/* Filters + Add button */}
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Status tabs */}
-                <div className="flex items-center bg-white rounded-xl border border-slate-200 overflow-hidden p-1 gap-1">
-                  {[['all', 'ყველა'], ['sale', 'იყიდება'], ['rent', 'ქირავდება']] .map(([v, l]) => (
-                    <button key={v} onClick={() => setPropFilter(v as typeof propFilter)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${propFilter === v ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'}`}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-                {/* Type filter */}
-                <div className="flex items-center gap-1.5">
-                  <Filter size={13} className="text-slate-400" />
-                  <select value={propTypeFilter} onChange={e => setPropTypeFilter(e.target.value)}
-                    className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 text-slate-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white">
-                    <option value="all">ყველა ტიპი</option>
-                    <option value="apartment">ბინა</option>
-                    <option value="house">სახლი</option>
-                    <option value="villa">ვილა</option>
-                    <option value="commercial">კომ.</option>
-                    <option value="land">მიწა</option>
-                  </select>
-                </div>
-                <span className="text-xs text-slate-400 ml-1">{filteredProps.length} განცხ.</span>
-                <div className="flex-1" />
-                <button onClick={() => navigate('/admin/listings/new')}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors shadow-sm">
-                  <Plus size={15} />განცხადება
-                </button>
-              </div>
-
-              {/* Table */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-slate-100 bg-slate-50/60">
-                        <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 pl-5 pr-3">განცხადება</th>
-                        <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-3 hidden md:table-cell">ფასი</th>
-                        <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-3 hidden lg:table-cell">ტიპი</th>
-                        <th className="text-left text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-3 hidden lg:table-cell">სტატ.</th>
-                        <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2">
-                          <span className="flex items-center justify-center gap-1"><Zap size={11} />VIP</span>
-                        </th>
-                        <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2">
-                          <span className="flex items-center justify-center gap-1"><Star size={11} />გამ.</span>
-                        </th>
-                        <th className="text-center text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2">
-                          <span className="flex items-center justify-center gap-1"><Sparkles size={11} />ახ.</span>
-                        </th>
-                        <th className="text-right text-xs font-semibold text-slate-500 uppercase tracking-wide py-3 px-2 hidden sm:table-cell">
-                          <span className="flex items-center justify-end gap-1"><Eye size={11} /></span>
-                        </th>
-                        <th className="py-3 pr-5 pl-3" />
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {filteredProps.length === 0 ? (
-                        <tr><td colSpan={9} className="py-14 text-center text-slate-400 text-sm">
-                          {search || propFilter !== 'all' ? 'ძიების შედეგი ვერ მოიძებნა' : 'განცხადება ჯერ არ არის'}
-                        </td></tr>
-                      ) : filteredProps.map(p => (
-                        <tr key={p.id} className="hover:bg-slate-50/70 transition-colors group">
-                          <td className="py-3 pl-5 pr-3">
-                            <div className="flex items-center gap-2.5">
-                              <ImgThumb src={p.images?.[0]} />
-                              <div className="min-w-0">
-                                <p className="font-semibold text-slate-700 text-sm truncate max-w-[160px] lg:max-w-[220px]">{p.title}</p>
-                                <p className="text-xs text-slate-400 truncate">{p.city}{p.district ? ` · ${p.district}` : ''}</p>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="py-3 px-3 hidden md:table-cell">
-                            <p className="font-bold text-slate-800 text-sm whitespace-nowrap">{GEL(p.price)}</p>
-                            {p.area && <p className="text-xs text-slate-400">{Number(p.area).toFixed(0)} მ²</p>}
-                          </td>
-                          <td className="py-3 px-3 hidden lg:table-cell">
-                            <Badge label={TYPE_LABELS[p.type] || p.type} color={TYPE_COLORS[p.type] || '#94a3b8'} />
-                          </td>
-                          <td className="py-3 px-3 hidden lg:table-cell">
-                            <Badge label={STATUS_LABEL[p.status] || p.status} color={STATUS_COLOR[p.status] || '#94a3b8'} />
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            <Toggle on={p.isPremium} onToggle={() => patchProp(p.id, 'isPremium', !p.isPremium)} label="VIP/პრემიუმი" color="#f59e0b" />
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            <Toggle on={p.isFeatured} onToggle={() => patchProp(p.id, 'isFeatured', !p.isFeatured)} label="გამორჩეული" color="#497cff" />
-                          </td>
-                          <td className="py-3 px-2 text-center">
-                            <Toggle on={p.isNew} onToggle={() => patchProp(p.id, 'isNew', !p.isNew)} label="ახალი" color="#10B981" />
-                          </td>
-                          <td className="py-3 px-2 text-right text-xs text-slate-400 hidden sm:table-cell whitespace-nowrap">
-                            <Eye size={10} className="inline mr-1" />{(p.viewCount ?? 0).toLocaleString()}
-                          </td>
-                          <td className="py-3 pr-5 pl-3">
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <button onClick={() => navigate(`/admin/listings/${p.id}/edit`)}
-                                className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors">
-                                <Pencil size={13} />
-                              </button>
-                              <button onClick={() => setConfirmDelete({ type: 'properties', id: p.id })}
-                                className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors">
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+            <AdminPropertiesSection
+              properties={propList}
+              onPatch={(id, field, value) => patchProp(id, field, value)}
+              onDelete={id => setConfirmDelete({ type: 'properties', id })}
+            />
           )}
 
           {/* ── AGENTS ── */}
