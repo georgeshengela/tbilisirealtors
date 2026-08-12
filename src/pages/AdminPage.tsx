@@ -2,10 +2,11 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, Users, Settings, LogOut, Plus,
-  Pencil, Trash2, X, ChevronRight, Eye, TrendingUp, UserCheck,
-  BookOpen, Search, CheckCircle, XCircle, Shield, Home, Menu,
+  Pencil, Trash2, X, Eye, TrendingUp, UserCheck,
+  BookOpen, Search, CheckCircle, XCircle, Shield, Home,
   Star, Zap, Sparkles, Filter, Image as ImageIcon,
   Phone, Mail, Globe, RefreshCw, ArrowUpRight, MapPin, Clock,
+  ExternalLink,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 
@@ -279,7 +280,6 @@ export default function AdminPage() {
   const api = useApiRequest();
 
   const [section, setSection] = useState<Section>('dashboard');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [stats, setStats] = useState<Stats | null>(null);
@@ -427,72 +427,285 @@ export default function AdminPage() {
   if (authLoading || !user) return null;
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
-      {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+    <div className="min-h-screen flex flex-col" style={{ background: '#f4f6fa' }}>
+      {/* Admin header */}
+      <header
+        className="sticky top-0 z-40"
+        style={{
+          background: '#111827',
+          borderBottom: '1px solid rgba(255,255,255,0.08)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+        }}
+      >
+        <div className="container-xl">
+          {/* Main bar */}
+          <div className="flex items-center justify-between gap-4 py-3.5 min-h-[68px]">
+            {/* Brand */}
+            <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
+              <div className="relative flex-shrink-0">
+                <div
+                  className="w-11 h-11 rounded-2xl flex items-center justify-center"
+                  style={{
+                    background: '#497cff',
+                    boxShadow: '0 4px 14px rgba(73,124,255,0.35)',
+                  }}
+                >
+                  <Building2 size={20} color="#fff" strokeWidth={2.2} />
+                </div>
+                <div
+                  className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2"
+                  style={{ background: '#10b981', borderColor: '#111827' }}
+                />
+              </div>
+              <div className="min-w-0 hidden sm:block">
+                <div className="flex items-center gap-2">
+                  <p className="font-extrabold text-white text-[15px] leading-none tracking-tight">
+                    TbilisiRealtors<span style={{ color: '#93c5fd' }}>.ge</span>
+                  </p>
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest"
+                    style={{
+                      background: 'rgba(73,124,255,0.2)',
+                      color: '#c7d2fe',
+                      border: '1px solid rgba(73,124,255,0.35)',
+                    }}
+                  >
+                    <Sparkles size={9} />
+                    Admin
+                  </span>
+                </div>
+                <p className="text-slate-500 text-[11px] mt-1 font-medium">
+                  {navItems.find(n => n.id === section)?.label} · პანელი
+                </p>
+              </div>
+            </div>
 
-      {/* Sidebar */}
-      <aside className={`fixed lg:relative inset-y-0 left-0 z-30 flex flex-col w-60 bg-slate-900 transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}`}>
-        <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-800">
-          <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
-            <Building2 size={16} color="white" />
-          </div>
-          <div>
-            <p className="text-white font-bold text-sm leading-tight">TbilisiRealtors</p>
-            <p className="text-slate-500 text-xs">ადმინ პანელი</p>
-          </div>
-        </div>
+            {/* Center nav — desktop */}
+            <nav
+              className="hidden lg:flex items-center p-1 rounded-2xl flex-shrink-0"
+              style={{
+                background: 'rgba(255,255,255,0.05)',
+                border: '1px solid rgba(255,255,255,0.08)',
+              }}
+            >
+              {navItems.map(item => {
+                const active = section === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => { setSection(item.id); setSearch(''); }}
+                    className="relative inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-all duration-200"
+                    style={
+                      active
+                        ? {
+                            background: 'rgba(255,255,255,0.12)',
+                            color: '#fff',
+                          }
+                        : { color: 'rgba(148,163,184,0.9)' }
+                    }
+                    onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = '#e2e8f0'; }}
+                    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = 'rgba(148,163,184,0.9)'; }}
+                  >
+                    {active && (
+                      <span
+                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full"
+                        style={{ background: '#497cff' }}
+                      />
+                    )}
+                    <item.icon size={14} strokeWidth={active ? 2.3 : 2} style={{ opacity: active ? 1 : 0.75 }} />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
 
-        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          {navItems.map(item => {
-            const active = section === item.id;
-            return (
-              <button key={item.id} onClick={() => { setSection(item.id); setSearch(''); setSidebarOpen(false); }}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}>
-                <item.icon size={16} />
-                {item.label}
-                {active && <ChevronRight size={12} className="ml-auto" />}
+            {/* Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {['properties', 'agents', 'blog', 'users'].includes(section) && (
+                <div className="relative hidden xl:block">
+                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'rgba(148,163,184,0.7)' }} />
+                  <input
+                    type="text"
+                    placeholder="ძიება..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    className="pl-9 pr-4 py-2 rounded-xl text-sm focus:outline-none w-48 2xl:w-56 transition-all"
+                    style={{
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.1)',
+                      color: '#f1f5f9',
+                      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.15)',
+                    }}
+                    onFocus={e => {
+                      (e.target as HTMLInputElement).style.borderColor = 'rgba(73,124,255,0.5)';
+                      (e.target as HTMLInputElement).style.background = 'rgba(255,255,255,0.09)';
+                    }}
+                    onBlur={e => {
+                      (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.1)';
+                      (e.target as HTMLInputElement).style.background = 'rgba(255,255,255,0.06)';
+                    }}
+                  />
+                </div>
+              )}
+
+              <button
+                onClick={() => loadSection(section)}
+                className="p-2.5 rounded-xl transition-all"
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'rgba(203,213,225,0.9)',
+                }}
+                title="განახლება"
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.1)';
+                  (e.currentTarget as HTMLElement).style.color = '#fff';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
+                  (e.currentTarget as HTMLElement).style.color = 'rgba(203,213,225,0.9)';
+                }}
+              >
+                <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               </button>
-            );
-          })}
-        </nav>
 
-        <div className="px-2 pb-3 pt-2 border-t border-slate-800 space-y-0.5">
-          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl bg-slate-800 mb-1">
-            <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">{user.name.charAt(0)}</div>
-            <div className="min-w-0">
-              <p className="text-white text-xs font-semibold truncate">{user.name}</p>
-              <p className="text-slate-500 text-xs truncate">{user.role === 'super_admin' ? 'სუპ. ადმინი' : 'ადმინი'}</p>
+              <button
+                onClick={() => navigate('/admin/listings/new')}
+                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
+                style={{
+                  background: '#10b981',
+                  boxShadow: '0 4px 14px rgba(16,185,129,0.35)',
+                }}
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = '#059669';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = '#10b981';
+                }}
+              >
+                <Plus size={15} strokeWidth={2.5} />
+                <span className="hidden sm:inline">განც. დამატება</span>
+              </button>
+
+              {/* User chip */}
+              <div
+                className="hidden md:flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-xl ml-1"
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                }}
+              >
+                <div
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                  style={{ background: '#4f46e5' }}
+                >
+                  {user.name.charAt(0)}
+                </div>
+                <div className="hidden lg:block min-w-0 max-w-[110px]">
+                  <p className="text-white text-xs font-bold truncate leading-tight">{user.name.split(' ')[0]}</p>
+                  <p className="text-slate-500 text-[10px] truncate">
+                    {user.role === 'super_admin' ? 'სუპ. ადმინი' : 'ადმინი'}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => navigate('/')}
+                className="p-2.5 rounded-xl transition-all hidden sm:flex"
+                style={{
+                  background: 'rgba(255,255,255,0.05)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  color: 'rgba(203,213,225,0.85)',
+                }}
+                title="საიტზე გადასვლა"
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(73,124,255,0.15)';
+                  (e.currentTarget as HTMLElement).style.color = '#93c5fd';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(73,124,255,0.3)';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
+                  (e.currentTarget as HTMLElement).style.color = 'rgba(203,213,225,0.85)';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)';
+                }}
+              >
+                <ExternalLink size={16} />
+              </button>
+
+              <button
+                onClick={() => { logout(); navigate('/admin/login'); }}
+                className="p-2.5 rounded-xl transition-all"
+                style={{
+                  background: 'rgba(239,68,68,0.08)',
+                  border: '1px solid rgba(239,68,68,0.2)',
+                  color: '#fca5a5',
+                }}
+                title="გამოსვლა"
+                onMouseEnter={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.18)';
+                  (e.currentTarget as HTMLElement).style.color = '#fecaca';
+                }}
+                onMouseLeave={e => {
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(239,68,68,0.08)';
+                  (e.currentTarget as HTMLElement).style.color = '#fca5a5';
+                }}
+              >
+                <LogOut size={16} />
+              </button>
             </div>
           </div>
-          <button onClick={() => navigate('/')} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-white text-sm transition-all">
-            <Home size={15} />საიტი
-          </button>
-          <button onClick={() => { logout(); navigate('/admin/login'); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-slate-400 hover:bg-slate-800 hover:text-red-400 text-sm transition-all">
-            <LogOut size={15} />გამოსვლა
-          </button>
-        </div>
-      </aside>
 
-      {/* Main */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Topbar */}
-        <header className="bg-white border-b border-slate-100 px-5 py-3.5 flex items-center gap-3 flex-shrink-0">
-          <button onClick={() => setSidebarOpen(true)} className="lg:hidden p-2 rounded-xl hover:bg-slate-100 text-slate-500"><Menu size={18} /></button>
-          <h1 className="font-extrabold text-slate-800 text-base">{navItems.find(n => n.id === section)?.label}</h1>
-          <div className="flex-1" />
+          {/* Mobile / tablet nav */}
+          <nav
+            className="lg:hidden flex items-center gap-1.5 pb-3.5 overflow-x-auto"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
+            {navItems.map(item => {
+              const active = section === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => { setSection(item.id); setSearch(''); }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all"
+                  style={
+                    active
+                      ? {
+                          background: 'rgba(73,124,255,0.25)',
+                          color: '#fff',
+                          border: '1px solid rgba(73,124,255,0.4)',
+                        }
+                      : {
+                          background: 'rgba(255,255,255,0.04)',
+                          color: 'rgba(148,163,184,0.95)',
+                          border: '1px solid rgba(255,255,255,0.07)',
+                        }
+                  }
+                >
+                  <item.icon size={13} strokeWidth={active ? 2.2 : 2} />
+                  {item.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-y-auto">
+        <div className="container-xl py-6">
+          {/* Mobile search */}
           {['properties', 'agents', 'blog', 'users'].includes(section) && (
-            <div className="relative hidden sm:block">
+            <div className="relative mb-5 md:hidden">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <input type="text" placeholder="ძიება..." value={search} onChange={e => setSearch(e.target.value)}
-                className="pl-8 pr-4 py-2 rounded-xl border border-slate-200 text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-48" />
+              <input
+                type="text"
+                placeholder="ძიება..."
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+              />
             </div>
           )}
-          <button onClick={() => loadSection(section)} className="p-2 rounded-xl hover:bg-slate-100 text-slate-500 transition-colors" title="განახლება">
-            <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
-          </button>
-        </header>
-
-        <main className="flex-1 overflow-y-auto p-5">
 
           {/* Loading */}
           {loading && (
@@ -993,8 +1206,8 @@ export default function AdminPage() {
           )}
 
           </>}
-        </main>
-      </div>
+        </div>
+      </main>
 
       {/* ── MODALS ── */}
       {modal?.type === 'agent' && (

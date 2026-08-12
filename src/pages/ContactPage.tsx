@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Phone, Mail, MapPin, Clock, Send, CheckCircle } from 'lucide-react';
+import { CONTACT } from '../data/contactInfo';
+import BusinessHours from '../components/BusinessHours';
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
@@ -16,26 +18,20 @@ export default function ContactPage() {
     {
       icon: Phone,
       label: 'ტელეფონი',
-      values: ['+995 322 12 34 56', '+995 322 98 76 54'],
+      lines: [CONTACT.mobile, CONTACT.phone],
       color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600',
     },
     {
       icon: Mail,
       label: 'ელ-ფოსტა',
-      values: ['info@tbilisirealtors.ge', 'support@tbilisirealtors.ge'],
+      values: [CONTACT.email],
       color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600',
     },
     {
       icon: MapPin,
       label: 'მისამართი',
-      values: ['ჭავჭავაძის გამზ. 14', 'თბილისი, 0179, საქართველო'],
+      values: [CONTACT.address, 'თბილისი, 0179, საქართველო'],
       color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600',
-    },
-    {
-      icon: Clock,
-      label: 'სამუშაო საათები',
-      values: ['ორ–პარ: 9:00 – 20:00', 'შაბ: 10:00 – 17:00'],
-      color: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600',
     },
   ];
 
@@ -74,12 +70,48 @@ export default function ContactPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-slate-900 dark:text-white mb-1">{info.label}</p>
-                  {info.values.map(v => (
-                    <p key={v} className="text-slate-500 dark:text-slate-400 text-sm">{v}</p>
-                  ))}
+                  {'lines' in info ? (
+                    <div className="space-y-2">
+                      {info.lines.map(line => (
+                        <div key={line.tel} className="flex flex-wrap items-center gap-2">
+                          <span className="text-slate-500 dark:text-slate-400 text-sm">{line.label}:</span>
+                          <a href={`tel:${line.tel}`} className="text-slate-700 dark:text-slate-200 text-sm font-medium hover:text-blue-600 transition-colors">
+                            {line.display}
+                          </a>
+                          <a
+                            href={line.whatsapp}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors"
+                          >
+                            WhatsApp
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    info.values.map(v => (
+                      <p key={v} className="text-slate-500 dark:text-slate-400 text-sm">{v}</p>
+                    ))
+                  )}
                 </div>
               </motion.div>
             ))}
+
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-100 dark:border-slate-700"
+            >
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 rounded-xl bg-purple-50 dark:bg-purple-900/20 text-purple-600 flex items-center justify-center flex-shrink-0">
+                  <Clock size={22} />
+                </div>
+                <p className="font-semibold text-slate-900 dark:text-white">სამუშაო საათები</p>
+              </div>
+              <BusinessHours variant="light" showStatus showHeader={false} />
+            </motion.div>
 
             {/* Map */}
             <div className="map-placeholder rounded-2xl h-52 flex items-center justify-center border border-slate-200 dark:border-slate-700 overflow-hidden">
@@ -88,7 +120,7 @@ export default function ContactPage() {
                   <MapPin size={20} />
                 </div>
                 <p className="font-semibold">ჩვენი ოფისი</p>
-                <p className="text-slate-400 text-sm">ჭავჭავაძის გამზ. 14</p>
+                <p className="text-slate-400 text-sm">{CONTACT.address}</p>
               </div>
               <div className="absolute inset-0 opacity-20"
                 style={{
