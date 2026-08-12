@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Building2, Phone, Mail, MapPin, Send,
+  Phone, Mail, MapPin, Send,
   Building, Home, Star, Key, Layers, Tag,
   Users, BookOpen, Info, MessageSquare, Briefcase,
   ArrowUpRight, CheckCircle, Globe,
-  Sparkles, Shield, Plus,
+  Shield,
 } from 'lucide-react';
 import { CONTACT } from '../data/contactInfo';
 import BusinessHours from './BusinessHours';
@@ -76,13 +76,6 @@ const SOCIAL = [
   { label: 'LinkedIn',  href: '#', color: '#0a66c2' },
 ];
 
-const STATS = [
-  { v: '12,400+', l: 'განცხადება', icon: Building2, color: '#497cff' },
-  { v: '350+',    l: 'აგენტი',     icon: Users,     color: '#10b981' },
-  { v: '8,200+',  l: 'კლიენტი',    icon: Star,      color: '#f59e0b' },
-  { v: '8+',      l: 'წელი გამ.',  icon: Shield,    color: '#a78bfa' },
-];
-
 function SectionTitle({ icon: Icon, children }: { icon: React.ComponentType<{ size?: number; strokeWidth?: number }>; children: React.ReactNode }) {
   return (
     <h4 className="font-bold text-white text-sm mb-5 flex items-center gap-2.5">
@@ -129,94 +122,8 @@ export default function Footer() {
       </div>
 
       <div className="relative">
-        {/* ── Stats strip ── */}
-        <div className="container-xl pt-12 pb-2">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-            {STATS.map(s => (
-              <div
-                key={s.l}
-                className="group rounded-2xl p-5 md:p-6 transition-all duration-300"
-                style={{
-                  background: 'linear-gradient(145deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.02) 100%)',
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  boxShadow: '0 8px 32px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.06)',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.borderColor = `${s.color}44`;
-                  (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)';
-                  (e.currentTarget as HTMLElement).style.transform = 'none';
-                }}
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ background: `${s.color}18`, border: `1px solid ${s.color}33` }}
-                  >
-                    <s.icon size={18} style={{ color: s.color }} strokeWidth={2} />
-                  </div>
-                  <Sparkles size={14} style={{ color: 'rgba(255,255,255,0.15)' }} />
-                </div>
-                <p className="font-extrabold text-white text-2xl md:text-[28px] leading-none tracking-tight">{s.v}</p>
-                <p className="text-[11px] font-semibold mt-2 uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.38)' }}>{s.l}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── CTA band ── */}
-        <div className="container-xl py-8">
-          <div
-            className="rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6"
-            style={{
-              background: 'linear-gradient(135deg, rgba(73,124,255,0.18) 0%, rgba(99,102,241,0.08) 50%, rgba(16,185,129,0.1) 100%)',
-              border: '1px solid rgba(73,124,255,0.22)',
-              boxShadow: '0 12px 40px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08)',
-            }}
-          >
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-widest mb-2" style={{ color: '#93c5fd' }}>პრემიუმ პლატფორმა</p>
-              <h3 className="text-xl md:text-2xl font-extrabold text-white leading-tight mb-2">
-                გაყიდე ან გააქირავე უძრავი ქონება
-              </h3>
-              <p className="text-sm max-w-md" style={{ color: 'rgba(255,255,255,0.5)', lineHeight: 1.65 }}>
-                დაამატეთ განცხადება უფასოდ და მიაღწიეთ ათასოთხოვით კლიენტს მთელ საქართველოში.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-3 flex-shrink-0">
-              <Link
-                to="/admin/listings/new"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold text-white transition-all"
-                style={{
-                  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                  boxShadow: '0 6px 20px rgba(16,185,129,0.35)',
-                  textDecoration: 'none',
-                }}
-              >
-                <Plus size={16} strokeWidth={2.5} />
-                განც. დამატება
-              </Link>
-              <Link
-                to="/contact"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all"
-                style={{
-                  background: 'rgba(255,255,255,0.08)',
-                  border: '1px solid rgba(255,255,255,0.14)',
-                  color: '#fff',
-                  textDecoration: 'none',
-                }}
-              >
-                <MessageSquare size={16} />
-                კონსულტაცია
-              </Link>
-            </div>
-          </div>
-        </div>
-
         {/* ── Newsletter ── */}
-        <div className="container-xl pb-10">
+        <div className="container-xl pt-12 pb-10">
           <div
             className="rounded-2xl p-6 md:p-8"
             style={{
@@ -296,32 +203,8 @@ export default function Footer() {
         <div className="container-xl pb-14">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-10 lg:gap-8">
 
-            {/* Brand + contact card */}
+            {/* Contact column */}
             <div className="lg:col-span-4">
-              <Link to="/" className="inline-flex items-center gap-3 mb-6" style={{ textDecoration: 'none' }}>
-                <div
-                  className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0"
-                  style={{
-                    background: 'linear-gradient(145deg, #497cff, #6366f1)',
-                    boxShadow: '0 6px 20px rgba(73,124,255,0.4), inset 0 1px 0 rgba(255,255,255,0.2)',
-                  }}
-                >
-                  <Building2 size={20} color="#fff" strokeWidth={2.2} />
-                </div>
-                <div>
-                  <div className="font-extrabold text-white text-[17px] leading-tight tracking-tight">
-                    TbilisiRealtors<span style={{ color: '#93c5fd' }}>.ge</span>
-                  </div>
-                  <div className="text-[11px] font-semibold mt-0.5" style={{ color: 'rgba(255,255,255,0.35)' }}>
-                    პრემიუმ უძრავი ქონების ბაზარი
-                  </div>
-                </div>
-              </Link>
-
-              <p className="text-sm leading-relaxed mb-6" style={{ color: 'rgba(255,255,255,0.42)', maxWidth: 300, lineHeight: 1.75 }}>
-                2018 წლიდან ვეხმარებით ათასოთხოვით კლიენტს იპოვოს, გაყიდოს ან გააქირავოს საუკეთესო ობიექტი საქართველოში.
-              </p>
-
               {/* Contact card */}
               <div
                 className="rounded-2xl p-5 mb-6 space-y-4"
