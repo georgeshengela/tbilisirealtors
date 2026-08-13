@@ -18,6 +18,10 @@ dist-ssr
 dist-server
 *.local
 
+# Cached OpenStreetMap building footprints
+.cache
+.shots
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

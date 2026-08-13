@@ -1,18 +1,88 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import type L from 'leaflet';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Search, SlidersHorizontal, Grid3X3, List, MapPin, X,
-  ArrowUpDown, Map, Building2
+  Search, SlidersHorizontal, X, ArrowUpDown, Map, List, Building2, MapPin, ChevronDown,
 } from 'lucide-react';
-import PropertyCard from '../components/PropertyCard';
-import { properties, districts } from '../data/mockData';
-import { useTranslation } from '../i18n/LocaleContext';
+import ListingMapRow from '../components/ListingMapRow';
+import ListingsMap from '../components/ListingsMap';
+import { useLocale, useTranslation } from '../i18n/LocaleContext';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useProperties } from '../hooks/usePublicData';
+import { fetchAreaBoundary, type AreaBoundary, type Ring } from '../lib/geoApi';
+import { pointInRing, pointInRings, ringsBbox } from '../lib/geoMath';
+import {
+  CITY_AREAS,
+  districtLabel,
+  districtNameMatches,
+  districtOptions,
+  findCityArea,
+  findDistrictArea,
+} from '../data/districts';
+import type { Property } from '../types/listing';
+
+const PAGE_SIZE = 24;
 
 export default function ListingsPage() {
   const { t } = useTranslation();
-  const { currencySymbol } = useCurrency();
+  const { locale } = useLocale();
+  const { currencySymbol, formatMoney } = useCurrency();
+  const [searchParams] = useSearchParams();
+
+  const [showFilters, setShowFilters] = useState(false);
+  const [sort, setSort] = useState('newest');
+  const [search, setSearch] = useState('');
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [mobilePanel, setMobilePanel] = useState<'list' | 'map'>('list');
+  const [page, setPage] = useState(1);
+  const [areaSearch, setAreaSearch] = useState(true);
+  const [mapBounds, setMapBounds] = useState<L.LatLngBounds | null>(null);
+  const [boundary, setBoundary] = useState<AreaBoundary | null>(null);
+  const [boundaryOsm, setBoundaryOsm] = useState<string | null>(null);
+  const [drawnArea, setDrawnArea] = useState<Ring | null>(null);
+  /** Bumped on every draw/clear so the map re-frames even when nothing else changed. */
+  const [drawSeq, setDrawSeq] = useState(0);
+
+  const listScrollRef = useRef<HTMLDivElement>(null);
+
+  const { data: properties, loading } = useProperties();
+
+  const [filters, setFilters] = useState(() => {
+    // Links may carry either language, so resolve them to the canonical names
+    // the selects use.
+    const cityParam = searchParams.get('city') || '';
+    const districtParam = searchParams.get('district') || '';
+    const city = findCityArea(cityParam);
+    const district = findDistrictArea(city, districtParam);
+
+    return {
+      status: searchParams.get('status') || '',
+      city: city?.ka ?? cityParam,
+      district: district?.ka ?? districtParam,
+      type: searchParams.get('type') || '',
+      bedrooms: searchParams.get('bedrooms') || '',
+      priceMin: searchParams.get('priceMin') || '',
+      priceMax: searchParams.get('priceMax') || '',
+      areaMin: searchParams.get('areaMin') || '',
+      isPremium: searchParams.get('premium') === 'true',
+      isNew: searchParams.get('new') === 'true',
+    };
+  });
+
+  const cityArea = useMemo(() => findCityArea(filters.city), [filters.city]);
+  const districtArea = useMemo(() => findDistrictArea(cityArea, filters.district), [cityArea, filters.district]);
+
+  /** Curated districts for the city, plus anything extra the listings mention. */
+  const districtList = useMemo(
+    () =>
+      districtOptions(
+        cityArea,
+        properties.filter(p => p.city === filters.city).map(p => p.district).filter(Boolean),
+        locale,
+      ),
+    [cityArea, properties, filters.city, locale],
+  );
 
   const SORT_OPTIONS = useMemo(() => [
     { label: t('listings.sort.newest'), value: 'newest' },
@@ -21,340 +91,497 @@ export default function ListingsPage() {
     { label: t('listings.sort.areaDesc'), value: 'area-desc' },
     { label: t('listings.sort.popular'), value: 'popular' },
   ], [t]);
-  const [searchParams] = useSearchParams();
-  const [view, setView] = useState<'grid' | 'list'>('grid');
-  const [showFilters, setShowFilters] = useState(false);
-  const [sort, setSort] = useState('newest');
-  const [showMap, setShowMap] = useState(false);
-  const [search, setSearch] = useState('');
 
-  const [filters, setFilters] = useState({
-    status: searchParams.get('status') || '',
-    city: searchParams.get('city') || '',
-    district: '',
-    type: searchParams.get('type') || '',
-    bedrooms: '',
-    priceMin: '',
-    priceMax: '',
-    areaMin: '',
-    isPremium: searchParams.get('premium') === 'true',
-    isNew: searchParams.get('new') === 'true',
-  });
+  /** The district outline, but only once it is the one currently loaded. */
+  const districtPolygon = districtArea?.osm && boundaryOsm === districtArea.osm ? boundary : null;
 
-  const districtList = filters.city ? districts[filters.city as keyof typeof districts] || [] : [];
+  /** A hand-drawn area behaves exactly like a selected district outline. */
+  const customBoundary = useMemo<AreaBoundary | null>(
+    () =>
+      drawnArea
+        ? { name: t('listings.drawnArea'), rings: [drawnArea], bbox: ringsBbox([drawnArea]) }
+        : null,
+    [drawnArea, t],
+  );
 
+  const activeBoundary = customBoundary ?? boundary;
+
+  const matches = useCallback(
+    (p: Property, includeGeo: boolean) => {
+      if (search) {
+        const q = search.trim().toLowerCase();
+        if (![p.title, p.city, p.district, p.address].some(v => v?.toLowerCase().includes(q))) return false;
+      }
+      if (includeGeo && drawnArea) {
+        // The drawn shape replaces the city/district geo filter entirely.
+        if (!pointInRing(drawnArea, p.coordinates.lat, p.coordinates.lng)) return false;
+      }
+      if (includeGeo && !drawnArea && filters.city && p.city !== filters.city) return false;
+      if (includeGeo && !drawnArea && filters.district) {
+        // Where the real outline is known, geography decides — listing district
+        // labels are free text and often disagree with the coordinates.
+        if (districtPolygon) {
+          if (!pointInRings(districtPolygon.rings, p.coordinates.lat, p.coordinates.lng)) return false;
+        } else if (districtArea) {
+          if (!districtNameMatches(p.district, districtArea)) return false;
+        } else if (p.district !== filters.district) {
+          return false;
+        }
+      }
+      if (filters.status && p.status !== filters.status) return false;
+      if (filters.type && p.type !== filters.type) return false;
+      if (filters.bedrooms && p.bedrooms < parseInt(filters.bedrooms)) return false;
+      if (filters.priceMin && p.price < parseInt(filters.priceMin)) return false;
+      if (filters.priceMax && p.price > parseInt(filters.priceMax)) return false;
+      if (filters.areaMin && p.area < parseInt(filters.areaMin)) return false;
+      if (filters.isPremium && !p.isPremium) return false;
+      if (filters.isNew && !p.isNew) return false;
+      return true;
+    },
+    [filters, search, districtArea, districtPolygon, drawnArea],
+  );
+
+  /** Everything matching the filter form — this is what the map draws. */
   const filtered = useMemo(() => {
-    let r = [...properties];
-    if (search) r = r.filter(p => p.title.includes(search) || p.city.includes(search) || p.district.includes(search));
-    if (filters.status) r = r.filter(p => p.status === filters.status);
-    if (filters.city) r = r.filter(p => p.city === filters.city);
-    if (filters.district) r = r.filter(p => p.district === filters.district);
-    if (filters.type) r = r.filter(p => p.type === filters.type);
-    if (filters.bedrooms) r = r.filter(p => p.bedrooms >= parseInt(filters.bedrooms));
-    if (filters.priceMin) r = r.filter(p => p.price >= parseInt(filters.priceMin));
-    if (filters.priceMax) r = r.filter(p => p.price <= parseInt(filters.priceMax));
-    if (filters.areaMin) r = r.filter(p => p.area >= parseInt(filters.areaMin));
-    if (filters.isPremium) r = r.filter(p => p.isPremium);
-    if (filters.isNew) r = r.filter(p => p.isNew);
+    const r = properties.filter(p => matches(p, true));
     switch (sort) {
       case 'price-desc': r.sort((a, b) => b.price - a.price); break;
-      case 'price-asc':  r.sort((a, b) => a.price - b.price); break;
-      case 'area-desc':  r.sort((a, b) => b.area - a.area); break;
-      case 'popular':    r.sort((a, b) => b.viewCount - a.viewCount); break;
-      default:           r.sort((a, b) => new Date(b.listedDate).getTime() - new Date(a.listedDate).getTime());
+      case 'price-asc': r.sort((a, b) => a.price - b.price); break;
+      case 'area-desc': r.sort((a, b) => b.area - a.area); break;
+      case 'popular': r.sort((a, b) => b.viewCount - a.viewCount); break;
+      default: r.sort((a, b) => new Date(b.listedDate).getTime() - new Date(a.listedDate).getTime());
     }
     return r;
-  }, [filters, sort, search]);
+  }, [properties, matches, sort]);
 
-  const activeCount = Object.values(filters).filter(v => v !== '' && v !== false).length;
+  /** Listings just outside the selected area, drawn faded for context. */
+  const contextProperties = useMemo(() => {
+    if (!activeBoundary) return [];
+    const inside = new Set(filtered.map(p => p.id));
+    return properties.filter(p => !inside.has(p.id) && matches(p, false));
+  }, [activeBoundary, filtered, properties, matches]);
 
-  const setF = (key: string, val: string | boolean) =>
-    setFilters(f => ({ ...f, [key]: val }));
+  /** Narrowed to the current viewport when "search by moving the map" is on. */
+  const visible = useMemo(() => {
+    if (!areaSearch || !mapBounds) return filtered;
+    return filtered.filter(p => mapBounds.contains([p.coordinates.lat, p.coordinates.lng]));
+  }, [filtered, areaSearch, mapBounds]);
 
-  const clear = () => setFilters({
-    status: '', city: '', district: '', type: '', bedrooms: '',
-    priceMin: '', priceMax: '', areaMin: '', isPremium: false, isNew: false,
-  });
+  const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
+  const pageItems = useMemo(
+    () => visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
+    [visible, page],
+  );
+
+  const [refitNonce, setRefitNonce] = useState(0);
+
+  const fitKey = useMemo(
+    () => JSON.stringify({ ...filters, search, refitNonce, drawSeq }),
+    [filters, search, refitNonce, drawSeq],
+  );
+
+  /** Drops the viewport restriction and re-frames the map around every match. */
+  const showAllResults = useCallback(() => {
+    setAreaSearch(false);
+    setRefitNonce(n => n + 1);
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+    listScrollRef.current?.scrollTo({ top: 0 });
+  }, [fitKey, sort, visible.length]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [page, totalPages]);
+
+  /** Outline of the selected district, or of the city when the district has none. */
+  useEffect(() => {
+    if (!filters.city) {
+      setBoundary(null);
+      setBoundaryOsm(null);
+      return;
+    }
+
+    const osm = districtArea?.osm ?? cityArea?.osm;
+    let cancelled = false;
+
+    fetchAreaBoundary(
+      osm ? { osm } : { city: filters.city, district: filters.district || undefined },
+    ).then(result => {
+      if (cancelled) return;
+      setBoundary(result);
+      setBoundaryOsm(result ? osm ?? null : null);
+    });
+
+    return () => { cancelled = true; };
+  }, [filters.city, filters.district, cityArea, districtArea]);
+
+  const activeCount =
+    Object.values(filters).filter(v => v !== '' && v !== false).length + (drawnArea ? 1 : 0);
+
+  const clearDrawnArea = useCallback(() => {
+    setDrawnArea(null);
+    setDrawSeq(n => n + 1);
+  }, []);
+
+  const setF = (key: string, val: string | boolean) => {
+    // Picking a city or district takes over from a drawn area, and vice versa.
+    if ((key === 'city' || key === 'district') && val) clearDrawnArea();
+    setFilters(f => ({ ...f, [key]: val, ...(key === 'city' ? { district: '' } : null) }));
+  };
+
+  const handleDrawnAreaChange = useCallback((ring: Ring | null) => {
+    setDrawnArea(ring);
+    setDrawSeq(n => n + 1);
+    if (!ring) return;
+    setFilters(f => (f.city || f.district ? { ...f, city: '', district: '' } : f));
+    // The drawn shape is the area now, so the viewport should not narrow it further.
+    setAreaSearch(false);
+  }, []);
+
+  const clear = () => {
+    clearDrawnArea();
+    setFilters({
+      status: '', city: '', district: '', type: '', bedrooms: '',
+      priceMin: '', priceMax: '', areaMin: '', isPremium: false, isNew: false,
+    });
+  };
+
+  const formatPrice = useCallback(
+    (property: Property) =>
+      formatMoney(property.price, {
+        perMonth: property.status === 'rent',
+        compact: property.price >= 1_000_000,
+      }),
+    [formatMoney],
+  );
+
+  const formatPricePerSqm = useCallback(
+    (property: Property) =>
+      formatMoney(Math.round(property.price / Math.max(property.area, 1)), { perSqm: true }),
+    [formatMoney],
+  );
+
+  const handleBoundsChange = useCallback((bounds: L.LatLngBounds) => {
+    setMapBounds(bounds);
+  }, []);
+
+  const handleRowHover = useCallback((id: string | null) => setActiveId(id), []);
+
+  /* Prefer our own localised names over whatever Nominatim returns. */
+  const areaLabel = drawnArea
+    ? t('listings.drawnArea')
+    : [
+        districtArea ? districtLabel(districtArea, locale) : filters.district,
+        cityArea ? t(cityArea.labelKey) : filters.city,
+      ]
+        .filter(Boolean)
+        .join(', ')
+      || boundary?.name
+      || t('listings.allGeorgia');
 
   return (
-    <div className="min-h-screen pt-[56px] lg:pt-[106px]" style={{ background: '#f7f9fb' }}>
+    <div className="listings-split-page">
+      {/* Toolbar */}
+      <div className="listings-split-toolbar">
+        <div className="listings-split-toolbar__inner">
+          <div className="listings-split-search">
+            <Search size={16} strokeWidth={2} />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={t('listings.searchPlaceholder')}
+            />
+            {search && (
+              <button type="button" onClick={() => setSearch('')} aria-label={t('listings.clearFilters')}>
+                <X size={14} strokeWidth={2.5} />
+              </button>
+            )}
+          </div>
 
-      {/* ── Sticky toolbar ── */}
-      <div
-        className="sticky top-[68px] z-30"
-        style={{ background: 'rgba(247,249,251,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid #e0e3e5' }}
-      >
-        <div className="container-xl py-3">
-          <div className="flex items-center gap-3">
-            {/* Search */}
-            <div className="relative flex-1 min-w-0">
-              <Search size={16} strokeWidth={2} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#76777d]" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder={t('listings.searchPlaceholder')}
-                className="w-full rounded-xl pl-10 pr-4 py-2.5 text-sm"
-                style={{ background: 'white', border: '1.5px solid #e0e3e5' }}
+          <button
+            type="button"
+            onClick={() => setShowFilters(v => !v)}
+            className={`listings-split-btn ${showFilters || activeCount > 0 ? 'is-primary' : ''}`}
+          >
+            <SlidersHorizontal size={15} strokeWidth={2} />
+            {t('listings.filter')}
+            {activeCount > 0 && <span className="listings-split-badge">{activeCount}</span>}
+          </button>
+
+          <label className="listings-split-select">
+            <ArrowUpDown size={14} strokeWidth={2} />
+            <select value={sort} onChange={e => setSort(e.target.value)}>
+              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+            <ChevronDown size={14} strokeWidth={2.5} />
+          </label>
+        </div>
+
+        {/* Selected-area chips */}
+        {(activeCount > 0 || search) && (
+          <div className="listings-split-chips">
+            {search && <Chip label={`“${search}”`} onRemove={() => setSearch('')} />}
+            {drawnArea && <Chip label={t('listings.drawnArea')} icon onRemove={clearDrawnArea} />}
+            {filters.city && (
+              <Chip label={cityArea ? t(cityArea.labelKey) : filters.city} icon onRemove={() => setF('city', '')} />
+            )}
+            {filters.district && (
+              <Chip
+                label={districtArea ? districtLabel(districtArea, locale) : filters.district}
+                icon
+                onRemove={() => setF('district', '')}
               />
-            </div>
-
-            {/* Filter toggle */}
-            <button
-              onClick={() => setShowFilters(v => !v)}
-              className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex-shrink-0"
-              style={showFilters || activeCount > 0
-                ? { background: '#2563eb', color: '#fff', border: '1.5px solid #2563eb' }
-                : { background: 'white', color: '#45464d', border: '1.5px solid #e0e3e5' }}
-            >
-              <SlidersHorizontal size={15} strokeWidth={2} />
-              {t('listings.filter')}
-              {activeCount > 0 && (
-                <span className="w-4.5 h-4.5 bg-[#2563eb] text-white rounded-full text-[10px] font-bold flex items-center justify-center" style={{ width: 18, height: 18 }}>
-                  {activeCount}
-                </span>
-              )}
-            </button>
-
-            {/* Sort */}
-            <div className="hidden sm:flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-medium text-[#45464d] flex-shrink-0"
-              style={{ background: 'white', border: '1.5px solid #e0e3e5' }}>
-              <ArrowUpDown size={14} strokeWidth={2} className="text-[#76777d]" />
-              <select value={sort} onChange={e => setSort(e.target.value)}
-                className="bg-transparent text-sm text-[#45464d] outline-none cursor-pointer border-none"
-                style={{ boxShadow: 'none' }}>
-                {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-              </select>
-            </div>
-
-            {/* View mode */}
-            <div className="hidden sm:flex rounded-xl overflow-hidden flex-shrink-0"
-              style={{ border: '1.5px solid #e0e3e5' }}>
-              {([['grid', Grid3X3], ['list', List]] as const).map(([v, Icon]) => (
-                <button key={v} onClick={() => setView(v)}
-                  className="p-2.5 transition-colors"
-                  style={view === v ? { background: '#2563eb', color: '#fff' } : { background: 'white', color: '#76777d' }}>
-                  <Icon size={15} strokeWidth={2} />
-                </button>
-              ))}
-            </div>
-
-            {/* Map */}
-            <button
-              onClick={() => setShowMap(v => !v)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all flex-shrink-0"
-              style={showMap
-                ? { background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: '#fff', border: '1.5px solid #059669' }
-                : { background: 'white', color: '#45464d', border: '1.5px solid #e0e3e5' }}
-            >
-              <Map size={15} strokeWidth={2} />
-              <span className="hidden md:inline">{t('listings.map')}</span>
+            )}
+            {filters.status && <Chip label={filters.status === 'sale' ? t('listings.chipSale') : t('listings.chipRent')} onRemove={() => setF('status', '')} />}
+            {filters.type && <Chip label={t(`propertyTypes.${filters.type}` as 'propertyTypes.apartment')} onRemove={() => setF('type', '')} />}
+            {filters.bedrooms && <Chip label={`${filters.bedrooms}+ ${t('listings.bedrooms')}`} onRemove={() => setF('bedrooms', '')} />}
+            {filters.priceMin && <Chip label={`${t('listings.priceMin')} ${filters.priceMin}`} onRemove={() => setF('priceMin', '')} />}
+            {filters.priceMax && <Chip label={`${t('listings.priceMax')} ${filters.priceMax}`} onRemove={() => setF('priceMax', '')} />}
+            {filters.areaMin && <Chip label={`${filters.areaMin} მ²+`} onRemove={() => setF('areaMin', '')} />}
+            {filters.isPremium && <Chip label={t('listings.chipPremium')} onRemove={() => setF('isPremium', false)} />}
+            {filters.isNew && <Chip label={t('listings.chipNew')} onRemove={() => setF('isNew', false)} />}
+            <button type="button" className="listings-split-chips__clear" onClick={() => { clear(); setSearch(''); }}>
+              {t('listings.clearFilters')}
             </button>
           </div>
-        </div>
+        )}
       </div>
 
-      {/* ── Filter panel ── */}
-      <AnimatePresence>
+      {/* Filter panel */}
+      <AnimatePresence initial={false}>
         {showFilters && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="overflow-hidden bg-white"
-            style={{ borderBottom: '1px solid #e0e3e5' }}
+            transition={{ duration: 0.2, ease: 'easeOut' }}
+            className="listings-split-filters"
           >
-            <div className="container-xl py-6">
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {[
-                  { label: t('listings.status'), key: 'status', opts: [['', t('common.all')], ['sale', t('propertyStatus.sale')], ['rent', t('propertyStatus.rent')]] },
-                  { label: t('listings.city'), key: 'city', opts: [['', t('common.all')], ['თბილისი', t('listings.cities.tbilisi')], ['ბათუმი', t('listings.cities.batumi')], ['ქუთაისი', t('listings.cities.kutaisi')], ['მცხეთა', t('listings.cities.mtskheta')], ['სიღნაღი', t('listings.cities.sighnaghi')], ['გორი', t('listings.cities.gori')]] },
-                  { label: t('listings.type'), key: 'type', opts: [['', t('common.all')], ['apartment', t('propertyTypes.apartment')], ['house', t('propertyTypes.house')], ['villa', t('propertyTypes.villa')], ['commercial', t('propertyTypes.commercial')]] },
-                  { label: t('listings.bedrooms'), key: 'bedrooms', opts: [['', t('common.any')], ['1', '1+'], ['2', '2+'], ['3', '3+'], ['4', '4+']] },
-                ].map(f => (
-                  <div key={f.key}>
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">{f.label}</label>
-                    <select
-                      value={filters[f.key as keyof typeof filters] as string}
-                      onChange={e => setF(f.key, e.target.value)}
-                      className="w-full rounded-xl px-3 py-2.5 text-sm"
-                      style={{ background: '#f7f9fb', border: '1.5px solid #e0e3e5', color: '#191c1e' }}
-                    >
-                      {f.opts.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-                    </select>
-                  </div>
-                ))}
+            <div className="listings-split-filters__inner">
+              <Field label={t('listings.status')}>
+                <select value={filters.status} onChange={e => setF('status', e.target.value)} className="listings-filter-input">
+                  <option value="">{t('common.all')}</option>
+                  <option value="sale">{t('propertyStatus.sale')}</option>
+                  <option value="rent">{t('propertyStatus.rent')}</option>
+                </select>
+              </Field>
 
-                {/* Rаиon */}
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">{t('listings.district')}</label>
-                  <select
-                    value={filters.district}
-                    onChange={e => setF('district', e.target.value)}
-                    disabled={!filters.city}
-                    className="w-full rounded-xl px-3 py-2.5 text-sm disabled:opacity-40"
-                    style={{ background: '#f7f9fb', border: '1.5px solid #e0e3e5', color: '#191c1e' }}
-                  >
-                    <option value="">{t('common.all')}</option>
-                    {districtList.map(d => <option key={d} value={d}>{d}</option>)}
-                  </select>
-                </div>
-
-                {/* Price min */}
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">{t('listings.priceMin')} ({currencySymbol})</label>
-                  <input type="number" placeholder="0"
-                    value={filters.priceMin} onChange={e => setF('priceMin', e.target.value)}
-                    className="w-full rounded-xl px-3 py-2.5 text-sm"
-                    style={{ background: '#f7f9fb', border: '1.5px solid #e0e3e5', color: '#191c1e' }} />
-                </div>
-
-                {/* Price max */}
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">{t('listings.priceMax')} ({currencySymbol})</label>
-                  <input type="number" placeholder="∞"
-                    value={filters.priceMax} onChange={e => setF('priceMax', e.target.value)}
-                    className="w-full rounded-xl px-3 py-2.5 text-sm"
-                    style={{ background: '#f7f9fb', border: '1.5px solid #e0e3e5', color: '#191c1e' }} />
-                </div>
-
-                {/* Area min */}
-                <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">{t('listings.areaMin')}</label>
-                  <input type="number" placeholder="0"
-                    value={filters.areaMin} onChange={e => setF('areaMin', e.target.value)}
-                    className="w-full rounded-xl px-3 py-2.5 text-sm"
-                    style={{ background: '#f7f9fb', border: '1.5px solid #e0e3e5', color: '#191c1e' }} />
-                </div>
-
-                {/* Checkboxes */}
-                <div className="flex flex-col gap-2 justify-end pb-0.5">
-                  {[['isPremium', t('listings.premiumOnly')], ['isNew', t('listings.newOnly')]].map(([k, l]) => (
-                    <label key={k} className="flex items-center gap-2 cursor-pointer text-sm text-[#45464d] font-medium">
-                      <input type="checkbox"
-                        checked={filters[k as 'isPremium' | 'isNew']}
-                        onChange={e => setF(k, e.target.checked)}
-                        className="w-4 h-4 rounded accent-[#191c1e]" />
-                      {l}
-                    </label>
+              <Field label={t('listings.city')}>
+                <select value={filters.city} onChange={e => setF('city', e.target.value)} className="listings-filter-input">
+                  <option value="">{t('common.all')}</option>
+                  {CITY_AREAS.map(city => (
+                    <option key={city.ka} value={city.ka}>{t(city.labelKey)}</option>
                   ))}
-                </div>
+                </select>
+              </Field>
 
-                {/* Clear */}
-                <div className="flex items-end">
-                  <button onClick={clear}
-                    className="flex items-center gap-1.5 text-sm text-[#76777d] hover:text-[#ba1a1a] font-semibold transition-colors">
-                    <X size={14} strokeWidth={2} />{t('listings.clearFilters')}
-                  </button>
-                </div>
+              <Field label={t('listings.district')}>
+                <select
+                  value={filters.district}
+                  onChange={e => setF('district', e.target.value)}
+                  disabled={!filters.city}
+                  className="listings-filter-input"
+                >
+                  <option value="">{t('common.all')}</option>
+                  {districtList.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                </select>
+              </Field>
+
+              <Field label={t('listings.type')}>
+                <select value={filters.type} onChange={e => setF('type', e.target.value)} className="listings-filter-input">
+                  <option value="">{t('common.all')}</option>
+                  <option value="apartment">{t('propertyTypes.apartment')}</option>
+                  <option value="house">{t('propertyTypes.house')}</option>
+                  <option value="villa">{t('propertyTypes.villa')}</option>
+                  <option value="commercial">{t('propertyTypes.commercial')}</option>
+                </select>
+              </Field>
+
+              <Field label={t('listings.bedrooms')}>
+                <select value={filters.bedrooms} onChange={e => setF('bedrooms', e.target.value)} className="listings-filter-input">
+                  <option value="">{t('common.any')}</option>
+                  {['1', '2', '3', '4'].map(n => <option key={n} value={n}>{n}+</option>)}
+                </select>
+              </Field>
+
+              <Field label={`${t('listings.priceMin')} (${currencySymbol})`}>
+                <input type="number" min="0" placeholder="0" value={filters.priceMin} onChange={e => setF('priceMin', e.target.value)} className="listings-filter-input" />
+              </Field>
+
+              <Field label={`${t('listings.priceMax')} (${currencySymbol})`}>
+                <input type="number" min="0" placeholder="∞" value={filters.priceMax} onChange={e => setF('priceMax', e.target.value)} className="listings-filter-input" />
+              </Field>
+
+              <Field label={t('listings.areaMin')}>
+                <input type="number" min="0" placeholder="0" value={filters.areaMin} onChange={e => setF('areaMin', e.target.value)} className="listings-filter-input" />
+              </Field>
+
+              <div className="listings-filter-checks">
+                {([['isPremium', t('listings.premiumOnly')], ['isNew', t('listings.newOnly')]] as const).map(([k, l]) => (
+                  <label key={k}>
+                    <input
+                      type="checkbox"
+                      checked={filters[k as 'isPremium' | 'isNew']}
+                      onChange={e => setF(k, e.target.checked)}
+                    />
+                    {l}
+                  </label>
+                ))}
               </div>
-
-              {/* Active chips */}
-              {activeCount > 0 && (
-                <div className="flex flex-wrap gap-2 mt-4 pt-4" style={{ borderTop: '1px solid #eceef0' }}>
-                  {filters.status && <Chip label={filters.status === 'sale' ? t('listings.chipSale') : t('listings.chipRent')} onRemove={() => setF('status', '')} />}
-                  {filters.city && <Chip label={filters.city} onRemove={() => setF('city', '')} />}
-                  {filters.type && <Chip label={filters.type} onRemove={() => setF('type', '')} />}
-                  {filters.isPremium && <Chip label={t('listings.chipPremium')} onRemove={() => setF('isPremium', false)} />}
-                  {filters.isNew && <Chip label={t('listings.chipNew')} onRemove={() => setF('isNew', false)} />}
-                </div>
-              )}
             </div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Main content ── */}
-      <div className="container-xl py-8">
-        {/* Results header */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="font-bold text-[#191c1e] text-xl">
-              {t('listings.results', { count: filtered.length })}
-            </h1>
-            <p className="text-sm text-[#76777d] mt-0.5 flex items-center gap-1">
-              <MapPin size={12} strokeWidth={2} style={{ color: '#2563eb' }} />
-              {filters.city || t('listings.allGeorgia')}
+      {/* Split: list + map */}
+      <div className="listings-split-body">
+        <aside className={`listings-split-list ${mobilePanel === 'map' ? 'is-hidden-mobile' : ''}`}>
+          <header className="listings-split-list__header">
+            <h1 className="listings-split-list__title">{areaLabel}</h1>
+            <p className="listings-split-list__count">
+              <MapPin size={12} strokeWidth={2.2} />
+              {t('listings.results', { count: visible.length })}
+              {areaSearch && mapBounds && visible.length !== filtered.length && (
+                <span className="listings-split-list__hint">{t('listings.inThisArea')}</span>
+              )}
             </p>
-          </div>
-        </div>
+          </header>
 
-        <div className={showMap ? 'grid lg:grid-cols-2 gap-6' : ''}>
-          {/* Map */}
-          {showMap && (
-            <div className="sticky top-36 h-[calc(100vh-10rem)] rounded-2xl overflow-hidden map-bg border border-[#e0e3e5]">
-              <div className="relative z-10 h-full flex flex-col items-center justify-center text-white">
-                <MapPin size={40} style={{ color: '#2563eb', marginBottom: 12 }} strokeWidth={1.5} />
-                <p className="text-xl font-bold mb-1">{t('listings.interactiveMap')}</p>
-                <p className="text-white/50 text-sm">{t('listings.results', { count: filtered.length })}</p>
-                <div className="flex flex-wrap gap-2 mt-4 justify-center max-w-xs px-4">
-                  {filtered.slice(0, 5).map(p => (
-                    <div key={p.id} className="glass-navy rounded-lg px-2.5 py-1 text-xs text-white font-semibold">
-                      {p.price >= 1000000 ? `₾${(p.price/1000000).toFixed(1)}M` : `₾${(p.price/1000).toFixed(0)}K`}
+          <div className="listings-split-list__scroll" ref={listScrollRef}>
+            {loading ? (
+              <div className="listings-split-grid">
+                {Array.from({ length: 6 }).map((_, i) => (
+                  <div key={i} className="listing-row-skeleton">
+                    <div className="listing-row-skeleton__img" />
+                    <div className="listing-row-skeleton__lines">
+                      <span style={{ width: '52%' }} />
+                      <span style={{ width: '74%' }} />
+                      <span style={{ width: '62%' }} />
                     </div>
+                  </div>
+                ))}
+              </div>
+            ) : visible.length === 0 && filtered.length > 0 ? (
+              <div className="listings-split-empty">
+                <MapPin size={40} strokeWidth={1.2} />
+                <h3>{t('listings.emptyAreaTitle')}</h3>
+                <p>{t('listings.emptyAreaHint', { count: filtered.length })}</p>
+                <button type="button" onClick={showAllResults}>
+                  {t('listings.showAllResults')}
+                </button>
+              </div>
+            ) : visible.length === 0 ? (
+              <div className="listings-split-empty">
+                <Building2 size={44} strokeWidth={1} />
+                <h3>{t('listings.emptyTitle')}</h3>
+                <p>{t('listings.emptyHint')}</p>
+                <button type="button" onClick={() => { clear(); setSearch(''); showAllResults(); }}>
+                  {t('listings.clearFilters')}
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="listings-split-grid">
+                  {pageItems.map(p => (
+                    <ListingMapRow
+                      key={p.id}
+                      property={p}
+                      active={activeId === p.id}
+                      onHover={handleRowHover}
+                      formatPrice={formatPrice}
+                      formatPricePerSqm={formatPricePerSqm}
+                    />
                   ))}
                 </div>
-              </div>
-            </div>
-          )}
 
-          {/* Grid */}
-          {filtered.length === 0 ? (
-            <div className="text-center py-20 col-span-full">
-              <Building2 size={48} strokeWidth={1} className="mx-auto mb-4 text-[#c6c6cd]" />
-              <h3 className="headline-md text-[#45464d] mb-2">{t('listings.emptyTitle')}</h3>
-              <p className="text-[#76777d] mb-6">{t('listings.emptyHint')}</p>
-              <button onClick={clear} className="btn-primary px-6 py-3 rounded-xl">{t('listings.clearFilters')}</button>
-            </div>
-          ) : (
-            <div>
-              <div className={
-                view === 'grid'
-                  ? `grid grid-cols-1 sm:grid-cols-2 ${showMap ? '' : 'lg:grid-cols-3 xl:grid-cols-4'} gap-5`
-                  : 'space-y-4'
-              }>
-                {filtered.map((p, i) => (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: Math.min(i * 0.04, 0.3) }}
-                  >
-                    <PropertyCard property={p} variant={view === 'list' ? 'horizontal' : 'default'} />
-                  </motion.div>
-                ))}
-              </div>
+                {totalPages > 1 && (
+                  <nav className="listings-pagination">
+                    <button type="button" disabled={page === 1} onClick={() => setPage(p => p - 1)}>‹</button>
+                    {pageNumbers(page, totalPages).map((n, i) =>
+                      n === null ? (
+                        <span key={`gap-${i}`}>…</span>
+                      ) : (
+                        <button
+                          key={n}
+                          type="button"
+                          className={n === page ? 'is-current' : ''}
+                          onClick={() => setPage(n)}
+                        >
+                          {n}
+                        </button>
+                      ),
+                    )}
+                    <button type="button" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>›</button>
+                  </nav>
+                )}
+              </>
+            )}
+          </div>
+        </aside>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-center gap-2 mt-12">
-                {['‹', 1, 2, 3, 4, 5, '›'].map((page, i) => (
-                  <button
-                    key={i}
-                    className="w-10 h-10 rounded-xl text-sm font-semibold transition-all"
-                    style={page === 1
-                      ? { background: 'linear-gradient(135deg, #2563eb 0%, #2563eb 100%)', color: '#fff' }
-                      : { background: 'white', color: '#45464d', border: '1.5px solid #e0e3e5' }}
-                  >
-                    {page}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
+        <section className={`listings-split-map ${mobilePanel === 'list' ? 'is-hidden-mobile' : ''}`}>
+          <ListingsMap
+            properties={filtered}
+            contextProperties={contextProperties}
+            activeId={activeId}
+            onActiveChange={setActiveId}
+            onBoundsChange={handleBoundsChange}
+            boundary={activeBoundary}
+            fitKey={fitKey}
+            areaSearch={areaSearch}
+            onAreaSearchChange={setAreaSearch}
+            drawnArea={drawnArea}
+            onDrawnAreaChange={handleDrawnAreaChange}
+            formatPrice={formatPrice}
+            formatPricePerSqm={formatPricePerSqm}
+          />
+        </section>
+
+        {/* Mobile list / map switch */}
+        <button
+          type="button"
+          className="listings-mobile-switch"
+          onClick={() => setMobilePanel(p => (p === 'list' ? 'map' : 'list'))}
+        >
+          {mobilePanel === 'list' ? <Map size={16} /> : <List size={16} />}
+          {mobilePanel === 'list' ? t('listings.showMap') : t('listings.showList')}
+        </button>
       </div>
     </div>
   );
 }
 
-function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-      style={{ background: '#eceef0', color: '#45464d' }}>
+    <div className="listings-filter-field">
+      <span className="listings-filter-label">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function Chip({ label, onRemove, icon }: { label: string; onRemove: () => void; icon?: boolean }) {
+  return (
+    <span className="listings-chip">
+      {icon && <MapPin size={11} strokeWidth={2.4} />}
       {label}
-      <button onClick={onRemove} className="hover:text-[#ba1a1a] transition-colors">
-        <X size={11} strokeWidth={2.5} />
+      <button type="button" onClick={onRemove} aria-label={`remove ${label}`}>
+        <X size={11} strokeWidth={2.6} />
       </button>
     </span>
   );
+}
+
+function pageNumbers(current: number, total: number): (number | null)[] {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages = new Set<number>([1, total, current, current - 1, current + 1]);
+  const sorted = [...pages].filter(n => n >= 1 && n <= total).sort((a, b) => a - b);
+  const out: (number | null)[] = [];
+  sorted.forEach((n, i) => {
+    if (i > 0 && n - sorted[i - 1] > 1) out.push(null);
+    out.push(n);
+  });
+  return out;
 }

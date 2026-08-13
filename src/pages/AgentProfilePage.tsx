@@ -1,15 +1,32 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Star, CheckCircle, Phone, Mail, MapPin, Building2,
   Clock, MessageSquare, Award, ArrowRight
 } from 'lucide-react';
-import { agents, properties } from '../data/mockData';
+import { useAgent, useProperties } from '../hooks/usePublicData';
+import { useTranslation } from '../i18n/LocaleContext';
+
 import PropertyCard from '../components/PropertyCard';
 
 export default function AgentProfilePage() {
+  const { t } = useTranslation();
   const { id } = useParams();
-  const agent = agents.find(a => a.id === id) || agents[0];
+  const { data: agent, loading } = useAgent(id);
+  const { data: properties } = useProperties();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px] flex items-center justify-center">
+        <p className="text-slate-500">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  if (!agent) {
+    return <Navigate to="/agents" replace />;
+  }
+
   const agentProperties = properties.filter(p => p.agent.id === agent.id);
 
   const reviews = [

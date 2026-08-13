@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Clock, ArrowRight, Tag } from 'lucide-react';
-import { blogPosts } from '../data/mockData';
 import { useTranslation } from '../i18n/LocaleContext';
+import { useBlogPosts } from '../hooks/usePublicData';
 
 const CATEGORY_VALUES = ['ყველა', 'ბაზრის ანალიზი', 'გზამკვლევი', 'ინვესტიცია', 'ცხოვრების სტილი', 'დიზაინი'] as const;
 
@@ -17,6 +17,7 @@ export default function BlogPage() {
     'ცხოვრების სტილი': t('blog.title'),
     'დიზაინი': t('nav.blogMega.design'),
   };
+  const { data: blogPosts, loading } = useBlogPosts();
   const [activeCategory, setActiveCategory] = useState<string>('ყველა');
   const [search, setSearch] = useState('');
 
@@ -26,7 +27,7 @@ export default function BlogPage() {
     return matchCat && matchSearch;
   });
 
-  const featured = blogPosts.find(p => p.isFeatured) || blogPosts[0];
+  const featured = blogPosts.find(p => p.isFeatured) || blogPosts[0] || null;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px]">
@@ -42,7 +43,13 @@ export default function BlogPage() {
       </div>
 
       <div className="container-xl py-12">
-        {/* Featured Article */}
+        {loading ? (
+          <p className="text-center py-20 text-slate-500">{t('common.loading')}</p>
+        ) : blogPosts.length === 0 ? (
+          <p className="text-center py-20 text-slate-500">{t('listings.noResults')}</p>
+        ) : (
+        <>
+        {featured && (
         <div className="mb-16">
           <Link to={`/blog/${featured.id}`} className="group block">
             <div className="grid lg:grid-cols-2 gap-0 bg-white dark:bg-slate-800 rounded-3xl overflow-hidden shadow-xl border border-slate-100 dark:border-slate-700 hover:shadow-2xl transition-shadow">
@@ -91,6 +98,7 @@ export default function BlogPage() {
             </div>
           </Link>
         </div>
+        )}
 
         {/* Search & Filters */}
         <div className="flex flex-wrap gap-4 mb-8">
@@ -173,6 +181,8 @@ export default function BlogPage() {
             </motion.div>
           ))}
         </div>
+        </>
+        )}
       </div>
     </div>
   );

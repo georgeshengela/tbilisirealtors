@@ -7,11 +7,24 @@ import {
   Bed, Bath, SlidersHorizontal,
   Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent,
 } from 'lucide-react';
-import { properties, blogPosts, constructionProjects, faqItems } from '../data/mockData';
-import type { Property, BlogPost, ConstructionProject } from '../data/mockData';
+import { constructionProjects, faqItems } from '../data/mockData';
+import type { Property, BlogPost } from '../types/listing';
+import { useProperties, useBlogPosts } from '../hooks/usePublicData';
 import { useCurrency } from '../contexts/CurrencyContext';
-import { useTranslation } from '../i18n/LocaleContext';
-import { cityFilterOptions, propertyTypeFilterOptions, dealTypeOptions, bedroomOptions, projectStatusLabels } from '../i18n/labels';
+import { useLocale, useTranslation } from '../i18n/LocaleContext';
+import { cityFilterOptions, propertyTypeFilterOptions, dealTypeOptions, bedroomOptions } from '../i18n/labels';
+import { districtLabel, findCityArea, findDistrictArea } from '../data/districts';
+import ConstructionProjectCard from '../components/ConstructionProjectCard';
+
+/** Areas promoted in the search box, resolved against the district dictionary. */
+const POPULAR_AREAS = [
+  { city: 'თბილისი', district: 'ვაკე', count: 842 },
+  { city: 'თბილისი', district: 'საბურთალო', count: 614 },
+  { city: 'თბილისი', district: 'ისანი', count: 398 },
+  { city: 'თბილისი', district: 'ნაძალადევი', count: 271 },
+  { city: 'ბათუმი', district: 'რუსთაველი', count: 503 },
+  { city: 'ბათუმი', district: 'ძველი ბათუმი', count: 389 },
+] as const;
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -198,91 +211,6 @@ function BlogCard({ post }: { post: BlogPost }) {
             წაიკითხე
             <ArrowRight size={12} />
           </span>
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function ConstructionProjectCard({ project }: { project: ConstructionProject }) {
-  const { t } = useTranslation();
-  const statusLabels = projectStatusLabels(t);
-  const statusBg: Record<ConstructionProject['status'], string> = { building: '#d97706', presale: '#2563eb', completed: '#059669' };
-  const status = { label: statusLabels[project.status], bg: statusBg[project.status] };
-  const { formatMoney } = useCurrency();
-
-  return (
-    <Link
-      to="/listings"
-      className="group relative block overflow-hidden rounded-2xl"
-      style={{
-        aspectRatio: '3/4',
-        border: '1px solid rgba(255,255,255,0.12)',
-      }}
-    >
-      <img
-        src={project.image}
-        alt={project.name}
-        className="absolute inset-0 w-full h-full object-cover"
-      />
-
-      <div
-        className="absolute inset-0"
-        style={{
-          background: 'linear-gradient(to top, rgba(8,11,18,0.95) 0%, rgba(8,11,18,0.45) 50%, rgba(8,11,18,0.10) 100%)',
-        }}
-      />
-
-      <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
-        style={{ background: 'linear-gradient(160deg, rgba(255,255,255,0.06) 0%, transparent 55%)' }}
-      />
-
-      <div className="absolute top-2 left-2 right-2 sm:top-3 sm:left-3 sm:right-3 flex items-start justify-between gap-1.5 sm:gap-2">
-        <span
-          className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full text-[9px] sm:text-[10px] font-bold"
-          style={{ background: status.bg, color: '#fff' }}
-        >
-          {status.label}
-        </span>
-        <span
-          className="px-1.5 sm:px-2 py-0.5 sm:py-1 rounded-full text-[8px] sm:text-[9px] font-semibold truncate max-w-[48%]"
-          style={{ background: 'rgba(255,255,255,0.14)', color: 'rgba(255,255,255,0.9)', backdropFilter: 'blur(8px)' }}
-        >
-          {project.developer}
-        </span>
-      </div>
-
-      <div className="absolute bottom-0 left-0 right-0 p-3 sm:p-4">
-        <p className="text-white font-extrabold text-[13px] sm:text-[15px] leading-tight mb-1">{project.name}</p>
-        <p className="flex items-center gap-1 text-[10px] sm:text-[11px] mb-2 sm:mb-3" style={{ color: 'rgba(255,255,255,0.55)' }}>
-          <MapPin size={10} strokeWidth={2.5} className="flex-shrink-0" />
-          <span className="truncate">{project.district}, {project.city}</span>
-        </p>
-
-        <p className="font-extrabold text-base sm:text-xl mb-2 sm:mb-3" style={{ color: '#2563eb', letterSpacing: '-0.02em' }}>
-          {formatMoney(project.priceFrom)}
-          <span className="text-[11px] sm:text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.45)' }}>+</span>
-        </p>
-
-        <div
-          className="flex items-center justify-between rounded-xl px-2 sm:px-3 py-1.5 sm:py-2 mb-1.5 sm:mb-2"
-          style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)' }}
-        >
-          <div className="text-center flex-1 min-w-0">
-            <p className="text-[11px] sm:text-[13px] font-bold text-white leading-none truncate">{project.units}</p>
-            <p className="text-[8px] sm:text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>{t('home.projectCard.units')}</p>
-          </div>
-          <div className="flex-shrink-0" style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.12)' }} />
-          <div className="text-center flex-1 min-w-0">
-            <p className="text-[11px] sm:text-[13px] font-bold text-white leading-none truncate">{project.completion}</p>
-            <p className="text-[8px] sm:text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>{t('home.projectCard.completion')}</p>
-          </div>
-        </div>
-
-        <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <span className="text-[11px] font-bold" style={{ color: '#2563eb' }}>{t('home.projectCard.details')}</span>
-          <ArrowRight size={11} style={{ color: '#2563eb' }} />
         </div>
       </div>
     </Link>
@@ -719,7 +647,10 @@ function ListingSlider({
 
 export default function HomePage() {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const navigate = useNavigate();
+  const { data: properties } = useProperties();
+  const { data: blogPosts } = useBlogPosts();
   const propertyTypeOpts = useMemo(() => propertyTypeFilterOptions(t), [t]);
   const propertyTypeShortOpts = useMemo(() => propertyTypeFilterOptions(t, true), [t]);
   const dealTypeOpts = useMemo(() => dealTypeOptions(t), [t]);
@@ -727,11 +658,35 @@ export default function HomePage() {
   const cityOpts = useMemo(() => cityFilterOptions(t), [t]);
   const [tab, setTab] = useState<'sale' | 'rent'>('sale');
   const [form, setForm] = useState({
-    city: '', type: '', bedrooms: '',
+    city: '', district: '', type: '', bedrooms: '',
     priceMin: '', priceMax: '',
     areaMin: '', areaMax: '',
     propType: '',
   });
+
+  const popularAreas = useMemo(
+    () =>
+      POPULAR_AREAS.map(area => {
+        const city = findCityArea(area.city);
+        const district = findDistrictArea(city, area.district);
+        return {
+          ...area,
+          label: district ? districtLabel(district, locale) : area.district,
+          cityLabel: city ? t(city.labelKey) : area.city,
+        };
+      }),
+    [locale, t],
+  );
+
+  /** "Vake, Tbilisi" in the location field, in the active language. */
+  const locationLabel = useMemo(() => {
+    const city = findCityArea(form.city);
+    const district = findDistrictArea(city, form.district);
+    return [
+      district ? districtLabel(district, locale) : form.district,
+      city ? t(city.labelKey) : form.city,
+    ].filter(Boolean).join(', ');
+  }, [form.city, form.district, locale, t]);
   const [openField, setOpenField] = useState<string | null>(null);
   const [mobileSheet, setMobileSheet] = useState<'location' | 'beds' | 'price' | null>(null);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
@@ -752,15 +707,15 @@ export default function HomePage() {
   }, [mobileSheet]);
 
   const [openFaq, setOpenFaq] = useState<string | null>(faqItems[0]?.id ?? null);
-  const featured = properties.filter(p => p.isFeatured).slice(0, 12);
-  const newest = properties.filter(p => p.isNew).slice(0, 12);
+  const featured = useMemo(() => properties.filter(p => p.isFeatured).slice(0, 12), [properties]);
+  const newest = useMemo(() => properties.filter(p => p.isNew).slice(0, 12), [properties]);
   const handleSearch = () => {
-    const p = new URLSearchParams({ status: tab, city: form.city, type: form.propType || form.type, bedrooms: form.bedrooms, priceMin: form.priceMin, priceMax: form.priceMax, areaMin: form.areaMin, areaMax: form.areaMax });
+    const p = new URLSearchParams({ status: tab, city: form.city, district: form.district, type: form.propType || form.type, bedrooms: form.bedrooms, priceMin: form.priceMin, priceMax: form.priceMax, areaMin: form.areaMin, areaMax: form.areaMax });
     p.forEach((v, k) => { if (!v) p.delete(k); });
     navigate(`/listings?${p}`);
     setFilterModalOpen(false);
   };
-  const clearFilters = () => setForm({ city: '', type: '', bedrooms: '', priceMin: '', priceMax: '', areaMin: '', areaMax: '', propType: '' });
+  const clearFilters = () => setForm({ city: '', district: '', type: '', bedrooms: '', priceMin: '', priceMax: '', areaMin: '', areaMax: '', propType: '' });
 
   return (
     <div className="min-h-screen" style={{ background: '#f7f9fb' }}>
@@ -902,8 +857,8 @@ export default function HomePage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#9ea0a7' }}>{t('home.location')}</p>
-                    <p className="text-[14px] font-semibold truncate" style={{ color: form.city ? '#191c1e' : '#b0b2ba' }}>
-                      {form.city || t('listings.searchPlaceholder')}
+                    <p className="text-[14px] font-semibold truncate" style={{ color: locationLabel ? '#191c1e' : '#b0b2ba' }}>
+                      {locationLabel || t('listings.searchPlaceholder')}
                     </p>
                   </div>
                   <ChevronDown size={14} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0 }} />
@@ -1036,8 +991,8 @@ export default function HomePage() {
                       <MapPin size={14} strokeWidth={2.3} style={{ color: openField === 'location' ? '#2563eb' : '#6b7280' }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: openField === 'location' ? '#2563eb' : '#9ea0a7', marginBottom: 1 }}>ადგილმდებარეობა</p>
-                      <p className="text-[13px] font-semibold truncate" style={{ color: form.city ? '#191c1e' : '#bbbdc4' }}>{form.city || t('listings.searchPlaceholder')}</p>
+                      <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: openField === 'location' ? '#2563eb' : '#9ea0a7', marginBottom: 1 }}>{t('home.location')}</p>
+                      <p className="text-[13px] font-semibold truncate" style={{ color: locationLabel ? '#191c1e' : '#bbbdc4' }}>{locationLabel || t('listings.searchPlaceholder')}</p>
                     </div>
                     <ChevronDown size={12} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0, transform: openField === 'location' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                   </div>
@@ -1056,7 +1011,7 @@ export default function HomePage() {
                           <div className="flex flex-wrap gap-1.5">
                             {cityOpts.slice(0, 6).map(c => (
                               <button key={c.v}
-                                onClick={() => { setForm(f => ({ ...f, city: c.v })); setOpenField(null); }}
+                                onClick={() => { setForm(f => ({ ...f, city: c.v, district: '' })); setOpenField(null); }}
                                 className="px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all duration-100"
                                 style={{
                                   background: form.city === c.v ? '#191c1e' : '#f2f4f6',
@@ -1068,29 +1023,22 @@ export default function HomePage() {
                         {/* Popular districts */}
                         <div className="px-3 pb-3">
                           <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ea0a7', padding: '10px 4px 6px' }}>
-                            პოპულარული რაიონები
+                            {t('home.popularDistricts')}
                           </p>
-                          {[
-                            { v: 'ვაკე', city: 'თბილისი', count: 842 },
-                            { v: 'საბურთალო', city: 'თბილისი', count: 614 },
-                            { v: 'ისანი', city: 'თბილისი', count: 398 },
-                            { v: 'ნაძალადევი', city: 'თბილისი', count: 271 },
-                            { v: 'ბულვარი', city: 'ბათუმი', count: 503 },
-                            { v: 'ცენტრი', city: 'ბათუმი', count: 389 },
-                          ].map(opt => (
-                            <div key={opt.v}
+                          {popularAreas.map(opt => (
+                            <div key={`${opt.city}-${opt.district}`}
                               className="flex items-center justify-between px-3 py-2.5 rounded-xl cursor-pointer transition-colors duration-100"
                               onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f7f9fb'}
                               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
-                              onClick={() => { setForm(f => ({ ...f, city: opt.city })); setOpenField(null); }}
+                              onClick={() => { setForm(f => ({ ...f, city: opt.city, district: opt.district })); setOpenField(null); }}
                             >
                               <div className="flex items-center gap-2.5">
                                 <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#f0f2f5' }}>
                                   <MapPin size={11} style={{ color: '#9ea0a7' }} />
                                 </div>
                                 <div>
-                                  <p className="text-sm font-semibold" style={{ color: '#191c1e', lineHeight: 1.2 }}>{opt.v}</p>
-                                  <p style={{ fontSize: 11, color: '#9ea0a7' }}>{opt.city}</p>
+                                  <p className="text-sm font-semibold" style={{ color: '#191c1e', lineHeight: 1.2 }}>{opt.label}</p>
+                                  <p style={{ fontSize: 11, color: '#9ea0a7' }}>{opt.cityLabel}</p>
                                 </div>
                               </div>
                               <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full" style={{ background: '#f0f2f5', color: '#76777d' }}>
@@ -1251,7 +1199,7 @@ export default function HomePage() {
                 <span className="flex-shrink-0" style={{ fontSize: 11, color: '#9ea0a7', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('home.popular')}</span>
                 {[
                   { l: t('home.popularTags.vake'), q: '?city=თბილისი&district=ვაკე' },
-                  { l: t('home.popularTags.batumiCenter'), q: '?city=ბათუმი' },
+                  { l: t('home.popularTags.batumiCenter'), q: '?city=ბათუმი&district=ძველი ბათუმი' },
                   { l: t('home.popularTags.newComplex'), q: '?new=true' },
                   { l: t('home.popularTags.threeRoom'), q: '?bedrooms=3' },
                   { l: t('home.popularTags.rentApartment'), q: '?status=rent&propType=apartment' },
@@ -1314,7 +1262,7 @@ export default function HomePage() {
                               <button
                                 key={c.v}
                                 type="button"
-                                onClick={() => { setForm(f => ({ ...f, city: c.v })); setMobileSheet(null); }}
+                                onClick={() => { setForm(f => ({ ...f, city: c.v, district: '' })); setMobileSheet(null); }}
                                 className="px-3.5 py-2 rounded-xl text-[13px] font-semibold"
                                 style={{
                                   background: form.city === c.v ? '#2563eb' : '#f2f4f6',
@@ -1327,27 +1275,20 @@ export default function HomePage() {
                           </div>
                           <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: '#9ea0a7' }}>{t('home.popularDistricts')}</p>
                           <div className="space-y-1">
-                            {[
-                              { v: 'ვაკე', city: 'თბილისი' },
-                              { v: 'საბურთალო', city: 'თბილისი' },
-                              { v: 'ისანი', city: 'თბილისი' },
-                              { v: 'ნაძალადევი', city: 'თბილისი' },
-                              { v: 'ბულვარი', city: 'ბათუმი' },
-                              { v: 'ცენტრი', city: 'ბათუმი' },
-                            ].map(opt => (
+                            {popularAreas.map(opt => (
                               <button
-                                key={opt.v}
+                                key={`${opt.city}-${opt.district}`}
                                 type="button"
-                                onClick={() => { setForm(f => ({ ...f, city: opt.city })); setMobileSheet(null); }}
+                                onClick={() => { setForm(f => ({ ...f, city: opt.city, district: opt.district })); setMobileSheet(null); }}
                                 className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left"
-                                style={{ background: form.city === opt.city ? 'rgba(37,99,235,0.08)' : 'transparent' }}
+                                style={{ background: form.district === opt.district ? 'rgba(37,99,235,0.08)' : 'transparent' }}
                               >
                                 <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#f0f2f5' }}>
                                   <MapPin size={13} style={{ color: '#9ea0a7' }} />
                                 </div>
                                 <div>
-                                  <p className="text-[14px] font-semibold" style={{ color: '#191c1e' }}>{opt.v}</p>
-                                  <p className="text-[12px]" style={{ color: '#9ea0a7' }}>{opt.city}</p>
+                                  <p className="text-[14px] font-semibold" style={{ color: '#191c1e' }}>{opt.label}</p>
+                                  <p className="text-[12px]" style={{ color: '#9ea0a7' }}>{opt.cityLabel}</p>
                                 </div>
                               </button>
                             ))}
@@ -1620,7 +1561,7 @@ export default function HomePage() {
                       <div className="flex flex-wrap gap-2">
                         {cityOpts.map(c => (
                           <button key={c.v}
-                            onClick={() => setForm(f => ({ ...f, city: c.v }))}
+                            onClick={() => setForm(f => ({ ...f, city: c.v, district: '' }))}
                             className="px-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
                             style={{
                               background: form.city === c.v ? '#2563eb' : '#f4f5f7',
@@ -1662,6 +1603,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           SUPER VIP LISTINGS
       ══════════════════════════════════════════════════════ */}
+      {featured.length > 0 && (
       <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#fff' }}>
         <div className="container-xl">
           <InViewFade>
@@ -1675,6 +1617,7 @@ export default function HomePage() {
           <ListingSlider items={featured} badge="vip" />
         </div>
       </section>
+      )}
 
       <AdStrip bg="#f7f9fb">
         <AdBanner
@@ -1690,6 +1633,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           NEW LISTINGS
       ══════════════════════════════════════════════════════ */}
+      {newest.length > 0 && (
       <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#f7f9fb' }}>
         <div className="container-xl">
           <InViewFade>
@@ -1704,6 +1648,7 @@ export default function HomePage() {
           <ListingSlider items={newest} badge="new" />
         </div>
       </section>
+      )}
 
       <AdStrip bg="#fff">
         <AdBanner
@@ -1720,55 +1665,42 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           NEW CONSTRUCTION PROJECTS
       ══════════════════════════════════════════════════════ */}
-      <section className="py-10 sm:py-16 lg:py-20 bg-white">
+      <section className="py-8 sm:py-10 lg:py-12 bg-white">
         <div className="container-xl">
           <InViewFade>
             <SectionTitle
               icon={HardHat}
               title={t('home.sections.projects')}
-              linkTo="/listings?type=apartment&new=true"
+              linkTo="/projects"
               linkLabel={t('home.sections.projectsAll')}
             />
           </InViewFade>
 
-          <InViewFade delay={0.05}>
-            <div
-              className="relative rounded-2xl sm:rounded-3xl overflow-hidden p-4 sm:p-6"
-              style={{ background: 'linear-gradient(135deg, #131b2e 0%, #1a2d5a 55%, #131b2e 100%)' }}
-            >
-              <div
-                className="absolute inset-0 opacity-[0.06] pointer-events-none"
-                style={{
-                  backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)',
-                  backgroundSize: '32px 32px',
-                }}
-              />
-
-              <div className="relative flex flex-wrap items-center gap-1.5 sm:gap-2 mb-4 sm:mb-5">
-                {[
-                  { label: t('home.projectChips.presale'), color: '#2563eb' },
-                  { label: t('home.projectChips.noCommission'), color: '#10B981' },
-                  { label: t('home.projectChips.freeConsult'), color: '#d97706' },
-                ].map(chip => (
-                  <span
-                    key={chip.label}
-                    className="px-2.5 sm:px-3 py-1 rounded-full text-[9px] sm:text-[10px] font-bold"
-                    style={{ background: `${chip.color}22`, color: chip.color, border: `1px solid ${chip.color}44` }}
-                  >
-                    {chip.label}
-                  </span>
-                ))}
-              </div>
-
-              <div className="relative grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                {constructionProjects.map((project, i) => (
-                  <InViewFade key={project.id} delay={0.08 + i * 0.05}>
-                    <ConstructionProjectCard project={project} />
-                  </InViewFade>
-                ))}
-              </div>
+          <InViewFade delay={0.04}>
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 -mt-2 mb-4 sm:mb-5">
+              {[
+                { label: t('home.projectChips.presale'), color: '#2563eb', bg: '#eff6ff' },
+                { label: t('home.projectChips.noCommission'), color: '#059669', bg: '#ecfdf5' },
+                { label: t('home.projectChips.freeConsult'), color: '#d97706', bg: '#fff7ed' },
+              ].map(chip => (
+                <span
+                  key={chip.label}
+                  className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-[9px] sm:text-[10px] font-bold"
+                  style={{ background: chip.bg, color: chip.color, border: `1px solid ${chip.color}22` }}
+                >
+                  {chip.label}
+                </span>
+              ))}
             </div>
           </InViewFade>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            {constructionProjects.map((project, i) => (
+              <InViewFade key={project.id} delay={0.06 + i * 0.04}>
+                <ConstructionProjectCard project={project} />
+              </InViewFade>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -1778,7 +1710,7 @@ export default function HomePage() {
           title={t('home.ads.archiTitle')}
           subtitle={t('home.ads.archiSubtitle')}
           ctaLabel={t('home.ads.viewProject')}
-          ctaHref="/listings?type=apartment&new=true"
+          ctaHref="/project/panorama-residence"
           variant="light"
           icon={HardHat}
           image="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&q=80"
@@ -1788,6 +1720,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           BLOG & BUYING GUIDES
       ══════════════════════════════════════════════════════ */}
+      {blogPosts.length > 0 && (
       <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#f7f9fb' }}>
         <div className="container-xl">
           <InViewFade>
@@ -1807,6 +1740,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
       {/* ══════════════════════════════════════════════════════
           FAQ

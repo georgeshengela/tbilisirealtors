@@ -1,9 +1,10 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { CheckCircle, Award, Users, Building2, TrendingUp, ArrowRight, Star } from 'lucide-react';
-import { agents } from '../data/mockData';
+import { useAgents } from '../hooks/usePublicData';
 
 export default function AboutPage() {
+  const { data: agents } = useAgents();
   const values = [
     {
       icon: CheckCircle,

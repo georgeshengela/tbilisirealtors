@@ -6,7 +6,7 @@ import {
   Building2, Star, ArrowRight, User, ChevronRight, BarChart3,
   LogOut, Plus, Clock
 } from 'lucide-react';
-import { properties, agents } from '../data/mockData';
+import { useProperties, useAgents } from '../hooks/usePublicData';
 import PropertyCard from '../components/PropertyCard';
 
 const menuItems = [
@@ -21,7 +21,24 @@ const menuItems = [
 export default function DashboardPage() {
   const [activeMenu, setActiveMenu] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const agent = agents[0];
+  const { data: agents } = useAgents();
+  const { data: properties } = useProperties();
+  const agent = agents[0] ?? {
+    id: 'guest',
+    name: 'მომხმარებელი',
+    photo: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&q=80',
+    phone: '',
+    email: '',
+    rating: 5,
+    reviewCount: 0,
+    propertyCount: 0,
+    yearsExperience: 0,
+    specialization: [],
+    bio: '',
+    company: 'TbilisiRealtor.GE',
+    verified: false,
+    languages: ['ქართული'],
+  };
   const savedProps = properties.filter(p => p.isFeatured).slice(0, 4);
 
   const stats = [

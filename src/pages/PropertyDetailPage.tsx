@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, Navigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   MapPin, Bed, Bath, Square, Heart, Share2, Phone, Mail,
   ChevronLeft, ChevronRight, X, CheckCircle, Calendar,
   Building2, Star, Eye, Home, ArrowRight, Maximize2, Sparkles, Layers
 } from 'lucide-react';
-import { properties } from '../data/mockData';
+import { useProperty, useProperties } from '../hooks/usePublicData';
 import PropertyMap from '../components/PropertyMap';
 import PropertyCard from '../components/PropertyCard';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -27,7 +27,8 @@ export default function PropertyDetailPage() {
   const formatPrice = (price: number, status: string) =>
     formatMoney(price, { perMonth: status === 'rent' });
   const { id } = useParams();
-  const property = properties.find(p => p.id === id) || properties[0];
+  const { data: property, loading } = useProperty(id);
+  const { data: allProperties } = useProperties();
   const [activeImage, setActiveImage] = useState(0);
   const [showGallery, setShowGallery] = useState(false);
   const [isFavorited, setIsFavorited] = useState(false);
@@ -37,7 +38,19 @@ export default function PropertyDetailPage() {
   const [contactForm, setContactForm] = useState({ name: '', phone: '', message: '' });
   const [activeTab, setActiveTab] = useState<'description' | 'details' | 'amenities'>('description');
 
-  const similar = properties
+  if (loading) {
+    return (
+      <div className="min-h-screen pt-[56px] lg:pt-[106px] flex items-center justify-center" style={{ background: '#f7f9fb' }}>
+        <p className="text-[#76777d]">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  if (!property) {
+    return <Navigate to="/listings" replace />;
+  }
+
+  const similar = allProperties
     .filter(p => p.id !== property.id && (p.city === property.city || p.type === property.type))
     .slice(0, 3);
 

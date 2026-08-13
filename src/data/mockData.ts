@@ -1,81 +1,5 @@
-export interface Property {
-  id: string;
-  title: string;
-  description: string;
-  price: number;
-  pricePerSqm: number;
-  address: string;
-  city: string;
-  district: string;
-  type: 'apartment' | 'house' | 'commercial' | 'land' | 'villa' | 'hotel';
-  status: 'sale' | 'rent' | 'pledge' | 'daily_rent';
-  dealType?: string;
-  buildingStatus?: 'old' | 'new' | 'under';
-  condition?: string;
-  bedrooms: number;
-  bathrooms: number;
-  rooms?: number;
-  area: number;
-  floor?: number;
-  totalFloors?: number;
-  yearBuilt?: number;
-  projectType?: string;
-  ceilingHeight?: number;
-  balconyCount?: number;
-  balconyArea?: number;
-  verandaArea?: number;
-  loggiaArea?: number;
-  parking?: string[];
-  heating?: string[];
-  hotWater?: string[];
-  buildingMaterials?: string[];
-  windowsMaterials?: string[];
-  furniture?: string[];
-  buildingFeatures?: string[];
-  badges?: string[];
-  youtubeUrl?: string;
-  images: string[];
-  amenities: string[];
-  features: string[];
-  agent: Agent;
-  isFeatured: boolean;
-  isNew: boolean;
-  isPremium: boolean;
-  coordinates: { lat: number; lng: number };
-  viewCount: number;
-  listedDate: string;
-}
-
-export interface Agent {
-  id: string;
-  name: string;
-  photo: string;
-  phone: string;
-  email: string;
-  rating: number;
-  reviewCount: number;
-  propertyCount: number;
-  yearsExperience: number;
-  specialization: string[];
-  bio: string;
-  company: string;
-  verified: boolean;
-  languages: string[];
-}
-
-export interface BlogPost {
-  id: string;
-  title: string;
-  excerpt: string;
-  content: string;
-  author: Agent;
-  category: string;
-  tags: string[];
-  image: string;
-  publishDate: string;
-  readTime: number;
-  isFeatured: boolean;
-}
+export type { Property, Agent, BlogPost } from '../types/listing';
+import type { Property, Agent, BlogPost } from '../types/listing';
 
 // Georgian photo placeholders - use Unsplash for realistic images
 const PROPERTY_IMAGES = {
@@ -96,875 +20,254 @@ const PROPERTY_IMAGES = {
   city1: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=800&q=80',
 };
 
-const AGENT_PHOTOS = [
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=300&q=80',
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=300&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=300&q=80',
-  'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=300&q=80',
-  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=300&q=80',
-  'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=300&q=80',
-];
 
-export const agents: Agent[] = [
-  {
-    id: 'a1',
-    name: 'გიორგი ბერიძე',
-    photo: AGENT_PHOTOS[0],
-    phone: '+995 599 123 456',
-    email: 'giorgi@tbilisirealtor.ge',
-    rating: 4.9,
-    reviewCount: 127,
-    propertyCount: 48,
-    yearsExperience: 8,
-    specialization: ['საცხოვრებელი', 'კომერციული'],
-    bio: 'გამოცდილი უძრავი განცხადების სპეციალისტი, რომელიც 8 წლის განმავლობაში ეხმარება კლიენტებს იდეალური სახლის პოვნაში. სპეციალიზირებულია თბილისის პრემიუმ სეგმენტში.',
-    company: 'TbilisiRealtor.GE',
-    verified: true,
-    languages: ['ქართული', 'ინგლისური', 'რუსული'],
-  },
-  {
-    id: 'a2',
-    name: 'ნინო კვარაცხელია',
-    photo: AGENT_PHOTOS[1],
-    phone: '+995 577 234 567',
-    email: 'nino@tbilisirealtor.ge',
-    rating: 4.8,
-    reviewCount: 93,
-    propertyCount: 35,
-    yearsExperience: 6,
-    specialization: ['საცხოვრებელი', 'ვილები'],
-    bio: 'ნინო სპეციალიზდება ძვირადღირებულ სახლებსა და ვილებზე. მისი გამოცდილება კლიენტებს სასურველ განცხადებაზე მიგვიყვანს სწრაფად და ეფექტურად.',
-    company: 'TbilisiRealtor.GE',
-    verified: true,
-    languages: ['ქართული', 'ინგლისური'],
-  },
-  {
-    id: 'a3',
-    name: 'ლაშა მამულაშვილი',
-    photo: AGENT_PHOTOS[2],
-    phone: '+995 595 345 678',
-    email: 'lasha@tbilisirealtor.ge',
-    rating: 4.7,
-    reviewCount: 78,
-    propertyCount: 62,
-    yearsExperience: 10,
-    specialization: ['კომერციული', 'ინვესტიციები'],
-    bio: 'კომერციული უძრავი განცხადების ექსპერტი 10 წლიანი გამოცდილებით. ლაშა ეხმარება ბიზნესებს საოფისე და სავაჭრო ფართების მოძიებაში.',
-    company: 'TbilisiRealtor.GE',
-    verified: true,
-    languages: ['ქართული', 'ინგლისური', 'გერმანული'],
-  },
-  {
-    id: 'a4',
-    name: 'მარიამ გელაშვილი',
-    photo: AGENT_PHOTOS[3],
-    phone: '+995 598 456 789',
-    email: 'mariam@tbilisirealtor.ge',
-    rating: 4.9,
-    reviewCount: 145,
-    propertyCount: 57,
-    yearsExperience: 9,
-    specialization: ['ახალი ბინები', 'საინვესტიციო'],
-    bio: 'მარიამი ცნობილია კლიენტებთან ინდივიდუალური მიდგომით. მას აქვს ღრმა ცოდნა ბაზრის ტენდენციების შესახებ.',
-    company: 'TbilisiRealtor.GE',
-    verified: true,
-    languages: ['ქართული', 'ინგლისური', 'ფრანგული'],
-  },
-  {
-    id: 'a5',
-    name: 'დავით ჩიქოვანი',
-    photo: AGENT_PHOTOS[4],
-    phone: '+995 591 567 890',
-    email: 'davit@tbilisirealtor.ge',
-    rating: 4.6,
-    reviewCount: 61,
-    propertyCount: 29,
-    yearsExperience: 5,
-    specialization: ['ახალი განაშენიანება', 'აპარტამენტები'],
-    bio: 'ახალგაზრდა და ენერგიული სპეციალისტი, რომელიც სპეციალიზდება ახალ განაშენიანებებში. დავითი ინარჩუნებს კავშირებს წამყვან მშენებლებთან.',
-    company: 'TbilisiRealtor.GE',
-    verified: true,
-    languages: ['ქართული', 'ინგლისური'],
-  },
-  {
-    id: 'a6',
-    name: 'ანა ლომიძე',
-    photo: AGENT_PHOTOS[5],
-    phone: '+995 593 678 901',
-    email: 'ana@tbilisirealtor.ge',
-    rating: 4.8,
-    reviewCount: 89,
-    propertyCount: 41,
-    yearsExperience: 7,
-    specialization: ['სახლები', 'მიწა'],
-    bio: 'ანა სპეციალიზდება საცხოვრებელ სახლებსა და მიწის ნაკვეთებზე. მისი ძირითადი ბაზარია ვაკე-საბურთალო.',
-    company: 'TbilisiRealtor.GE',
-    verified: false,
-    languages: ['ქართული', 'ინგლისური', 'თურქული'],
-  },
-];
+export const agents: Agent[] = [];
 
-export const properties: Property[] = [
-  {
-    id: 'p1',
-    title: 'ლუქსუსური პენტჰაუსი მთის პანორამული ხედით — ვაკე',
-    description: 'განსაკუთრებული 4-ოთახიანი პენტჰაუსი ვაკეში, საიდანაც იხსნება კავკასიონის მთებისა და ქალაქის პანორამული ხედები. ბინა სრულიად ახლად გარემონტებულია ევრო-სტანდარტით და მოიცავს ყველა თანამედროვე კომფორტს. სმარტ-ჰოუს სისტემა, ერთი შეხებით განათება და კლიმატ-კონტროლი. ორი სასტუმრო ოთახი, ფართო მისაღები ოდა სამზარეულოსთან ერთად, ორი ლოჯია.',
-    price: 850000,
-    pricePerSqm: 3400,
-    address: 'ვაშლოვანის ქ. 12, სართ. 15',
-    city: 'თბილისი',
-    district: 'ვაკე',
-    type: 'apartment',
-    status: 'sale',
-    buildingStatus: 'new',
-    condition: 'ახალი გარემონტებული',
-    rooms: 4,
-    bedrooms: 4,
-    bathrooms: 3,
-    area: 250,
-    floor: 15,
-    totalFloors: 15,
-    yearBuilt: 2023,
-    projectType: 'ულტრა ახალი',
-    ceilingHeight: 3.2,
-    balconyCount: 2,
-    balconyArea: 18,
-    loggiaArea: 10,
-    parking: ['მიწისქვეშა პარკინგი'],
-    heating: ['ინდივიდუალური', 'იატაკის გათბობა'],
-    hotWater: ['ბუნებ. ცხელი წყალი'],
-    buildingMaterials: ['რკინა-ბეტონი'],
-    windowsMaterials: ['ალუმინი'],
-    furniture: ['ავეჯი', 'სანოლი', 'ქურა (გაზ/ელ)', 'ღუმელი', 'კონდიციონერი', 'მაცივარი', 'სარეცხი მანქანა', 'ჭ. სარეცხი მანქანა'],
-    buildingFeatures: ['სპა', 'ლიფტი', 'სატვ. ლიფტი', 'ბარი', 'სპ. დარბ.', 'შლაგბაუმი', 'კონსიერჟი', 'დახ. აუზი', 'საუნა', 'სიგნალიზაცია', 'ვენტილაცია', 'დაცვა'],
-    badges: ['investment'],
-    images: [PROPERTY_IMAGES.luxury1, PROPERTY_IMAGES.luxury2, PROPERTY_IMAGES.interior1, PROPERTY_IMAGES.interior2, PROPERTY_IMAGES.interior3],
-    amenities: ['კონდიციონერი', 'ლიფტი', 'პარკინგი', 'დაცვა 24/7', 'სპა', 'სპ.-დარბ.', 'ბასეინი', 'ტერასა', 'ინტერნეტი', 'ბუნებრივი აირი'],
-    features: ['სმარტ-ჰოუს', 'პანორამული ხედი', 'ორმაგი საძ.', 'კერამ. ფილები', 'სარდაფი', 'ახ. გარემ.', 'ულტ. ახალი'],
-    agent: agents[0],
-    isFeatured: true,
-    isNew: true,
-    isPremium: true,
-    coordinates: { lat: 41.6941, lng: 44.8337 },
-    viewCount: 1247,
-    listedDate: '2026-06-15',
-  },
-  {
-    id: 'p2',
-    title: 'ელეგანტური ორსართულიანი ვილა — ნუცუბიძის პლატო',
-    description: '5-ოთახიანი ვილა ნუცუბიძის პლატოზე, ლამაზი კერძო ბაღით. ინტერიერი გამოირჩევა ავთენტური ქვის ელემენტებითა და ხარისხიანი ევრო-ფინიშებით. ორი სართული, ფართო სასტუმრო ოთახები, კერძო ბასეინი. სახლი გარშემომდგომი ეკო-ბაღით, ბარბეკიუ ზონა.',
-    price: 650000,
-    pricePerSqm: 2600,
-    address: 'ნუცუბიძის ქ. 45',
-    city: 'თბილისი',
-    district: 'ნუცუბიძე',
-    type: 'villa',
-    status: 'sale',
-    buildingStatus: 'new',
-    condition: 'ახალი გარემონტებული',
-    rooms: 5,
-    bedrooms: 5,
-    bathrooms: 4,
-    area: 250,
-    floor: 1,
-    totalFloors: 2,
-    yearBuilt: 2022,
-    projectType: 'სხვა',
-    ceilingHeight: 2.9,
-    balconyCount: 1,
-    balconyArea: 15,
-    verandaArea: 30,
-    parking: ['ავტოფარეხი', 'ეზოს პარკინგი'],
-    heating: ['ინდივიდუალური', 'იატაკის გათბობა'],
-    hotWater: ['გაზის გამაცხელებელი'],
-    buildingMaterials: ['ბლოკი', 'კომბინირებული'],
-    windowsMaterials: ['პლასტმასა'],
-    furniture: ['ავეჯი', 'სანოლი', 'ქურა (გაზ/ელ)', 'ღუმელი', 'მაცივარი'],
-    buildingFeatures: ['ღია აუზი', 'საუნა', 'შლაგბაუმი', 'სიგნალიზაცია'],
-    badges: ['investment', 'key_code'],
-    images: [PROPERTY_IMAGES.luxury4, PROPERTY_IMAGES.luxury5, PROPERTY_IMAGES.luxury6, PROPERTY_IMAGES.interior1],
-    amenities: ['კერძო ბაღი', 'ბასეინი', 'ბარბეკიუ', 'გარაჟი', 'სათვ.', 'ინტერნეტი', 'კანალიზაცია'],
-    features: ['ორი სართ.', 'ქვის ფასადი', 'ტერასა', 'ეკო-მასალ.', 'ახ. გარემ.'],
-    agent: agents[1],
-    isFeatured: true,
-    isNew: false,
-    isPremium: true,
-    coordinates: { lat: 41.7200, lng: 44.7900 },
-    viewCount: 892,
-    listedDate: '2026-05-20',
-  },
-  {
-    id: 'p3',
-    title: '3-ოთახ. ახლად გარემ. ბინა — ვარკეთილი, ახალი კომპლ.',
-    description: 'ახლად გარემონტებული 3-ოთახიანი ბინა ვარკეთილის ახალ კომპლექსში, მე-7 სართულზე. სრული ავეჯით და ახალი ტექნიკით. ახლოს — სკოლა, საბავშვო ბაღი, ჯანდაცვის ცენტრი, სავაჭრო ცენტრი "სლ. სქ." 500 მ. დაშ. ბინა კარგი ინვესტიციური ვარიანტია.',
-    price: 95000,
-    pricePerSqm: 1450,
-    address: 'ვარკეთილი 3, კვ. 4, ბლ. B',
-    city: 'თბილისი',
-    district: 'ვარკეთილი',
-    type: 'apartment',
-    status: 'sale',
-    buildingStatus: 'new',
-    condition: 'ახალი გარემონტებული',
-    rooms: 3,
-    bedrooms: 3,
-    bathrooms: 1,
-    area: 65,
-    floor: 7,
-    totalFloors: 12,
-    yearBuilt: 2020,
-    projectType: 'ბლოკური',
-    ceilingHeight: 2.7,
-    balconyCount: 1,
-    balconyArea: 6,
-    parking: ['ეზოს პარკინგი'],
-    heating: ['გაზის გამათბობელი'],
-    hotWater: ['გაზის გამაცხელებელი'],
-    buildingMaterials: ['ბლოკი'],
-    windowsMaterials: ['პლასტმასა'],
-    furniture: ['ავეჯი', 'მაცივარი', 'სარეცხი მანქანა', 'კონდიციონერი'],
-    buildingFeatures: ['ლიფტი', 'სიგნალიზაცია'],
-    badges: ['investment'],
-    images: [PROPERTY_IMAGES.apt1, PROPERTY_IMAGES.apt2, PROPERTY_IMAGES.interior2],
-    amenities: ['ლიფტი', 'კონდიციონერი', 'ეზო', 'ინტერნეტი', 'ბუნებრივი აირი', 'კანალიზაცია'],
-    features: ['ევრო-განახ.', 'სრ. ავეჯი', 'ახ. ტექნ.', 'ახ. გარემ.'],
-    agent: agents[2],
-    isFeatured: false,
-    isNew: true,
-    isPremium: false,
-    coordinates: { lat: 41.7350, lng: 44.8100 },
-    viewCount: 456,
-    listedDate: '2026-06-28',
-  },
-  {
-    id: 'p4',
-    title: 'საოფისე სივრცე — გლდანის ბიზნეს ცენტრი, ტერასით',
-    description: 'კომფორტული 100 მ² საოფისე სივრცე გლდანის ბიზნეს ცენტრის მე-3 სართულზე. ღია ლეიაუტი, კონფერენც-ოთახი, კვების ზონა და ორი სველი წერტილი. ბიზნეს-ცენტრი აღჭურვილია 24/7 დაცვით, ლიფტით, სამომხმარებლო ავტოსადგომით. კომუნიკაციები ჩართულია ფასში.',
-    price: 2500,
-    pricePerSqm: 25,
-    address: 'გლდანის გამზ. 14',
-    city: 'თბილისი',
-    district: 'გლდანი',
-    type: 'commercial',
-    status: 'rent',
-    buildingStatus: 'new',
-    condition: 'ახალი გარემონტებული',
-    rooms: 0,
-    bedrooms: 0,
-    bathrooms: 2,
-    area: 100,
-    floor: 3,
-    totalFloors: 8,
-    yearBuilt: 2019,
-    projectType: 'სხვა',
-    parking: ['ფასიანი ავტოსადგომი'],
-    heating: ['ცენტრალური გათბობა'],
-    hotWater: ['ცენტ. ცხელი წყალი'],
-    buildingMaterials: ['რკინა-ბეტონი'],
-    windowsMaterials: ['ალუმინი'],
-    buildingFeatures: ['ლიფტი', 'სატვ. ლიფტი', 'შლაგბაუმი', 'სიგნალიზაცია', 'ვენტილაცია', 'დაცვა'],
-    badges: ['airbnb'],
-    images: [PROPERTY_IMAGES.apt3, PROPERTY_IMAGES.interior3, PROPERTY_IMAGES.luxury3],
-    amenities: ['პარკინგი', 'ინტერნეტი', 'გათბობა', 'კონდიციონერი', 'ბუნებ. ა.გ.', 'ელ-ენ.', 'ტელეფ.'],
-    features: ['ღია სივრ.', 'კონფ-ოთ.', 'კვ. ზონა', 'სარდ.', 'ახ. გარემ.'],
-    agent: agents[2],
-    isFeatured: false,
-    isNew: false,
-    isPremium: false,
-    coordinates: { lat: 41.7500, lng: 44.8200 },
-    viewCount: 234,
-    listedDate: '2026-06-01',
-  },
-  {
-    id: 'p5',
-    title: '2-ოთახ. ანტიკური ბინა — ძველი თბილისი, ნარიყალის ხედი',
-    description: 'ისტ. ძველი თბ. გულში 2-ოთახ. ბინა, სრულად რეკ. თანამ. სტანდ. ნარიყალას და კალის პანორ. ხედი ფანჯრებიდან. ხის ჭერი, ქვის კედლები, კამინი — ავთ. სულით. ყველა თანამ. კომ. — ახ. სატ., ინდ. გათბ., ცხ. წყ.',
-    price: 320000,
-    pricePerSqm: 3200,
-    address: 'ლეღვთახ. ქ. 8',
-    city: 'თბილისი',
-    district: 'ძველი თბილისი',
-    type: 'apartment',
-    status: 'sale',
-    buildingStatus: 'old',
-    condition: 'ახალი გარემონტებული',
-    rooms: 2,
-    bedrooms: 2,
-    bathrooms: 2,
-    area: 100,
-    floor: 2,
-    totalFloors: 3,
-    yearBuilt: 1920,
-    projectType: 'სტალინური',
-    ceilingHeight: 3.5,
-    balconyCount: 1,
-    balconyArea: 8,
-    parking: ['ეზოს პარკინგი'],
-    heating: ['ინდივიდუალური'],
-    hotWater: ['გაზის გამაცხელებელი'],
-    buildingMaterials: ['ბლოკი', 'კომბინირებული'],
-    windowsMaterials: ['ხე'],
-    furniture: ['ავეჯი', 'სანოლი'],
-    buildingFeatures: ['სიგნალიზაცია'],
-    badges: ['key_code'],
-    images: [PROPERTY_IMAGES.luxury7, PROPERTY_IMAGES.luxury8, PROPERTY_IMAGES.interior1, PROPERTY_IMAGES.interior2],
-    amenities: ['ტერასა', 'ეზო', 'სარდ.', 'ინტ.', 'ბუნ. ა.გ.', 'კანალ.'],
-    features: ['ისტ. ფასადი', 'ხის ჭერი', 'კამინი', 'ანტ. ელ.', 'ახ. გარემ.'],
-    agent: agents[3],
-    isFeatured: true,
-    isNew: false,
-    isPremium: true,
-    coordinates: { lat: 41.6890, lng: 44.8100 },
-    viewCount: 1089,
-    listedDate: '2026-04-10',
-  },
-  {
-    id: 'p6',
-    title: '2-ოთახ. ბინა ქირით — საბურთალო, ახ. კომპლ., ლიფტი',
-    description: 'ახალ კომპლექსში 2-ოთახ. სრული ავეჯით, კონდ. ეზოს ხედი. ახლოს "ვასილის" მეტრო (300მ.), სკოლა, ბანკი, სასურსათო. ბინა იდ. ოჯახისთვის ან სტ. წყვ. კომ. ფასში.',
-    price: 1800,
-    pricePerSqm: 30,
-    address: 'ქავთარ. ქ. 22, ბლ. C',
-    city: 'თბილისი',
-    district: 'საბურთალო',
-    type: 'apartment',
-    status: 'rent',
-    buildingStatus: 'new',
-    condition: 'ახალი გარემონტებული',
-    rooms: 2,
-    bedrooms: 2,
-    bathrooms: 1,
-    area: 60,
-    floor: 5,
-    totalFloors: 10,
-    yearBuilt: 2021,
-    projectType: 'ულტრა ახალი',
-    ceilingHeight: 2.75,
-    balconyCount: 1,
-    balconyArea: 5,
-    parking: ['ეზოს პარკინგი'],
-    heating: ['ინდივიდუალური'],
-    hotWater: ['გაზის გამაცხელებელი'],
-    buildingMaterials: ['რკინა-ბეტონი'],
-    windowsMaterials: ['პლასტმასა'],
-    furniture: ['ავეჯი', 'კონდიციონერი', 'სარეცხი მანქანა'],
-    buildingFeatures: ['ლიფტი', 'სიგნალიზაცია'],
-    images: [PROPERTY_IMAGES.apt2, PROPERTY_IMAGES.apt3, PROPERTY_IMAGES.interior3],
-    amenities: ['ლიფტი', 'კონდ.', 'პარკ.', 'ინტ.', 'ბ.ა.გ.', 'კანალ.'],
-    features: ['ახ. ავეჯი', 'ნათ. ოთ.', 'მოდ. სამზ.', 'ახ. გარემ.'],
-    agent: agents[4],
-    isFeatured: false,
-    isNew: true,
-    isPremium: false,
-    coordinates: { lat: 41.7150, lng: 44.7700 },
-    viewCount: 321,
-    listedDate: '2026-06-30',
-  },
-  {
-    id: 'p7',
-    title: '6-ოთახ. ექსკლ. სახლი — მთაწმინდა, კავკ. ხედი, 300მ²',
-    description: 'ექსკლ. 3-სართ. სახლი მთაწმინდის კალთაზე. სმარტ-ჰოუს, ბასეინი, სპა, ფიტნეს-ოთ., კინო-დარ. პანორ. ხედი კავკ. მთ. ეკო-ბაღი 800მ². გარ. — ორ-ბოქსიანი გარ., კამ. სისტ. ყველა ოთ. ინდ. კლ. კონტრ.',
-    price: 1200000,
-    pricePerSqm: 4000,
-    address: 'მთაწმ. ქ. კოტე 3',
-    city: 'თბილისი',
-    district: 'მთაწმინდა',
-    type: 'house',
-    status: 'sale',
-    buildingStatus: 'new',
-    condition: 'ახალი გარემონტებული',
-    rooms: 6,
-    bedrooms: 6,
-    bathrooms: 5,
-    area: 300,
-    floor: 1,
-    totalFloors: 3,
-    yearBuilt: 2024,
-    projectType: 'სხვა',
-    ceilingHeight: 3.0,
-    balconyCount: 3,
-    balconyArea: 40,
-    verandaArea: 60,
-    parking: ['ავტოფარეხი', 'ეზოს პარკინგი'],
-    heating: ['ინდივიდუალური', 'იატაკის გათბობა'],
-    hotWater: ['ინდივიდუალური'],
-    buildingMaterials: ['ბლოკი', 'კომბინირებული'],
-    windowsMaterials: ['ალუმინი'],
-    furniture: ['ავეჯი', 'სანოლი', 'ქურა (გაზ/ელ)', 'ღუმელი', 'კონდიციონერი', 'მაცივარი', 'სარეცხი მანქანა', 'ჭ. სარეცხი მანქანა'],
-    buildingFeatures: ['სპა', 'ღია აუზი', 'საუნა', 'სიგნალიზაცია', 'ვენტილაცია', 'დაცვა', 'შლაგბაუმი', 'კონსიერჟი'],
-    badges: ['investment', 'key_code'],
-    images: [PROPERTY_IMAGES.luxury5, PROPERTY_IMAGES.luxury6, PROPERTY_IMAGES.luxury7, PROPERTY_IMAGES.interior1, PROPERTY_IMAGES.interior2],
-    amenities: ['ბასეინი', 'სპა', 'ფიტნ.', 'ბაღი', 'გარ.', 'დაცვა', 'ინტ.', 'ბ.ა.გ.'],
-    features: ['პანორ. ხ.', 'სმარტ-ჰ.', '3 სართ.', 'ბ-ბაღი', 'კინო-დ.', 'ახ. გარემ.'],
-    agent: agents[0],
-    isFeatured: true,
-    isNew: true,
-    isPremium: true,
-    coordinates: { lat: 41.6960, lng: 44.7980 },
-    viewCount: 2341,
-    listedDate: '2026-06-01',
-  },
-  {
-    id: 'p8',
-    title: 'ბინა ისანში - ბაღის ხედით',
-    description: 'კომფორტული 1-ოთახიანი ბინა ისნის ახალ კომპლექსში. ბაღის ხედით, მშვიდ გარემოში. სწრაფი წვდომა ავტოგზაზე.',
-    price: 55000,
-    pricePerSqm: 1100,
-    address: 'ისნის გამზ. 5, კომპლ. "ისნის ბაღი"',
-    city: 'თბილისი',
-    district: 'ისანი',
-    type: 'apartment',
-    status: 'sale',
-    bedrooms: 1,
-    bathrooms: 1,
-    area: 50,
-    floor: 3,
-    totalFloors: 9,
-    yearBuilt: 2022,
-    images: [PROPERTY_IMAGES.apt1, PROPERTY_IMAGES.apt3, PROPERTY_IMAGES.interior3],
-    amenities: ['ლიფტი', 'ეზო', 'ბავშვთა მოედანი'],
-    features: ['კომფორტული განლაგება', 'ნათელი', 'მოდერნული'],
-    agent: agents[5],
-    isFeatured: false,
-    isNew: false,
-    isPremium: false,
-    coordinates: { lat: 41.6800, lng: 44.8500 },
-    viewCount: 178,
-    listedDate: '2026-05-15',
-  },
-  {
-    id: 'p9',
-    title: 'ლუქს-ოფისი ვაკეში',
-    description: 'A-კლასის საოფისე სივრცე ვაკის ბიზნეს ცენტრში. სრული ინფრასტრუქტურა, კონფერენც-ოთახები, მიმღები, კვების ზონა. პრეზიდენტული ხედები.',
-    price: 8000,
-    pricePerSqm: 40,
-    address: 'ჭავჭავაძის გამზ. 70',
-    city: 'თბილისი',
-    district: 'ვაკე',
-    type: 'commercial',
-    status: 'rent',
-    bedrooms: 0,
-    bathrooms: 4,
-    area: 200,
-    floor: 10,
-    totalFloors: 15,
-    yearBuilt: 2023,
-    images: [PROPERTY_IMAGES.luxury3, PROPERTY_IMAGES.interior2, PROPERTY_IMAGES.interior3],
-    amenities: ['A-კლასი', 'პარკინგი', 'ინტერნეტი', 'გათბობა/გაგრილება', 'დაცვა'],
-    features: ['ღია სივრცე', 'კონფერენც-ოთახი', 'კუხნია', 'ვიდეო-კონტროლი'],
-    agent: agents[2],
-    isFeatured: false,
-    isNew: false,
-    isPremium: true,
-    coordinates: { lat: 41.7100, lng: 44.7800 },
-    viewCount: 567,
-    listedDate: '2026-03-20',
-  },
-  {
-    id: 'p10',
-    title: 'კოტეჯი მცხეთაში',
-    description: 'ულამაზესი კოტეჯი ისტორიულ მცხეთაში. ბუნებასთან ახლოს, ღვინის მარანი, ბაღ-ეზო, სასტუმრო ოთახები. იდეალური ოჯახური დასვენებისთვის.',
-    price: 280000,
-    pricePerSqm: 1400,
-    address: 'მცხეთა, კახეთის გზ. 3',
-    city: 'მცხეთა',
-    district: 'ცენტრი',
-    type: 'house',
-    status: 'sale',
-    bedrooms: 4,
-    bathrooms: 3,
-    area: 200,
-    yearBuilt: 2021,
-    images: [PROPERTY_IMAGES.luxury8, PROPERTY_IMAGES.luxury4, PROPERTY_IMAGES.interior1],
-    amenities: ['ბაღი', 'მარანი', 'ბარბეკიუ', 'გარაჟი'],
-    features: ['ქვის ფასადი', 'ხის ჭერი', 'ტრადიციული სტილი', 'ღვინის სარდაფი'],
-    agent: agents[5],
-    isFeatured: false,
-    isNew: false,
-    isPremium: false,
-    coordinates: { lat: 41.8460, lng: 44.7190 },
-    viewCount: 432,
-    listedDate: '2026-04-25',
-  },
-  {
-    id: 'p11',
-    title: 'ახალი ბინა ბათუმში - ზღვის ხედი',
-    description: 'ბათუმის ყველაზე მოთხოვნად ლოკაციაზე ახალი ბინა ზღვის ხედით. სასტუმრო-ტიპის კომპლექსში, ბასეინი, ინფრასტრუქტურა.',
-    price: 195000,
-    pricePerSqm: 2600,
-    address: 'ნინოშვილის ქ. 2, "Sea Towers"',
-    city: 'ბათუმი',
-    district: 'ცენტრი',
-    type: 'apartment',
-    status: 'sale',
-    bedrooms: 2,
-    bathrooms: 2,
-    area: 75,
-    floor: 18,
-    totalFloors: 25,
-    yearBuilt: 2024,
-    images: [PROPERTY_IMAGES.luxury2, PROPERTY_IMAGES.luxury5, PROPERTY_IMAGES.interior2, PROPERTY_IMAGES.interior3],
-    amenities: ['ბასეინი', 'სპა', 'ფიტნეს', 'კონსიერჟი', 'პარკინგი'],
-    features: ['ზღვის ხედი', 'ახალი კომპლექსი', 'სმარტ-ჰოუს', 'ეურო-განახლება'],
-    agent: agents[3],
-    isFeatured: true,
-    isNew: true,
-    isPremium: true,
-    coordinates: { lat: 41.6168, lng: 41.6367 },
-    viewCount: 1678,
-    listedDate: '2026-07-01',
-  },
-  {
-    id: 'p12',
-    title: 'სასოფლო სახლი კახეთში',
-    description: 'ტრადიციული ქართული სახლი კახეთის მხარეში. ვენახი, ბაღი, სოფლური ავრა. იდეალური გასვლისთვის ქალაქიდან.',
-    price: 120000,
-    pricePerSqm: 800,
-    address: 'სიღნაღი, ბოდბის ქ. 5',
-    city: 'სიღნაღი',
-    district: 'ცენტრი',
-    type: 'house',
-    status: 'sale',
-    bedrooms: 3,
-    bathrooms: 2,
-    area: 150,
-    yearBuilt: 2018,
-    images: [PROPERTY_IMAGES.luxury6, PROPERTY_IMAGES.luxury7, PROPERTY_IMAGES.interior1],
-    amenities: ['ვენახი', 'ბაღი', 'მარანი', 'ბარბეკიუ'],
-    features: ['ქართული სტილი', 'ვენახი', 'ფართო ეზო', 'მთის ხედი'],
-    agent: agents[5],
-    isFeatured: false,
-    isNew: false,
-    isPremium: false,
-    coordinates: { lat: 41.6224, lng: 45.9219 },
-    viewCount: 289,
-    listedDate: '2026-05-01',
-  },
-  {
-    id: 'p13',
-    title: 'Studio Vake - New',
-    description: 'Comfortable studio in Vake. Euro-renovation, furnished.',
-    price: 78000, pricePerSqm: 1950,
-    address: 'Chavchavadze 55', city: 'Tbilisi', district: 'Vake',
-    type: 'apartment', status: 'sale', bedrooms: 1, bathrooms: 1, area: 40,
-    floor: 6, totalFloors: 12, yearBuilt: 2024,
-    images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80'],
-    amenities: ['Lift', 'AC'], features: ['Furnished', 'New'],
-    agent: agents[0], isFeatured: false, isNew: true, isPremium: false,
-    coordinates: { lat: 41.708, lng: 44.773 }, viewCount: 312, listedDate: '2026-07-01',
-  },
-  {
-    id: 'p14',
-    title: '5-room Penthouse Saburtalo',
-    description: 'Spacious 5-room in new elite complex. Panoramic views.',
-    price: 420000, pricePerSqm: 2800,
-    address: 'Svanetis 1, Sapphire', city: 'Tbilisi', district: 'Saburtalo',
-    type: 'apartment', status: 'sale', bedrooms: 5, bathrooms: 3, area: 150,
-    floor: 14, totalFloors: 18, yearBuilt: 2023,
-    images: ['https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80'],
-    amenities: ['Pool', 'Spa', 'Fitness', 'Parking'], features: ['2 Terraces', 'Panorama'],
-    agent: agents[3], isFeatured: true, isNew: false, isPremium: true,
-    coordinates: { lat: 41.718, lng: 44.769 }, viewCount: 876, listedDate: '2026-05-10',
-  },
-  {
-    id: 'p15',
-    title: 'Apartment Nadzaladevi New Complex',
-    description: '2-room apartment in new complex. Nice yard, near school.',
-    price: 65000, pricePerSqm: 1300,
-    address: 'Nikoladze 25', city: 'Tbilisi', district: 'Nadzaladevi',
-    type: 'apartment', status: 'sale', bedrooms: 2, bathrooms: 1, area: 50,
-    floor: 4, totalFloors: 10, yearBuilt: 2021,
-    images: ['https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80'],
-    amenities: ['Lift', 'Yard'], features: ['New Complex'],
-    agent: agents[4], isFeatured: false, isNew: false, isPremium: false,
-    coordinates: { lat: 41.742, lng: 44.826 }, viewCount: 198, listedDate: '2026-04-15',
-  },
-  {
-    id: 'p16',
-    title: 'Batumi Central New Complex',
-    description: '3-room flat, 200m to sea. New complex.',
-    price: 155000, pricePerSqm: 2067,
-    address: 'Ninoshvili 15', city: 'Batumi', district: 'Center',
-    type: 'apartment', status: 'sale', bedrooms: 3, bathrooms: 2, area: 75,
-    floor: 8, totalFloors: 20, yearBuilt: 2023,
-    images: ['https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800&q=80'],
-    amenities: ['Pool', 'Concierge', 'Parking'], features: ['Sea view', 'New'],
-    agent: agents[3], isFeatured: false, isNew: true, isPremium: false,
-    coordinates: { lat: 41.640, lng: 41.643 }, viewCount: 543, listedDate: '2026-06-20',
-  },
-  {
-    id: 'p17',
-    title: 'Luxury Villa Bodbe Winery',
-    description: 'Exclusive villa near Bodbe. Vineyard, garden, wine cellar.',
-    price: 380000, pricePerSqm: 1900,
-    address: 'Bodbe', city: 'Sighnaghi', district: 'Bodbe',
-    type: 'villa', status: 'sale', bedrooms: 4, bathrooms: 3, area: 200, yearBuilt: 2020,
-    images: ['https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&q=80'],
-    amenities: ['Vineyard', 'Garden', 'Winery'], features: ['Stone facade', 'Wine cellar'],
-    agent: agents[5], isFeatured: false, isNew: false, isPremium: true,
-    coordinates: { lat: 41.604, lng: 45.900 }, viewCount: 234, listedDate: '2026-03-10',
-  },
-  {
-    id: 'p18',
-    title: 'A++ Office Space Vake',
-    description: 'Class-A office in Vake Business Center. Full infrastructure.',
-    price: 12000, pricePerSqm: 48,
-    address: 'Chavchavadze 80', city: 'Tbilisi', district: 'Vake',
-    type: 'commercial', status: 'rent', bedrooms: 0, bathrooms: 4, area: 250,
-    floor: 12, totalFloors: 20, yearBuilt: 2024,
-    images: ['https://images.unsplash.com/photo-1616137466211-f939a420be84?w=800&q=80'],
-    amenities: ['VIP Parking', '24/7 Security'], features: ['Smart office', 'Panoramic view'],
-    agent: agents[2], isFeatured: false, isNew: true, isPremium: true,
-    coordinates: { lat: 41.710, lng: 44.779 }, viewCount: 412, listedDate: '2026-07-02',
-  },
-  {
-    id: 'p19',
-    title: '4-room Isani Modern Flat',
-    description: 'Modern 4-room in new Isani quarter. Wide balcony.',
-    price: 2200, pricePerSqm: 28.6,
-    address: 'Isnis 12', city: 'Tbilisi', district: 'Isani',
-    type: 'apartment', status: 'rent', bedrooms: 4, bathrooms: 2, area: 77,
-    floor: 9, totalFloors: 14, yearBuilt: 2022,
-    images: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80'],
-    amenities: ['Lift', 'AC', 'Parking'], features: ['Wide balcony', 'Renovated'],
-    agent: agents[5], isFeatured: false, isNew: false, isPremium: false,
-    coordinates: { lat: 41.682, lng: 44.848 }, viewCount: 156, listedDate: '2026-06-12',
-  },
-  {
-    id: 'p20',
-    title: 'Elite Villa Tbilisi Sea Pool',
-    description: 'Exceptional villa at Tbilisi Sea. Pool, garden, 3 floors.',
-    price: 950000, pricePerSqm: 3800,
-    address: 'Tbilisi Sea Villas', city: 'Tbilisi', district: 'Tbilisi Sea',
-    type: 'villa', status: 'sale', bedrooms: 5, bathrooms: 4, area: 250, yearBuilt: 2023,
-    images: ['https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800&q=80'],
-    amenities: ['Pool', 'Spa', 'Garage', 'Garden', 'Security'], features: ['3 floors', 'Smart home'],
-    agent: agents[0], isFeatured: true, isNew: true, isPremium: true,
-    coordinates: { lat: 41.789, lng: 44.842 }, viewCount: 1893, listedDate: '2026-07-03',
-  },
-  {
-    id: 'p21',
-    title: 'პენტჰაუსი ბათუმში — ზღვის პანორამა',
-    description: 'ბათუმის ყველაზე მაღლა მდებარე ლუქს-პენტჰაუსი. 270° ზღვის ხედი, კერძო სარბაზი სახურავზე, პრეზიდენტული ინტერიერი. სასტუმრო-კომპლექსის სერვისი.',
-    price: 720000, pricePerSqm: 4800,
-    address: 'ბარათაშვილის ქ. 1, Orbi Beach Tower', city: 'ბათუმი', district: 'ბულვარი',
-    type: 'apartment', status: 'sale', bedrooms: 3, bathrooms: 3, area: 150,
-    floor: 28, totalFloors: 30, yearBuilt: 2024,
-    images: ['https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=800&q=80', 'https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=800&q=80'],
-    amenities: ['კონსიერჟი', 'ბასეინი', 'სპა', 'ფიტნეს', 'პარკინგი', 'დაცვა 24/7'],
-    features: ['270° ზღვის ხედი', 'კერძო სარბაზი', 'სმარტ-ჰოუს', 'ევრო-განახლება'],
-    agent: agents[3], isFeatured: true, isNew: true, isPremium: true,
-    coordinates: { lat: 41.6410, lng: 41.6380 }, viewCount: 2104, listedDate: '2026-07-05',
-  },
-  {
-    id: 'p22',
-    title: 'ექსკლუზიური ვილა — ვაკის ბაღნარი',
-    description: 'ვაკის ყველაზე კულტიურ უბანში, ხეებით გარემოცულ ტერიტორიაზე. 4 საძინებელი, კერძო ბასეინი, ლანდშაფტ-დიზაინი. მხოლოდ 5 წუთი მთავარ გამზირამდე.',
-    price: 1450000, pricePerSqm: 4143,
-    address: 'ჭოველიძის ჩიხი 7', city: 'თბილისი', district: 'ვაკე',
-    type: 'villa', status: 'sale', bedrooms: 4, bathrooms: 4, area: 350, yearBuilt: 2024,
-    images: ['https://images.unsplash.com/photo-1580587771525-78b9dba3b914?w=800&q=80', 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=800&q=80'],
-    amenities: ['კერძო ბასეინი', 'ბაღი', 'გარაჟი 3 მ/ს', 'სმარტ-ჰოუს', 'დაცვა'],
-    features: ['ლანდ-დიზაინი', 'ქვის ფასადი', 'კინო-დარბაზი', 'ღვინის სარდაფი'],
-    agent: agents[1], isFeatured: true, isNew: true, isPremium: true,
-    coordinates: { lat: 41.7080, lng: 44.7760 }, viewCount: 1742, listedDate: '2026-07-06',
-  },
-  {
-    id: 'p23',
-    title: 'სტუდია — რუსთაველის ბულვარი',
-    description: 'უნიკალური სტუდიო მე-12 სართულზე, პირდაპირ რუსთაველის ბულვარზე. ქალაქის სრული პანორამა. იდეალური ინვესტიციისთვის — მოთხოვნა მაღალია.',
-    price: 185000, pricePerSqm: 4625,
-    address: 'რუსთაველის გამზ. 42', city: 'თბილისი', district: 'ცენტრი',
-    type: 'apartment', status: 'sale', bedrooms: 1, bathrooms: 1, area: 40,
-    floor: 12, totalFloors: 14, yearBuilt: 2023,
-    images: ['https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&q=80', 'https://images.unsplash.com/photo-1616137466211-f939a420be84?w=800&q=80'],
-    amenities: ['ლიფტი', 'კონდიციონერი', 'ვიდეო-კონტ.', 'კონსიერჟი'],
-    features: ['ბულვარის ხედი', 'ავეჯით', 'ახალი ტექნიკა', 'მაღალი ჭერი'],
-    agent: agents[0], isFeatured: true, isNew: false, isPremium: true,
-    coordinates: { lat: 41.6960, lng: 44.8010 }, viewCount: 1385, listedDate: '2026-06-18',
-  },
-  {
-    id: 'p24',
-    title: 'ლუქს-ოთახი ქუთაისში — ახ. კომპლ.',
-    description: 'ქუთაისის პრემიუმ-სეგმენტის სიახლე. ახალი კომპლექსი, ცენტრიდან 3 წუთი, 2023 წ. ევრო-სტანდარტი. ინვ. პოტენციალი 12%+ წელიწადში.',
-    price: 98000, pricePerSqm: 1960,
-    address: 'წერეთლის გამზ. 118', city: 'ქუთაისი', district: 'ცენტრი',
-    type: 'apartment', status: 'sale', bedrooms: 2, bathrooms: 1, area: 50,
-    floor: 6, totalFloors: 12, yearBuilt: 2023,
-    images: ['https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80', 'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&q=80'],
-    amenities: ['ლიფტი', 'ეზო', 'პარკინგი', 'დაცვა'],
-    features: ['ახალი კომპლ.', 'ევრო-განახლება', 'ინვ. ობიექტი'],
-    agent: agents[4], isFeatured: true, isNew: true, isPremium: true,
-    coordinates: { lat: 42.2690, lng: 42.6960 }, viewCount: 876, listedDate: '2026-07-07',
-  },
-  {
-    id: 'p25',
-    title: 'VIP კომერციული — ჭავჭავაძის 62',
-    description: 'A++ კლასის საოფისე კომპლექსი ვაკის ბიზნეს-ჰაბში. 3 ეტაჟი, კონფ.-ოთახები, ტერასა, VIP-პარკინგი. მოიჯარე უკვე ნახევარ ეტაჟზე.',
-    price: 18500, pricePerSqm: 37,
-    address: 'ჭავჭავაძის გამზ. 62', city: 'თბილისი', district: 'ვაკე',
-    type: 'commercial', status: 'rent', bedrooms: 0, bathrooms: 5, area: 500,
-    floor: 3, totalFloors: 3, yearBuilt: 2024,
-    images: ['https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=800&q=80', 'https://images.unsplash.com/photo-1631679706909-1844bbd07221?w=800&q=80'],
-    amenities: ['VIP პარკინგი', 'A/C', 'ინტ. 1GB', 'დაცვა 24/7', 'კაფე-ბარი'],
-    features: ['3 ეტაჟი', 'ტერასა', 'კონფ. ოთახი', 'სერვ. ოფისი'],
-    agent: agents[2], isFeatured: true, isNew: true, isPremium: true,
-    coordinates: { lat: 41.7120, lng: 44.7800 }, viewCount: 1021, listedDate: '2026-07-08',
-  },
-];
+export const properties: Property[] = [];
 
-export const blogPosts: BlogPost[] = [
-  {
-    id: 'b1',
-    title: 'თბილისის უძრავი განცხადების ბაზრის 2026 წლის ტენდენციები',
-    excerpt: 'გაიგეთ, რა ტენდენციები ახასიათებს 2026 წელს თბილისის უძრავი განცხადების ბაზარს და სად ჯობს ინვესტიცია.',
-    content: '',
-    author: agents[0],
-    category: 'ბაზრის ანალიზი',
-    tags: ['ინვესტიცია', 'ბაზარი', 'თბილისი', 'ტენდენციები'],
-    image: PROPERTY_IMAGES.city1,
-    publishDate: '2026-06-15',
-    readTime: 8,
-    isFeatured: true,
-  },
-  {
-    id: 'b2',
-    title: 'ბინის ყიდვის 10 მნიშვნელოვანი ნაბიჯი',
-    excerpt: 'სახელმძღვანელო პირველი ბინის მყიდველებისთვის - ყველაფერი, რაც უნდა იცოდეთ.',
-    content: '',
-    author: agents[1],
-    category: 'გზამკვლევი',
-    tags: ['ბინის ყიდვა', 'გზამკვლევი', 'პირველი სახლი'],
-    image: PROPERTY_IMAGES.luxury3,
-    publishDate: '2026-06-10',
-    readTime: 12,
-    isFeatured: false,
-  },
-  {
-    id: 'b3',
-    title: 'საინვესტიციო განცხადება: ბათუმი vs თბილისი',
-    excerpt: 'შედარებითი ანალიზი - სად ჯობს ინვესტიცია, ბათუმში თუ თბილისში?',
-    content: '',
-    author: agents[2],
-    category: 'ინვესტიცია',
-    tags: ['ბათუმი', 'თბილისი', 'ინვესტიცია', 'შედარება'],
-    image: PROPERTY_IMAGES.luxury5,
-    publishDate: '2026-06-05',
-    readTime: 10,
-    isFeatured: true,
-  },
-  {
-    id: 'b4',
-    title: 'ახალი ბინა: ყიდვა თუ კომპენსაცია?',
-    excerpt: 'დეველოპერული კომპენსაცია ან ახალი ბინის ყიდვა - რომელი ჯობს თქვენთვის?',
-    content: '',
-    author: agents[3],
-    category: 'გზამკვლევი',
-    tags: ['ახალი ბინა', 'კომპენსაცია', 'გადაწყვეტილება'],
-    image: PROPERTY_IMAGES.apt2,
-    publishDate: '2026-05-28',
-    readTime: 7,
-    isFeatured: false,
-  },
-  {
-    id: 'b5',
-    title: 'სად ჯობს ცხოვრება: ვაკე, საბურთალო თუ ისანი?',
-    excerpt: 'თბილისის პოპულარული უბნების შედარება - ცხოვრების ხარისხი, ფასები, ინფრასტრუქტურა.',
-    content: '',
-    author: agents[4],
-    category: 'ცხოვრების სტილი',
-    tags: ['ვაკე', 'საბურთალო', 'ისანი', 'უბნები'],
-    image: PROPERTY_IMAGES.luxury7,
-    publishDate: '2026-05-20',
-    readTime: 9,
-    isFeatured: false,
-  },
-  {
-    id: 'b6',
-    title: 'ინტერიერის დიზაინის 2026 წლის ტენდენციები',
-    excerpt: 'ყველაზე პოპულარული ინტერიერის სტილები 2026 წელს ქართულ სახლებში.',
-    content: '',
-    author: agents[5],
-    category: 'დიზაინი',
-    tags: ['ინტერიერი', 'დიზაინი', 'ტენდენციები', '2026'],
-    image: PROPERTY_IMAGES.interior1,
-    publishDate: '2026-05-15',
-    readTime: 6,
-    isFeatured: false,
-  },
-];
-export const cities = [
-  { name: 'თბილისი', count: 2847, image: PROPERTY_IMAGES.luxury1 },
-  { name: 'ბათუმი', count: 1234, image: PROPERTY_IMAGES.luxury5 },
-  { name: 'ქუთაისი', count: 567, image: PROPERTY_IMAGES.luxury7 },
-  { name: 'მცხეთა', count: 234, image: PROPERTY_IMAGES.luxury8 },
-  { name: 'სიღნაღი', count: 123, image: PROPERTY_IMAGES.luxury6 },
-  { name: 'გორი', count: 98, image: PROPERTY_IMAGES.luxury4 },
-];
+export const blogPosts: BlogPost[] = [];
+
+export const cities: { name: string; count: number; image: string }[] = [];
+
+export type ProjectUnitStatus = 'available' | 'reserved' | 'sold';
+export type ProjectPaymentOption = 'installment' | 'mortgage' | 'cash';
+
+export interface ProjectUnit {
+  id: string;
+  floor: number;
+  number: string;
+  bedrooms: number;
+  area: number;
+  price: number;
+  pricePerSqm: number;
+  status: ProjectUnitStatus;
+}
 
 export interface ConstructionProject {
   id: string;
+  slug: string;
   name: string;
+  address: string;
   city: string;
   district: string;
   developer: string;
+  managementCompany?: string;
+  phone: string;
   units: number;
   priceFrom: number;
+  priceTo: number;
+  pricePerSqmFrom: number;
+  pricePerSqmTo: number;
+  areaFrom: number;
+  areaTo: number;
   completion: string;
+  deliveryDate: string;
   status: 'building' | 'completed' | 'presale';
   image: string;
+  images: string[];
+  floors: number;
+  buildings: number;
+  parking: number;
+  bedroomOptions: number[];
+  greenArea: number;
+  deliveryCondition: string;
+  constructionProgress: number;
+  constructionNote: string;
+  description: string;
+  paymentOptions: ProjectPaymentOption[];
+  territoryAmenities: string[];
+  postDeliveryServices: string[];
+  securityFeatures: string[];
+  coordinates: { lat: number; lng: number };
+  projectUnits: ProjectUnit[];
+}
+
+function generateProjectUnits(
+  projectId: string,
+  floors: number,
+  unitsPerFloor: number,
+  basePrice: number,
+): ProjectUnit[] {
+  const units: ProjectUnit[] = [];
+  const maxFloors = Math.min(floors, 14);
+  for (let floor = 1; floor <= maxFloors; floor += 1) {
+    for (let index = 1; index <= unitsPerFloor; index += 1) {
+      const bedrooms = ((floor + index) % 3) + 1;
+      const area = 42 + bedrooms * 22 + (index * 4) + Math.floor(floor / 2);
+      const price = Math.round(basePrice + area * 1850 + floor * 4200);
+      const statusSeed = (floor * 7 + index * 3) % 10;
+      const status: ProjectUnitStatus = statusSeed <= 1 ? 'sold' : statusSeed <= 3 ? 'reserved' : 'available';
+      units.push({
+        id: `${projectId}-f${floor}-u${index}`,
+        floor,
+        number: `${floor}${String(index).padStart(2, '0')}`,
+        bedrooms,
+        area,
+        price,
+        pricePerSqm: Math.round(price / area),
+        status,
+      });
+    }
+  }
+  return units;
 }
 
 export const constructionProjects: ConstructionProject[] = [
   {
     id: 'cp1',
+    slug: 'panorama-residence',
     name: 'Panorama Residence',
+    address: 'ჭავჭავაძის გამზ. 82',
     city: 'თბილისი',
     district: 'ვაკე',
     developer: 'Archi Group',
+    managementCompany: 'Archi Management',
+    phone: '+995 32 205 05 05',
     units: 186,
     priceFrom: 185000,
+    priceTo: 520000,
+    pricePerSqmFrom: 3200,
+    pricePerSqmTo: 4500,
+    areaFrom: 55,
+    areaTo: 128,
     completion: '2027 Q2',
+    deliveryDate: '2027-06',
     status: 'building',
     image: PROPERTY_IMAGES.luxury2,
+    images: [PROPERTY_IMAGES.luxury2, PROPERTY_IMAGES.luxury1, PROPERTY_IMAGES.interior1, PROPERTY_IMAGES.interior2, PROPERTY_IMAGES.luxury3],
+    floors: 21,
+    buildings: 2,
+    parking: 94,
+    bedroomOptions: [1, 2, 3],
+    greenArea: 2400,
+    deliveryCondition: 'მწვანე კარკასი',
+    constructionProgress: 62,
+    constructionNote: 'მშენებლობა დასრულდება 18 თვეში',
+    description: 'Panorama Residence — პრემიუმ კლასის საცხოვრებელი კომპლექსი ვაკეში, პანორამული ხედით ქალაქზე. პროექტში 2400 მ² გამწვანებული ეზო, საბავშვო სივრცეები და საზოგადოებრივი ზონები. შესაძლებელია შიდა უპროცენტო განვადება 24 თვემდე, ბანკის იპოთეკა ან ერთიანი გადახდა.',
+    paymentOptions: ['installment', 'mortgage', 'cash'],
+    territoryAmenities: ['pharmacy', 'kindergarten', 'busStop', 'supermarket', 'bikeLane', 'sportsField', 'coworking', 'playground', 'stadium', 'square'],
+    postDeliveryServices: ['lobby', 'concierge', 'videoControl', 'lighting', 'landscaping', 'yardCleaning', 'stairCleaning'],
+    securityFeatures: ['generator', 'accessControl', 'fireSystem'],
+    coordinates: { lat: 41.7151, lng: 44.7450 },
+    projectUnits: generateProjectUnits('cp1', 21, 4, 185000),
   },
   {
     id: 'cp2',
+    slug: 'blue-horizon-tower',
     name: 'Blue Horizon Tower',
+    address: 'შერიფ ხიმშიაშვილი ქ. 6',
     city: 'ბათუმი',
     district: 'ბულვარი',
     developer: 'Orbi City',
+    managementCompany: 'Orbi Service',
+    phone: '+995 422 25 25 25',
     units: 320,
     priceFrom: 98000,
+    priceTo: 310000,
+    pricePerSqmFrom: 2100,
+    pricePerSqmTo: 3400,
+    areaFrom: 38,
+    areaTo: 95,
     completion: '2026 Q4',
+    deliveryDate: '2026-12',
     status: 'presale',
     image: PROPERTY_IMAGES.luxury5,
+    images: [PROPERTY_IMAGES.luxury5, PROPERTY_IMAGES.luxury6, PROPERTY_IMAGES.apt1, PROPERTY_IMAGES.interior3],
+    floors: 36,
+    buildings: 1,
+    parking: 116,
+    bedroomOptions: [1, 2, 3],
+    greenArea: 1800,
+    deliveryCondition: 'თეთრი კარკასი',
+    constructionProgress: 48,
+    constructionNote: 'მშენებლობა დასრულდება 22 თვეში',
+    description: 'Blue Horizon Tower — ზღვის პირსასწორ პროექტი ბათუმის ბულვარზე. 1800 მ² გამწვანებული ტერიტორია, პანორამული აივნები და სასტუმროს დონის ლობი. პრე-გაყიდვის პირობები — 0% საკომისიო.',
+    paymentOptions: ['installment', 'mortgage', 'cash'],
+    territoryAmenities: ['pharmacy', 'supermarket', 'busStop', 'playground', 'sportsField', 'square'],
+    postDeliveryServices: ['lobby', 'concierge', 'videoControl', 'lighting', 'landscaping', 'stairCleaning'],
+    securityFeatures: ['generator', 'accessControl', 'fireSystem'],
+    coordinates: { lat: 41.6461, lng: 41.6334 },
+    projectUnits: generateProjectUnits('cp2', 36, 5, 98000),
   },
   {
     id: 'cp3',
+    slug: 'saburtalo-green',
     name: 'Saburtalo Green',
+    address: 'გალაქტიონ ტაბიძის ქ. 15',
     city: 'თბილისი',
-    district: 'საბურთალო',
+    district: 'საბურტალო',
     developer: 'Domus Development',
+    phone: '+995 32 240 40 40',
     units: 142,
     priceFrom: 142000,
+    priceTo: 385000,
+    pricePerSqmFrom: 2800,
+    pricePerSqmTo: 3900,
+    areaFrom: 48,
+    areaTo: 112,
     completion: '2026 Q3',
+    deliveryDate: '2026-09',
     status: 'building',
     image: PROPERTY_IMAGES.apt2,
+    images: [PROPERTY_IMAGES.apt2, PROPERTY_IMAGES.apt3, PROPERTY_IMAGES.interior2, PROPERTY_IMAGES.luxury4],
+    floors: 16,
+    buildings: 1,
+    parking: 72,
+    bedroomOptions: [1, 2, 3],
+    greenArea: 1200,
+    deliveryCondition: 'მწვანე კარკასი',
+    constructionProgress: 71,
+    constructionNote: 'მშენებლობა დასრულდება 12 თვეში',
+    description: 'Saburtalo Green — თანამედროვე კომპლექსი საბურთaloში, მეტროსა და უნივერსიტეტის ახლოს. ენერგოეფექტური ფასადი, მწვანე ეზო და საზოგადოებრივი სივრცეები.',
+    paymentOptions: ['installment', 'mortgage'],
+    territoryAmenities: ['kindergarten', 'busStop', 'supermarket', 'bikeLane', 'playground', 'coworking'],
+    postDeliveryServices: ['lobby', 'videoControl', 'lighting', 'yardCleaning', 'stairCleaning'],
+    securityFeatures: ['accessControl', 'fireSystem'],
+    coordinates: { lat: 41.7225, lng: 44.7580 },
+    projectUnits: generateProjectUnits('cp3', 16, 4, 142000),
   },
   {
     id: 'cp4',
+    slug: 'mtskheta-hills',
     name: 'Mtskheta Hills',
+    address: 'სტეფანე მცხეთელი ქ. 8',
     city: 'მცხეთა',
     district: 'ცენტრი',
     developer: 'Heritage Build',
+    phone: '+995 32 277 77 77',
     units: 64,
     priceFrom: 118000,
+    priceTo: 245000,
+    pricePerSqmFrom: 2400,
+    pricePerSqmTo: 3200,
+    areaFrom: 52,
+    areaTo: 98,
     completion: '2025 Q4',
+    deliveryDate: '2025-12',
     status: 'completed',
     image: PROPERTY_IMAGES.luxury8,
+    images: [PROPERTY_IMAGES.luxury8, PROPERTY_IMAGES.luxury7, PROPERTY_IMAGES.interior1],
+    floors: 8,
+    buildings: 1,
+    parking: 48,
+    bedroomOptions: [1, 2],
+    greenArea: 900,
+    deliveryCondition: 'სრული გარემონტება',
+    constructionProgress: 100,
+    constructionNote: 'პროექტი დასრულებულია',
+    description: 'Mtskheta Hills — ელიტური საცხოვრებელი კომპლექსი მცხეთაში, ისტორიული ხედით. დასრულებული პროექტი — ბინები მზადაა შესახვეში.',
+    paymentOptions: ['mortgage', 'cash'],
+    territoryAmenities: ['pharmacy', 'busStop', 'supermarket', 'square'],
+    postDeliveryServices: ['lobby', 'lighting', 'landscaping', 'yardCleaning'],
+    securityFeatures: ['accessControl', 'fireSystem'],
+    coordinates: { lat: 41.8414, lng: 44.7150 },
+    projectUnits: generateProjectUnits('cp4', 8, 3, 118000),
   },
 ];
+
+export function getProjectBySlug(slug: string): ConstructionProject | undefined {
+  return constructionProjects.find(p => p.slug === slug);
+}
 
 export interface FaqItem {
   id: string;
@@ -1042,11 +345,5 @@ export const testimonials = [
   },
 ];
 
-export const districts = {
-  'თბილისი': ['ვაკე', 'საბურთალო', 'ვარკეთილი', 'ძველი თბილისი', 'ისანი', 'გლდანი', 'ნუცუბიძე', 'მთაწმინდა', 'დიდი დიღომი', 'სამგორი'],
-  'ბათუმი': ['ცენტრი', 'ნიუ ბულვარი', 'გონიო', 'ბარცხანა'],
-  'ქუთაისი': ['ცენტრი', 'ნიკეა', 'ქუთაისი-2'],
-  'მცხეთა': ['ცენტრი', 'მუხრანი'],
-  'სიღნაღი': ['ცენტრი', 'წინანდალი'],
-  'გორი': ['ცენტრი', 'ალი'],
-};
+/* Districts now live in src/data/districts.ts, where each one carries the OSM
+   relation that holds its real outline. */

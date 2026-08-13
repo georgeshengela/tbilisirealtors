@@ -2,11 +2,12 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Star, CheckCircle, Phone, Mail, Filter } from 'lucide-react';
-import { agents } from '../data/mockData';
 import { useTranslation } from '../i18n/LocaleContext';
+import { useAgents } from '../hooks/usePublicData';
 
 export default function AgentsPage() {
   const { t } = useTranslation();
+  const { data: agents, loading } = useAgents();
   const [search, setSearch] = useState('');
   const [specialization, setSpecialization] = useState('');
 
@@ -56,6 +57,9 @@ export default function AgentsPage() {
 
         <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{t('agents.results', { count: filtered.length })}</p>
 
+        {loading ? (
+          <p className="text-center py-16 text-slate-500">{t('common.loading')}</p>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((agent, index) => (
             <motion.div
@@ -145,6 +149,7 @@ export default function AgentsPage() {
             </motion.div>
           ))}
         </div>
+        )}
       </div>
     </div>
   );

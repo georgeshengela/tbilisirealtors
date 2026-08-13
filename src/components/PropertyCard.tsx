@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Heart, MapPin, Bed, Bath, Square, Sparkles, ArrowUpRight } from 'lucide-react';
-import type { Property } from '../data/mockData';
+import type { Property } from '../types/listing';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from '../i18n/LocaleContext';
 

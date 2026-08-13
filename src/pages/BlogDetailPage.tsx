@@ -1,11 +1,27 @@
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Clock, Tag, ArrowLeft, Share2, ArrowRight, Link2, MessageSquare } from 'lucide-react';
-import { blogPosts } from '../data/mockData';
+import { useBlogPost, useBlogPosts } from '../hooks/usePublicData';
+import { useTranslation } from '../i18n/LocaleContext';
 
 export default function BlogDetailPage() {
+  const { t } = useTranslation();
   const { id } = useParams();
-  const post = blogPosts.find(p => p.id === id) || blogPosts[0];
+  const { data: post, loading } = useBlogPost(id);
+  const { data: blogPosts } = useBlogPosts();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px] flex items-center justify-center">
+        <p className="text-slate-500">{t('common.loading')}</p>
+      </div>
+    );
+  }
+
+  if (!post) {
+    return <Navigate to="/blog" replace />;
+  }
+
   const related = blogPosts.filter(p => p.id !== post.id && p.category === post.category).slice(0, 3);
 
   const sampleContent = `

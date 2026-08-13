@@ -15,6 +15,8 @@ import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
+import ProjectsPage from './pages/ProjectsPage';
+import ProjectDetailPage from './pages/ProjectDetailPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPage from './pages/AdminPage';
 import AdminAddListingPage from './pages/AdminAddListingPage';
@@ -80,12 +82,14 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
               <Route path="/register" element={<AuthPage mode="register" />} />
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/about" element={<AboutPage />} />
+              <Route path="/projects" element={<ProjectsPage />} />
+              <Route path="/project/:slug" element={<ProjectDetailPage />} />
               <Route path="/contact" element={<ContactPage />} />
             </Routes>
           </motion.div>
         </AnimatePresence>
 
-        {!isAuthPage && !isDashboard && <Footer />}
+        {!isAuthPage && !isDashboard && location.pathname !== '/listings' && <Footer />}
       </div>
     </div>
   );
