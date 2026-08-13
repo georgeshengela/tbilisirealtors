@@ -733,6 +733,7 @@ export default function HomePage() {
     propType: '',
   });
   const [openField, setOpenField] = useState<string | null>(null);
+  const [mobileSheet, setMobileSheet] = useState<'location' | 'beds' | 'price' | null>(null);
   const [filterModalOpen, setFilterModalOpen] = useState(false);
   const searchPanelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -742,6 +743,13 @@ export default function HomePage() {
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
+
+  useEffect(() => {
+    if (!mobileSheet) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [mobileSheet]);
 
   const [openFaq, setOpenFaq] = useState<string | null>(faqItems[0]?.id ?? null);
   const featured = properties.filter(p => p.isFeatured).slice(0, 12);
@@ -760,36 +768,69 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           HERO — contained, border-radius background
       ══════════════════════════════════════════════════════ */}
-      <section className="pt-[56px] lg:pt-[106px] pb-6 sm:pb-8" style={{ background: '#f7f9fb' }}>
+      <section className="pt-[56px] lg:pt-[106px] pb-4 sm:pb-8" style={{ background: '#f7f9fb' }}>
         <div className="container-xl pt-2 lg:pt-3">
-          {/* Wrapper — search floats over hero via absolute positioning */}
           <div className="relative">
 
-            {/* ── Hero image (overflow-hidden only here for border-radius) ── */}
+            {/* ── Hero image ── */}
             <div
-              className="relative overflow-hidden min-h-[500px] sm:min-h-[480px] lg:min-h-[500px]"
-              style={{ borderRadius: '2rem' }}
+              className="relative overflow-hidden min-h-[300px] sm:min-h-[360px] lg:min-h-[520px] rounded-2xl lg:rounded-[2rem]"
             >
               <motion.img
                 src="/5e6a55c3201bd.jpg"
                 alt="Hero"
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-cover object-center"
                 initial={{ scale: 1.08 }}
                 animate={{ scale: 1 }}
                 transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
               />
               <div
-                className="absolute inset-0"
-                style={{ background: 'linear-gradient(180deg, rgba(8,10,18,0.22) 0%, rgba(8,10,18,0.50) 100%)' }}
+                className="absolute inset-0 lg:hidden"
+                style={{ background: 'linear-gradient(180deg, rgba(8,10,18,0.15) 0%, rgba(8,10,18,0.45) 55%, rgba(8,10,18,0.82) 100%)' }}
               />
+              <div
+                className="absolute inset-0 hidden lg:block"
+                style={{ background: 'linear-gradient(180deg, rgba(8,10,18,0.18) 0%, rgba(8,10,18,0.55) 100%)' }}
+              />
+
+              {/* Mobile hero copy */}
+              <div className="lg:hidden absolute inset-0 flex flex-col justify-end px-4 pb-5 sm:px-5 sm:pb-6">
+                <div
+                  className="inline-flex items-center gap-1.5 self-start px-2.5 py-1 rounded-full mb-3"
+                  style={{ background: 'rgba(16,185,129,0.18)', border: '1px solid rgba(16,185,129,0.35)' }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
+                  <span className="text-[10px] font-bold tracking-wide uppercase" style={{ color: '#6ee7b7' }}>{t('home.liveCount')}</span>
+                </div>
+                <h1 className="text-white font-extrabold text-[1.65rem] sm:text-[2rem] leading-[1.15] max-w-[16rem] sm:max-w-xs" style={{ textShadow: '0 2px 16px rgba(0,0,0,0.45)' }}>
+                  {t('home.heroTitle')}{' '}
+                  <span style={{ color: '#34d399' }}>{t('home.heroTitleAccent')}</span>
+                </h1>
+                <p className="text-white/80 text-[13px] sm:text-sm mt-2 max-w-[18rem] sm:max-w-sm leading-relaxed font-medium" style={{ textShadow: '0 1px 8px rgba(0,0,0,0.4)' }}>
+                  {t('home.heroSubtitle')}
+                </p>
+              </div>
+
+              {/* Desktop hero copy */}
+              <div className="hidden lg:flex absolute inset-0 flex-col items-start justify-end px-10 pb-44">
+                <h1 className="text-white font-extrabold text-4xl xl:text-5xl leading-tight" style={{ textShadow: '0 2px 12px rgba(0,0,0,0.35)' }}>
+                  {t('home.heroTitle')} <span style={{ color: '#34d399' }}>{t('home.heroTitleAccent')}</span>
+                </h1>
+                <p className="text-white/75 text-base mt-2 font-medium" style={{ textShadow: '0 1px 6px rgba(0,0,0,0.4)' }}>
+                  {t('home.heroSubtitle')}
+                </p>
+              </div>
             </div>
 
-            {/* ── Search panel — outside overflow-hidden so dropdowns escape ── */}
-            <div className="absolute inset-0 flex items-center justify-center px-3 sm:px-6 lg:px-10 py-8 z-10" style={{ pointerEvents: 'none' }}>
+            {/* ── Search panel ── */}
+            <div
+              className="relative z-10 -mt-10 sm:-mt-12 lg:mt-0 lg:absolute lg:inset-0 lg:flex lg:items-center lg:justify-center lg:px-10 lg:py-8 lg:z-10"
+              style={{ pointerEvents: 'none' } as React.CSSProperties}
+            >
               <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.99 }}
+                initial={{ opacity: 0, y: 16, scale: 0.99 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.65, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                transition={{ duration: 0.55, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
                 className="relative w-full"
                 style={{ pointerEvents: 'auto' }}
               >
@@ -803,6 +844,138 @@ export default function HomePage() {
                   }}
                 >
 
+              {/* ── MOBILE SEARCH ── */}
+              <div className="lg:hidden p-3.5 space-y-3">
+                {/* Sale / Rent */}
+                <div className="grid grid-cols-2 gap-1 p-1 rounded-xl" style={{ background: '#eef0f4' }}>
+                  {([{ v: 'sale', l: t('propertyStatus.sale') }, { v: 'rent', l: t('propertyStatus.rent') }] as const).map(({ v, l }) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setTab(v)}
+                      className="py-2.5 rounded-lg text-[13px] font-bold transition-all duration-200"
+                      style={{
+                        background: tab === v ? '#fff' : 'transparent',
+                        color: tab === v ? '#2563eb' : '#76777d',
+                        boxShadow: tab === v ? '0 1px 4px rgba(15,20,35,0.08)' : 'none',
+                      }}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Property types */}
+                <div className="grid grid-cols-5 gap-1.5">
+                  {propertyTypeShortOpts.map(c => {
+                    const active = form.propType === c.v;
+                    const Icon = c.icon;
+                    return (
+                      <button
+                        key={c.v}
+                        type="button"
+                        onClick={() => setForm(f => ({ ...f, propType: c.v }))}
+                        className="flex flex-col items-center justify-center gap-1 py-2 px-0.5 rounded-xl transition-all duration-150"
+                        style={{
+                          background: active ? 'rgba(37,99,235,0.10)' : '#f4f5f7',
+                          border: `1.5px solid ${active ? '#2563eb' : 'transparent'}`,
+                        }}
+                      >
+                        <Icon size={15} strokeWidth={2.2} style={{ color: active ? '#2563eb' : '#9ca3af' }} />
+                        <span className="text-[9px] font-semibold leading-tight text-center" style={{ color: active ? '#2563eb' : '#6b7280' }}>
+                          {c.l}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Location */}
+                <button
+                  type="button"
+                  onClick={() => { setOpenField(null); setMobileSheet('location'); }}
+                  className="w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-left transition-colors"
+                  style={{ background: '#f8f9fb', border: '1.5px solid #e8eaed' }}
+                >
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#eef0f4' }}>
+                    <MapPin size={16} strokeWidth={2.3} style={{ color: '#2563eb' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-wide" style={{ color: '#9ea0a7' }}>{t('home.location')}</p>
+                    <p className="text-[14px] font-semibold truncate" style={{ color: form.city ? '#191c1e' : '#b0b2ba' }}>
+                      {form.city || t('listings.searchPlaceholder')}
+                    </p>
+                  </div>
+                  <ChevronDown size={14} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0 }} />
+                </button>
+
+                {/* Beds + Price */}
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setOpenField(null); setMobileSheet('beds'); }}
+                    className="flex items-center gap-2.5 px-3 py-3 rounded-xl text-left"
+                    style={{ background: '#f8f9fb', border: '1.5px solid #e8eaed' }}
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#eef0f4' }}>
+                      <Bed size={14} strokeWidth={2.3} style={{ color: '#6b7280' }} />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: '#9ea0a7' }}>{t('home.bedroomLabel')}</p>
+                      <p className="text-[13px] font-semibold truncate" style={{ color: form.bedrooms ? '#191c1e' : '#b0b2ba' }}>
+                        {form.bedrooms ? t('home.roomsCount', { n: form.bedrooms }) : t('common.any')}
+                      </p>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setOpenField(null); setMobileSheet('price'); }}
+                    className="flex items-center gap-2.5 px-3 py-3 rounded-xl text-left"
+                    style={{ background: '#f8f9fb', border: '1.5px solid #e8eaed' }}
+                  >
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#eef0f4' }}>
+                      <span style={{ fontSize: 13, fontWeight: 800, color: '#6b7280' }}>₾</span>
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: '#9ea0a7' }}>{t('home.price')}</p>
+                      <p className="text-[13px] font-semibold truncate" style={{ color: (form.priceMin || form.priceMax) ? '#191c1e' : '#b0b2ba' }}>
+                        {form.priceMin && form.priceMax
+                          ? `₾${Number(form.priceMin).toLocaleString()} – ₾${Number(form.priceMax).toLocaleString()}`
+                          : form.priceMax
+                          ? t('home.upToPrice', { amount: Number(form.priceMax).toLocaleString() })
+                          : form.priceMin
+                          ? t('home.fromPricePlus', { amount: Number(form.priceMin).toLocaleString() })
+                          : t('common.any')}
+                      </p>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Search CTA */}
+                <button
+                  type="button"
+                  onClick={handleSearch}
+                  className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white text-[15px]"
+                  style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
+                >
+                  <Search size={17} strokeWidth={2.5} />
+                  {t('home.searchBtn')}
+                </button>
+
+                {/* More filters */}
+                <button
+                  type="button"
+                  onClick={() => { setMobileSheet(null); setFilterModalOpen(true); }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-[13px] font-semibold"
+                  style={{ color: '#45464d', border: '1.5px solid #e8eaed', background: '#fff' }}
+                >
+                  <SlidersHorizontal size={15} strokeWidth={2.3} />
+                  {t('listings.filter')}
+                </button>
+              </div>
+
+              {/* ── DESKTOP SEARCH ── */}
+              <div className="hidden lg:block">
               {/* ── Row 1: Deal type + property chips ── */}
               <div className="flex items-center gap-2 px-3 sm:px-4 pt-2.5 pb-2.5 flex-wrap" style={{ borderBottom: '1px solid #f0f2f5' }}>
                 <div className="flex rounded-lg p-0.5 gap-0.5 flex-shrink-0" style={{ background: '#eef0f4' }}>
@@ -814,7 +987,7 @@ export default function HomePage() {
                   ))}
                 </div>
 
-                <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
+                <div className="flex items-center gap-1 flex-nowrap flex-1 min-w-0">
                   {propertyTypeShortOpts.map(c => {
                     const active = form.propType === c.v;
                     const Icon = c.icon;
@@ -855,7 +1028,7 @@ export default function HomePage() {
                 <div className="relative flex-[2.2] lg:border-r lg:border-[#eceef0]">
                   <div
                     className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all duration-150 h-full border-b lg:border-b-0 border-[#f0f2f5]"
-                    style={{ background: openField === 'location' ? 'rgba(37,99,235,0.04)' : 'transparent', borderRadius: '12px 0 0 12px' }}
+                    style={{ background: openField === 'location' ? 'rgba(37,99,235,0.04)' : 'transparent' }}
                     onClick={() => setOpenField(openField === 'location' ? null : 'location')}
                   >
                     <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
@@ -1044,11 +1217,11 @@ export default function HomePage() {
                 </div>
 
                 {/* ④ Actions */}
-                <div className="flex items-stretch gap-0 flex-shrink-0">
+                <div className="flex items-stretch gap-0 flex-shrink-0 overflow-hidden rounded-b-[12px] lg:rounded-none">
                   <button
                     onClick={() => { setOpenField(null); setFilterModalOpen(true); }}
-                    className="flex items-center justify-center gap-1.5 px-3 py-2.5 lg:py-0 font-bold text-[13px] transition-all duration-150 border-b lg:border-b-0 lg:border-r border-[#eceef0]"
-                    style={{ background: '#f8f9fb', color: '#45464d', minWidth: 46 }}
+                    className="flex items-center justify-center gap-1.5 px-3 py-3 lg:py-0 font-bold text-[13px] transition-all duration-150 border-b-0 lg:border-r border-[#eceef0]"
+                    style={{ background: '#f8f9fb', color: '#45464d', minWidth: 52 }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f0f2f5'; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f8f9fb'; }}
                   >
@@ -1058,8 +1231,8 @@ export default function HomePage() {
 
                   <button
                     onClick={handleSearch}
-                    className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 sm:px-7 py-2.5 lg:py-0 font-bold text-white text-[14px] transition-all duration-150 lg:min-w-[148px]"
-                    style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', borderRadius: '0 12px 12px 0' }}
+                    className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 sm:px-7 py-3 lg:py-0 font-bold text-white text-[14px] transition-all duration-150 lg:min-w-[148px] lg:rounded-r-[12px]"
+                    style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)'; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)'; }}
                   >
@@ -1072,10 +1245,10 @@ export default function HomePage() {
 
               {/* ── Row 3: Popular tags ── */}
               <div
-                className="flex items-center gap-2 flex-wrap px-3 sm:px-4 py-3 rounded-b-[1.25rem]"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 overflow-x-auto scrollbar-hide lg:flex-wrap lg:overflow-visible rounded-b-[20px]"
                 style={{ background: '#fafbfc', borderTop: '1px solid #f0f2f5' }}
               >
-                <span style={{ fontSize: 11, color: '#9ea0a7', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('home.popular')}</span>
+                <span className="flex-shrink-0" style={{ fontSize: 11, color: '#9ea0a7', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('home.popular')}</span>
                 {[
                   { l: t('home.popularTags.vake'), q: '?city=თბილისი&district=ვაკე' },
                   { l: t('home.popularTags.batumiCenter'), q: '?city=ბათუმი' },
@@ -1085,7 +1258,7 @@ export default function HomePage() {
                 ].map(tag => (
                   <button key={tag.l}
                     onClick={() => navigate(`/listings${tag.q}`)}
-                    className="px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-150"
+                    className="px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-150 flex-shrink-0"
                     style={{ background: '#fff', color: '#5a5c64', border: '1px solid #e8eaed' }}
                     onMouseEnter={e => {
                       (e.currentTarget as HTMLElement).style.background = 'rgba(37, 99, 235,0.08)';
@@ -1099,6 +1272,174 @@ export default function HomePage() {
                     }}>{tag.l}</button>
                 ))}
               </div>
+              </div>{/* desktop search */}
+
+              {/* ── MOBILE BOTTOM SHEETS ── */}
+              <AnimatePresence>
+                {mobileSheet && (
+                  <>
+                    <motion.div
+                      key="mobile-sheet-backdrop"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="lg:hidden fixed inset-0 z-[160]"
+                      style={{ background: 'rgba(15,20,30,0.5)' }}
+                      onClick={() => setMobileSheet(null)}
+                    />
+                    <motion.div
+                      key="mobile-sheet-panel"
+                      initial={{ y: '100%' }}
+                      animate={{ y: 0 }}
+                      exit={{ y: '100%' }}
+                      transition={{ type: 'spring', damping: 28, stiffness: 320 }}
+                      className="lg:hidden fixed inset-x-0 bottom-0 z-[161] rounded-t-2xl overflow-hidden"
+                      style={{ background: '#fff', maxHeight: '82vh', boxShadow: '0 -8px 40px rgba(0,0,0,0.18)' }}
+                    >
+                      <div className="flex justify-center pt-3 pb-1">
+                        <div className="w-10 h-1 rounded-full" style={{ background: '#e4e6ea' }} />
+                      </div>
+
+                      {mobileSheet === 'location' && (
+                        <div className="px-4 pb-6 overflow-y-auto" style={{ maxHeight: 'calc(82vh - 24px)' }}>
+                          <div className="flex items-center justify-between mb-4">
+                            <p className="font-bold text-[#191c1e]" style={{ fontSize: 16 }}>{t('home.location')}</p>
+                            <button type="button" onClick={() => setMobileSheet(null)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#f2f4f6' }}>
+                              <X size={15} strokeWidth={2.5} style={{ color: '#45464d' }} />
+                            </button>
+                          </div>
+                          <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: '#9ea0a7' }}>{t('listings.city')}</p>
+                          <div className="flex flex-wrap gap-2 mb-5">
+                            {cityOpts.slice(0, 6).map(c => (
+                              <button
+                                key={c.v}
+                                type="button"
+                                onClick={() => { setForm(f => ({ ...f, city: c.v })); setMobileSheet(null); }}
+                                className="px-3.5 py-2 rounded-xl text-[13px] font-semibold"
+                                style={{
+                                  background: form.city === c.v ? '#2563eb' : '#f2f4f6',
+                                  color: form.city === c.v ? '#fff' : '#45464d',
+                                }}
+                              >
+                                {c.l}
+                              </button>
+                            ))}
+                          </div>
+                          <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: '#9ea0a7' }}>{t('home.popularDistricts')}</p>
+                          <div className="space-y-1">
+                            {[
+                              { v: 'ვაკე', city: 'თბილისი' },
+                              { v: 'საბურთალო', city: 'თბილისი' },
+                              { v: 'ისანი', city: 'თბილისი' },
+                              { v: 'ნაძალადევი', city: 'თბილისი' },
+                              { v: 'ბულვარი', city: 'ბათუმი' },
+                              { v: 'ცენტრი', city: 'ბათუმი' },
+                            ].map(opt => (
+                              <button
+                                key={opt.v}
+                                type="button"
+                                onClick={() => { setForm(f => ({ ...f, city: opt.city })); setMobileSheet(null); }}
+                                className="w-full flex items-center gap-3 px-3 py-3 rounded-xl text-left"
+                                style={{ background: form.city === opt.city ? 'rgba(37,99,235,0.08)' : 'transparent' }}
+                              >
+                                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#f0f2f5' }}>
+                                  <MapPin size={13} style={{ color: '#9ea0a7' }} />
+                                </div>
+                                <div>
+                                  <p className="text-[14px] font-semibold" style={{ color: '#191c1e' }}>{opt.v}</p>
+                                  <p className="text-[12px]" style={{ color: '#9ea0a7' }}>{opt.city}</p>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {mobileSheet === 'beds' && (
+                        <div className="px-4 pb-8">
+                          <div className="flex items-center justify-between mb-4">
+                            <p className="font-bold text-[#191c1e]" style={{ fontSize: 16 }}>{t('home.bedroomLabel')}</p>
+                            <button type="button" onClick={() => setMobileSheet(null)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#f2f4f6' }}>
+                              <X size={15} strokeWidth={2.5} style={{ color: '#45464d' }} />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            {bedroomOpts.map(opt => (
+                              <button
+                                key={opt.v}
+                                type="button"
+                                onClick={() => { setForm(f => ({ ...f, bedrooms: opt.v })); setMobileSheet(null); }}
+                                className="py-3.5 rounded-xl text-[15px] font-bold"
+                                style={{
+                                  background: form.bedrooms === opt.v ? '#2563eb' : '#f2f4f6',
+                                  color: form.bedrooms === opt.v ? '#fff' : '#45464d',
+                                }}
+                              >
+                                {opt.l}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {mobileSheet === 'price' && (
+                        <div className="px-4 pb-8 overflow-y-auto" style={{ maxHeight: 'calc(82vh - 24px)' }}>
+                          <div className="flex items-center justify-between mb-4">
+                            <p className="font-bold text-[#191c1e]" style={{ fontSize: 16 }}>{t('home.priceRange')}</p>
+                            <button type="button" onClick={() => setMobileSheet(null)} className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: '#f2f4f6' }}>
+                              <X size={15} strokeWidth={2.5} style={{ color: '#45464d' }} />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-2 mb-5">
+                            <div className="flex-1 flex items-center gap-1.5 px-3 py-3 rounded-xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                              <span style={{ color: '#b0b2ba', fontWeight: 700, fontSize: 12 }}>₾</span>
+                              <input type="number" placeholder={t('home.from')} value={form.priceMin}
+                                onChange={e => setForm(f => ({ ...f, priceMin: e.target.value }))}
+                                className="bare-input" />
+                            </div>
+                            <span style={{ color: '#b0b2ba', fontWeight: 600 }}>—</span>
+                            <div className="flex-1 flex items-center gap-1.5 px-3 py-3 rounded-xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                              <span style={{ color: '#b0b2ba', fontWeight: 700, fontSize: 12 }}>₾</span>
+                              <input type="number" placeholder={t('home.to')} value={form.priceMax}
+                                onChange={e => setForm(f => ({ ...f, priceMax: e.target.value }))}
+                                className="bare-input" />
+                            </div>
+                          </div>
+                          <p className="text-[10px] font-bold uppercase tracking-wide mb-2" style={{ color: '#9ea0a7' }}>{t('home.quickSelect')}</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { max: '50000', l: '₾50K' }, { max: '100000', l: '₾100K' },
+                              { max: '200000', l: '₾200K' }, { max: '350000', l: '₾350K' },
+                              { max: '500000', l: '₾500K' }, { max: '1000000', l: '₾1M+' },
+                            ].map(opt => (
+                              <button
+                                key={opt.max}
+                                type="button"
+                                onClick={() => { setForm(f => ({ ...f, priceMin: '', priceMax: opt.max })); setMobileSheet(null); }}
+                                className="py-3 rounded-xl text-[13px] font-bold"
+                                style={{
+                                  background: form.priceMax === opt.max && !form.priceMin ? '#2563eb' : '#f2f4f6',
+                                  color: form.priceMax === opt.max && !form.priceMin ? '#fff' : '#45464d',
+                                }}
+                              >
+                                {opt.l}
+                              </button>
+                            ))}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setMobileSheet(null)}
+                            className="w-full mt-4 py-3 rounded-xl font-bold text-white"
+                            style={{ background: '#2563eb' }}
+                          >
+                            {t('common.search')}
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
                 </div>{/* searchPanelRef */}
               </motion.div>
             </div>{/* search overlay */}

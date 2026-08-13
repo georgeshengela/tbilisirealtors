@@ -262,6 +262,8 @@ input::placeholder, textarea::placeholder { color: var(--outline); }
 /* ─────────────────────────────────────────────────
    SCROLLBAR
 ───────────────────────────────────────────────── */
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: var(--surface-low); }
 ::-webkit-scrollbar-thumb { background: var(--outline-variant); border-radius: 3px; }

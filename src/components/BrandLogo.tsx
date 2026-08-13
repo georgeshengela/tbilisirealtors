@@ -14,6 +14,7 @@ export const BRAND = {
 
 /** Uppercase caps read larger than mixed case, so `name` sits a touch below the mark height. */
 const SIZES = {
+  xs: { mark: 32, name: 11, gap: 7, tagline: 9 },
   sm: { mark: 30, name: 12.5, gap: 8, tagline: 9.5 },
   md: { mark: 38, name: 15, gap: 10, tagline: 10.5 },
   lg: { mark: 46, name: 18.5, gap: 12, tagline: 12 },
@@ -80,7 +81,7 @@ interface BrandLogoProps {
   variant?: BrandLogoVariant;
   size?: BrandLogoSize;
   tagline?: string;
-  /** Hide the wordmark below the `sm` breakpoint, keeping only the mark. */
+  /** Show a compact wordmark on mobile instead of hiding it. */
   responsiveText?: boolean;
   showText?: boolean;
   className?: string;
@@ -100,20 +101,32 @@ export default function BrandLogo({
   badge,
 }: BrandLogoProps) {
   const s = SIZES[size];
+  const mobileSize: BrandLogoSize = responsiveText ? 'xs' : size;
   const taglineColor = variant === 'dark' ? BRAND.mutedOnDark : BRAND.muted;
 
   const content = (
     <>
       <BrandMark size={s.mark} />
       {showText && (
-        <span className={responsiveText ? 'hidden sm:block min-w-0' : 'block min-w-0'}>
+        <span className="block min-w-0">
           <span className="flex items-center gap-2 min-w-0">
-            <BrandWordmark variant={variant} size={size} />
+            {responsiveText ? (
+              <>
+                <span className="sm:hidden">
+                  <BrandWordmark variant={variant} size={mobileSize} />
+                </span>
+                <span className="hidden sm:inline">
+                  <BrandWordmark variant={variant} size={size} />
+                </span>
+              </>
+            ) : (
+              <BrandWordmark variant={variant} size={size} />
+            )}
             {badge}
           </span>
           {tagline && (
             <span
-              className="block truncate"
+              className={`block truncate ${responsiveText ? 'hidden sm:block' : ''}`}
               style={{
                 marginTop: 3,
                 fontWeight: 600,
