@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+Georgian:wght@300;400;500;600;700;800;900&family=Noto+Sans:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Noto+Sans+Georgian:wght@300;400;500;600;700;800;900&family=Noto+Sans:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────
@@ -40,7 +40,7 @@
   /* Tertiary — electric blue accent */
   --tertiary:                 #000000;
   --tertiary-container:       #00174b;
-  --on-tertiary-container:    #497cff;   /* ← the star: vibrant interactive blue */
+  --on-tertiary-container:    #2563eb;   /* ← the star: vibrant interactive blue */
 
   /* State */
   --error:                    #ba1a1a;
@@ -66,6 +66,16 @@
 *, *::before, *::after { box-sizing: border-box; }
 
 html { scroll-behavior: smooth; }
+
+/* Logotype only — Montserrat has no Georgian coverage, so it must never
+   inherit onto body copy. */
+.brand-wordmark {
+  font-family: 'Montserrat', 'Noto Sans', sans-serif;
+  text-transform: uppercase;
+  font-weight: 800;
+  font-feature-settings: 'kern' 1;
+  font-variant-ligatures: none;
+}
 
 body {
   font-family: 'Noto Sans Georgian', 'Noto Sans', sans-serif;
@@ -111,11 +121,10 @@ body {
 .elevation-3 { box-shadow: var(--shadow-3); }
 
 .card-lift {
-  transition: box-shadow 0.25s cubic-bezier(0.4,0,0.2,1),
-              border-color 0.25s cubic-bezier(0.4,0,0.2,1);
+  transition: border-color 0.25s cubic-bezier(0.4,0,0.2,1);
 }
 .card-lift:hover {
-  box-shadow: var(--shadow-2);
+  box-shadow: none;
 }
 
 /* ─────────────────────────────────────────────────
@@ -137,7 +146,7 @@ body {
   background: rgba(19,27,46,0.75);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(73,124,255,0.18);
+  border: 1px solid rgba(37, 99, 235,0.18);
 }
 
 /* ─────────────────────────────────────────────────
@@ -160,11 +169,10 @@ body {
 }
 .btn-primary:hover {
   background: #1a1a1a;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.25);
 }
 
 .btn-accent {
-  background: var(--on-tertiary-container);  /* #497cff */
+  background: var(--on-tertiary-container);
   color: #fff;
   border-radius: 8px;
   font-weight: 600;
@@ -175,10 +183,10 @@ body {
   gap: 8px;
   padding: 12px 24px;
   cursor: pointer;
+  border: none;
 }
 .btn-accent:hover {
   background: #3567f5;
-  box-shadow: 0 4px 20px rgba(73,124,255,0.40);
 }
 
 .btn-ghost {
@@ -220,7 +228,7 @@ input, select, textarea {
 }
 .input-field:focus {
   border-color: var(--on-tertiary-container);
-  box-shadow: 0 0 0 3px rgba(73,124,255,0.15);
+  box-shadow: none;
 }
 
 /* Bare inputs — used INSIDE custom-styled containers (search, filter) */
@@ -273,7 +281,7 @@ input::placeholder, textarea::placeholder { color: var(--outline); }
   border-radius: 999px;
   line-height: 1;
 }
-.badge-blue   { background: rgba(73,124,255,0.12); color: #2060ff; }
+.badge-blue   { background: rgba(37, 99, 235,0.12); color: #2060ff; }
 .badge-black  { background: #000; color: #fff; }
 .badge-gold   { background: rgba(202,138,4,0.12); color: #a16207; }
 .badge-green  { background: rgba(16,185,129,0.12); color: #059669; }
@@ -316,8 +324,8 @@ input::placeholder, textarea::placeholder { color: var(--outline); }
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(73,124,255,.15) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(73,124,255,.15) 1px, transparent 1px);
+    linear-gradient(rgba(37, 99, 235,.15) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235,.15) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
@@ -385,6 +393,48 @@ input::placeholder, textarea::placeholder { color: var(--outline); }
   border: none !important;
 }
 
+.office-map-marker {
+  background: transparent !important;
+  border: none !important;
+}
+
+.office-pin-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: office-pin-drop 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.office-pin-wrap::before {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  width: 18px;
+  height: 6px;
+  margin-left: -9px;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.22);
+  animation: office-pin-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes office-pin-drop {
+  from { opacity: 0; transform: translateY(-12px) scale(0.92); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes office-pin-pulse {
+  0%, 100% { transform: scale(1); opacity: 0.22; }
+  50% { transform: scale(1.35); opacity: 0.08; }
+}
+
+.leaflet-popup.office-map-popup .leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  border: 1px solid #e6e8ea;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
 .leaflet-container {
   font-family: 'Noto Sans Georgian', 'Noto Sans', sans-serif;
 }
@@ -398,4 +448,19 @@ input::placeholder, textarea::placeholder { color: var(--outline); }
   margin: 10px 14px;
   font-size: 13px;
   font-weight: 600;
+}
+
+/* ─── No glow / lighting on interactive states ─── */
+button, a, [role="button"], input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:focus, button:focus-visible,
+a:focus, a:focus-visible,
+input:focus, input:focus-visible,
+select:focus, select:focus-visible,
+textarea:focus, textarea:focus-visible {
+  outline: none !important;
+  --tw-ring-shadow: 0 0 #0000 !important;
+  --tw-ring-offset-shadow: 0 0 #0000 !important;
 }

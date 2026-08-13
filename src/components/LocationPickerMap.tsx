@@ -48,7 +48,7 @@ export default function LocationPickerMap({ value, onChange, height = 420 }: Loc
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const coords = value.lat && value.lng ? value : { ...value, ...TBILISI_CENTER };
-  const markerIcon = createPropertyIcon('#497cff');
+  const markerIcon = createPropertyIcon('#2563eb');
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -119,10 +119,10 @@ export default function LocationPickerMap({ value, onChange, height = 420 }: Loc
             onChange={e => handleSearchInput(e.target.value)}
             onFocus={() => results.length > 0 && setShowResults(true)}
             placeholder="მოძებნეთ მისამართი — მაგ: ვაკე, ჭანტურია 12, თბილისი"
-            className="w-full pl-11 pr-11 py-3.5 rounded-2xl border border-slate-200 bg-white text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-11 pr-11 py-3.5 rounded-2xl border border-slate-200 bg-white text-slate-800 text-sm placeholder-slate-400 focus:outline-none"
           />
           {(searching || reverseLoading) && (
-            <Loader2 size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-500 animate-spin" />
+            <Loader2 size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-blue-600 animate-spin" />
           )}
           {!searching && query && (
             <button
@@ -144,7 +144,7 @@ export default function LocationPickerMap({ value, onChange, height = 420 }: Loc
                 onClick={() => applyResult(r)}
                 className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-blue-50 transition-colors border-b border-slate-50 last:border-0"
               >
-                <MapPin size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <MapPin size={16} className="text-blue-600 mt-0.5 flex-shrink-0" />
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-slate-800 truncate">{r.displayName.split(',')[0]}</p>
                   <p className="text-xs text-slate-500 truncate">{r.displayName}</p>
@@ -183,7 +183,7 @@ export default function LocationPickerMap({ value, onChange, height = 420 }: Loc
 
         <div className="absolute bottom-3 left-3 right-3 z-[400] pointer-events-none">
           <div className="inline-flex items-center gap-2 px-3 py-2 rounded-xl bg-white/95 backdrop-blur-sm text-xs font-medium text-slate-600 shadow-lg border border-slate-100">
-            <MapPin size={13} className="text-blue-500" />
+            <MapPin size={13} className="text-blue-600" />
             დააწკაპუნეთ რუკაზე ან გადაიტანეთ მარკერი
           </div>
         </div>

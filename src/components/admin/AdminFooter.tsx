@@ -13,7 +13,7 @@ export default function AdminFooter() {
       <div className="container-xl py-4 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-slate-500 text-xs">
           <Shield size={13} className="text-slate-600 flex-shrink-0" />
-          <span>© {new Date().getFullYear()} TbilisiRealtors.ge · Admin Panel</span>
+          <span>© {new Date().getFullYear()} TbilisiRealtor.GE · Admin Panel</span>
         </div>
         <div className="flex items-center gap-4 text-xs font-semibold">
           <Link

@@ -9,17 +9,23 @@ import {
 import { properties } from '../data/mockData';
 import PropertyMap from '../components/PropertyMap';
 import PropertyCard from '../components/PropertyCard';
-
-const TYPE_LABELS: Record<string, string> = {
-  apartment: 'ბინა', house: 'სახლი', villa: 'ვილა', commercial: 'კომერციული', land: 'მიწა',
-};
-
-function formatPrice(price: number, status: string) {
-  if (status === 'rent') return `₾${price.toLocaleString()}/თვ.`;
-  return `₾${price.toLocaleString()}`;
-}
+import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from '../i18n/LocaleContext';
 
 export default function PropertyDetailPage() {
+  const { t } = useTranslation();
+  const { formatMoney } = useCurrency();
+
+  const typeLabels: Record<string, string> = {
+    apartment: t('propertyTypes.apartment'),
+    house: t('propertyTypes.house'),
+    villa: t('propertyTypes.villa'),
+    commercial: t('propertyTypes.commercial'),
+    land: t('propertyTypes.land'),
+  };
+
+  const formatPrice = (price: number, status: string) =>
+    formatMoney(price, { perMonth: status === 'rent' });
   const { id } = useParams();
   const property = properties.find(p => p.id === id) || properties[0];
   const [activeImage, setActiveImage] = useState(0);
@@ -43,17 +49,17 @@ export default function PropertyDetailPage() {
   };
 
   return (
-    <div className="min-h-screen pt-[56px] lg:pt-[102px]" style={{ background: '#f7f9fb' }}>
+    <div className="min-h-screen pt-[56px] lg:pt-[106px]" style={{ background: '#f7f9fb' }}>
 
       {/* Breadcrumb */}
       <div className="bg-white" style={{ borderBottom: '1px solid #eceef0' }}>
         <div className="container-xl py-3.5">
           <div className="flex items-center gap-2 text-sm" style={{ color: '#76777d' }}>
-            <Link to="/" className="flex items-center gap-1 hover:text-[#497cff] transition-colors">
-              <Home size={14} />მთავარი
+            <Link to="/" className="flex items-center gap-1 hover:text-[#2563eb] transition-colors">
+              <Home size={14} />{t('property.home')}
             </Link>
             <span style={{ color: '#c6c6cd' }}>/</span>
-            <Link to="/listings" className="hover:text-[#497cff] transition-colors">განცხადება</Link>
+            <Link to="/listings" className="hover:text-[#2563eb] transition-colors">{t('property.listing')}</Link>
             <span style={{ color: '#c6c6cd' }}>/</span>
             <span className="font-semibold truncate" style={{ color: '#191c1e' }}>{property.title}</span>
           </div>
@@ -108,7 +114,7 @@ export default function PropertyDetailPage() {
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
                       style={{ background: 'rgba(15,13,10,0.80)', color: '#f5c542', backdropFilter: 'blur(8px)' }}
                     >
-                      <Sparkles size={9} fill="currentColor" /> პრემიუმ
+                      <Sparkles size={9} fill="currentColor" /> {t('common.premium')}
                     </span>
                   )}
                   {property.isNew && (
@@ -116,7 +122,7 @@ export default function PropertyDetailPage() {
                       className="px-2.5 py-1 rounded-full text-[11px] font-bold"
                       style={{ background: 'rgba(16,185,129,0.88)', color: '#fff', backdropFilter: 'blur(8px)' }}
                     >
-                      ახალი
+                      {t('common.new')}
                     </span>
                   )}
                 </div>
@@ -147,8 +153,7 @@ export default function PropertyDetailPage() {
                     className="flex-shrink-0 rounded-xl overflow-hidden transition-all duration-200"
                     style={{
                       width: 72, height: 56,
-                      border: i === activeImage ? '2px solid #497cff' : '2px solid transparent',
-                      boxShadow: i === activeImage ? '0 0 0 3px rgba(73,124,255,0.15)' : 'none',
+                      border: i === activeImage ? '2px solid #2563eb' : '2px solid transparent',
                       opacity: i === activeImage ? 1 : 0.65,
                     }}
                   >
@@ -169,31 +174,31 @@ export default function PropertyDetailPage() {
                     <span
                       className="px-2.5 py-1 rounded-full text-[11px] font-bold"
                       style={{
-                        background: property.status === 'sale' ? '#191c1e' : 'rgba(73,124,255,0.10)',
-                        color: property.status === 'sale' ? '#fff' : '#497cff',
-                        border: property.status === 'rent' ? '1px solid rgba(73,124,255,0.25)' : 'none',
+                        background: property.status === 'sale' ? '#191c1e' : 'rgba(37, 99, 235,0.10)',
+                        color: property.status === 'sale' ? '#fff' : '#2563eb',
+                        border: property.status === 'rent' ? '1px solid rgba(37, 99, 235,0.25)' : 'none',
                       }}
                     >
-                      {property.status === 'sale' ? 'იყიდება' : 'ქირავდება'}
+                      {property.status === 'sale' ? t('propertyStatus.sale') : t('propertyStatus.rent')}
                     </span>
                     <span
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
                       style={{ background: '#f0f2f5', color: '#45464d' }}
                     >
-                      <Building2 size={11} />{TYPE_LABELS[property.type]}
+                      <Building2 size={11} />{typeLabels[property.type]}
                     </span>
                     <span
                       className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
                       style={{ background: '#f0f2f5', color: '#45464d' }}
                     >
-                      <Eye size={11} />{property.viewCount.toLocaleString()} ნახვა
+                      <Eye size={11} />{property.viewCount.toLocaleString()} {t('property.views')}
                     </span>
                   </div>
                   <h1 className="font-bold leading-tight mb-2" style={{ fontSize: 'clamp(20px, 2.5vw, 26px)', color: '#191c1e' }}>
                     {property.title}
                   </h1>
                   <div className="flex items-center gap-1.5" style={{ color: '#76777d' }}>
-                    <MapPin size={14} style={{ color: '#497cff', flexShrink: 0 }} />
+                    <MapPin size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
                     <span className="text-sm">{property.address}, {property.district}, {property.city}</span>
                   </div>
                 </div>
@@ -209,14 +214,14 @@ export default function PropertyDetailPage() {
                     }}
                   >
                     <Heart size={15} strokeWidth={2} style={{ fill: isFavorited ? '#ef4444' : 'none' }} />
-                    <span className="hidden sm:inline">შენახვა</span>
+                    <span className="hidden sm:inline">{t('property.save')}</span>
                   </button>
                   <button
                     className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
                     style={{ background: '#f7f9fb', border: '1.5px solid #eceef0', color: '#45464d' }}
                   >
                     <Share2 size={15} strokeWidth={2} />
-                    <span className="hidden sm:inline">გაზიარება</span>
+                    <span className="hidden sm:inline">{t('property.share')}</span>
                   </button>
                 </div>
               </div>
@@ -235,17 +240,17 @@ export default function PropertyDetailPage() {
                       className="inline-block mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-md"
                       style={{ background: '#f0f2f5', color: '#76777d' }}
                     >
-                      ₾{property.pricePerSqm.toLocaleString()}/მ²
+                      {formatMoney(property.pricePerSqm, { perSqm: true })}
                     </span>
                   )}
                 </div>
 
                 <div className="flex gap-4 flex-wrap">
                   {[
-                    property.bedrooms > 0 && { icon: Bed, v: property.bedrooms, l: 'საძინ.' },
-                    { icon: Bath, v: property.bathrooms, l: 'სველ.' },
-                    { icon: Square, v: `${property.area}მ²`, l: 'ფართ.' },
-                    property.floor && { icon: Layers, v: `${property.floor}/${property.totalFloors}`, l: 'სართ.' },
+                    property.bedrooms > 0 && { icon: Bed, v: property.bedrooms, l: t('property.bedsShort') },
+                    { icon: Bath, v: property.bathrooms, l: t('property.bathsShort') },
+                    { icon: Square, v: `${property.area}m²`, l: t('property.area') },
+                    property.floor && { icon: Layers, v: `${property.floor}/${property.totalFloors}`, l: t('property.floorShort') },
                   ].filter(Boolean).map(item => item && (
                     <div
                       key={item.l}
@@ -254,9 +259,9 @@ export default function PropertyDetailPage() {
                     >
                       <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ background: 'rgba(73,124,255,0.08)' }}
+                        style={{ background: 'rgba(37, 99, 235,0.08)' }}
                       >
-                        <item.icon size={15} strokeWidth={2} style={{ color: '#497cff' }} />
+                        <item.icon size={15} strokeWidth={2} style={{ color: '#2563eb' }} />
                       </div>
                       <div>
                         <p className="font-bold text-sm leading-none" style={{ color: '#191c1e' }}>{item.v}</p>
@@ -279,9 +284,9 @@ export default function PropertyDetailPage() {
                 style={{ background: '#f2f4f6' }}
               >
                 {([
-                  { id: 'description', label: 'აღწერა' },
-                  { id: 'details', label: 'დეტალები' },
-                  { id: 'amenities', label: 'კომფორტი' },
+                  { id: 'description', label: t('property.description') },
+                  { id: 'details', label: t('property.details') },
+                  { id: 'amenities', label: t('property.amenities') },
                 ] as const).map(tab => (
                   <button
                     key={tab.id}
@@ -290,7 +295,6 @@ export default function PropertyDetailPage() {
                     style={{
                       background: activeTab === tab.id ? '#fff' : 'transparent',
                       color: activeTab === tab.id ? '#191c1e' : '#76777d',
-                      boxShadow: activeTab === tab.id ? '0 1px 4px rgba(0,0,0,0.08)' : 'none',
                     }}
                   >
                     {tab.label}
@@ -306,14 +310,14 @@ export default function PropertyDetailPage() {
                     </p>
                     <div className="mt-6">
                       <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: '#9ea0a7' }}>
-                        თვისებები
+                        {t('property.features')}
                       </p>
                       <div className="flex flex-wrap gap-2">
                         {property.features.map(f => (
                           <span
                             key={f}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-                            style={{ background: 'rgba(73,124,255,0.08)', color: '#497cff', border: '1px solid rgba(73,124,255,0.15)' }}
+                            style={{ background: 'rgba(37, 99, 235,0.08)', color: '#2563eb', border: '1px solid rgba(37, 99, 235,0.15)' }}
                           >
                             <CheckCircle size={12} />{f}
                           </span>
@@ -327,16 +331,16 @@ export default function PropertyDetailPage() {
                   <motion.div key="details" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
                     <div className="grid sm:grid-cols-2 gap-0 rounded-2xl overflow-hidden" style={{ border: '1px solid #eceef0' }}>
                       {([
-                        { label: 'განცხადების ტიპი', value: TYPE_LABELS[property.type] },
-                        { label: 'სტატუსი', value: property.status === 'sale' ? 'გაყიდვა' : 'გაქირავება' },
-                        { label: 'ქალაქი', value: property.city },
-                        { label: 'რაიონი', value: property.district },
-                        { label: 'ფართობი', value: `${property.area} მ²` },
-                        { label: 'საძინებლები', value: property.bedrooms.toString() },
-                        { label: 'სველი წერტილი', value: property.bathrooms.toString() },
-                        property.floor ? { label: 'სართული', value: `${property.floor}/${property.totalFloors}` } : null,
-                        property.yearBuilt ? { label: 'აშენებულია', value: property.yearBuilt.toString() } : null,
-                        { label: 'განლაგება', value: property.listedDate },
+                        { label: t('property.listingType'), value: typeLabels[property.type] },
+                        { label: t('property.status'), value: property.status === 'sale' ? t('property.saleStatus') : t('property.rentStatus') },
+                        { label: t('property.cityLabel'), value: property.city },
+                        { label: t('property.districtLabel'), value: property.district },
+                        { label: t('property.areaFull'), value: `${property.area} m²` },
+                        { label: t('property.bedroomsFull'), value: property.bedrooms.toString() },
+                        { label: t('property.bathroomFull'), value: property.bathrooms.toString() },
+                        property.floor ? { label: t('property.floorFull'), value: `${property.floor}/${property.totalFloors}` } : null,
+                        property.yearBuilt ? { label: t('property.yearBuiltFull'), value: property.yearBuilt.toString() } : null,
+                        { label: t('property.layout'), value: property.listedDate },
                       ].filter(Boolean) as { label: string; value: string }[]).map((row, i) => (
                         <div
                           key={row.label}
@@ -379,7 +383,7 @@ export default function PropertyDetailPage() {
               style={{ boxShadow: '0 2px 12px rgba(15,23,42,0.06)', border: '1px solid #eceef0' }}
             >
               <p className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#9ea0a7' }}>
-                მდებარეობა
+                {t('property.location')}
               </p>
               <PropertyMap
                 lat={property.coordinates.lat}
@@ -390,7 +394,7 @@ export default function PropertyDetailPage() {
                 height={280}
               />
               <div className="flex items-center gap-2 mt-3">
-                <MapPin size={14} style={{ color: '#497cff' }} />
+                <MapPin size={14} style={{ color: '#2563eb' }} />
                 <p className="text-sm font-semibold" style={{ color: '#45464d' }}>
                   {property.address}, {property.district}, {property.city}
                 </p>
@@ -403,15 +407,15 @@ export default function PropertyDetailPage() {
               style={{ boxShadow: '0 2px 12px rgba(15,23,42,0.06)', border: '1px solid #eceef0' }}
             >
               <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: '#9ea0a7' }}>
-                იპოთეკა
+                {t('property.mortgageCalc')}
               </p>
-              <h2 className="font-bold text-lg mb-6" style={{ color: '#191c1e' }}>იპოთეკის კალკულატორი</h2>
+              <h2 className="font-bold text-lg mb-6" style={{ color: '#191c1e' }}>{t('property.mortgageCalc')}</h2>
 
               <div className="grid sm:grid-cols-3 gap-5 mb-6">
                 {[
-                  { label: `პირვ. შენატანი: ${downPayment}%`, min: 10, max: 50, step: 5, val: downPayment, set: setDownPayment, lo: '10%', hi: '50%' },
-                  { label: `პროცენტი: ${mortgageRate}%`, min: 5, max: 20, step: 0.5, val: mortgageRate, set: setMortgageRate, lo: '5%', hi: '20%' },
-                  { label: `ვადა: ${mortgageYears} წელი`, min: 5, max: 30, step: 5, val: mortgageYears, set: setMortgageYears, lo: '5 წ.', hi: '30 წ.' },
+                  { label: t('property.downPaymentLabel', { pct: downPayment }), min: 10, max: 50, step: 5, val: downPayment, set: setDownPayment, lo: '10%', hi: '50%' },
+                  { label: t('property.interestRate', { rate: mortgageRate }), min: 5, max: 20, step: 0.5, val: mortgageRate, set: setMortgageRate, lo: '5%', hi: '20%' },
+                  { label: t('property.termYears', { years: mortgageYears }), min: 5, max: 30, step: 5, val: mortgageYears, set: setMortgageYears, lo: `5 ${t('property.yearsShort')}`, hi: `30 ${t('property.yearsShort')}` },
                 ].map(slider => (
                   <div key={slider.label}>
                     <label className="text-sm font-semibold mb-2 block" style={{ color: '#45464d' }}>
@@ -423,7 +427,7 @@ export default function PropertyDetailPage() {
                       value={slider.val}
                       onChange={e => slider.set(slider.step < 1 ? parseFloat(e.target.value) : parseInt(e.target.value))}
                       className="w-full"
-                      style={{ accentColor: '#497cff' }}
+                      style={{ accentColor: '#2563eb' }}
                     />
                     <div className="flex justify-between text-[11px] mt-1" style={{ color: '#9ea0a7' }}>
                       <span>{slider.lo}</span><span>{slider.hi}</span>
@@ -438,9 +442,9 @@ export default function PropertyDetailPage() {
               >
                 <div className="grid grid-cols-3 gap-4 text-center">
                   {[
-                    { v: `₾${Math.round(monthlyPayment()).toLocaleString()}`, l: 'ყოვ. გადასახადი' },
-                    { v: `₾${Math.round(property.price * downPayment / 100).toLocaleString()}`, l: 'პირვ. შენატანი' },
-                    { v: `₾${Math.round(property.price * (1 - downPayment / 100)).toLocaleString()}`, l: 'სესხის ოდენობა' },
+                    { v: formatMoney(Math.round(monthlyPayment())), l: t('property.monthlyPayment') },
+                    { v: formatMoney(Math.round(property.price * downPayment / 100)), l: t('property.downPayment') },
+                    { v: formatMoney(Math.round(property.price * (1 - downPayment / 100))), l: t('property.loanAmount') },
                   ].map(s => (
                     <div key={s.l}>
                       <p className="text-xl font-bold text-white">{s.v}</p>
@@ -455,11 +459,11 @@ export default function PropertyDetailPage() {
             <div>
               <div className="flex items-end justify-between mb-5">
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: '#9ea0a7' }}>მსგავსი</p>
-                  <h2 className="font-bold text-lg" style={{ color: '#191c1e' }}>მსგავსი განცხადება</h2>
+                  <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: '#9ea0a7' }}>{t('property.similarShort')}</p>
+                  <h2 className="font-bold text-lg" style={{ color: '#191c1e' }}>{t('property.similarOne')}</h2>
                 </div>
-                <Link to="/listings" className="text-sm font-semibold flex items-center gap-1" style={{ color: '#497cff' }}>
-                  ყველა <ArrowRight size={14} />
+                <Link to="/listings" className="text-sm font-semibold flex items-center gap-1" style={{ color: '#2563eb' }}>
+                  {t('common.viewAll')} <ArrowRight size={14} />
                 </Link>
               </div>
               <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -505,22 +509,22 @@ export default function PropertyDetailPage() {
                   <div className="flex items-center gap-1 mt-0.5">
                     <Star size={12} fill="#d97706" style={{ color: '#d97706' }} />
                     <span className="text-xs" style={{ color: '#76777d' }}>
-                      {property.agent.rating} ({property.agent.reviewCount} შეფ.)
+                      {property.agent.rating} ({property.agent.reviewCount} {t('property.agentRating')})
                     </span>
                   </div>
                   {property.agent.verified && (
                     <div className="flex items-center gap-1 mt-0.5">
                       <CheckCircle size={11} style={{ color: '#10B981' }} />
-                      <span className="text-[11px] font-semibold" style={{ color: '#10B981' }}>ვერიფიცირებული</span>
+                      <span className="text-[11px] font-semibold" style={{ color: '#10B981' }}>{t('common.verified')}</span>
                     </div>
                   )}
                 </div>
                 <Link
                   to={`/agent/${property.agent.id}`}
                   className="text-xs font-semibold flex-shrink-0"
-                  style={{ color: '#497cff' }}
+                  style={{ color: '#2563eb' }}
                 >
-                  პროფილი →
+                  {t('property.profile')}
                 </Link>
               </div>
 
@@ -529,7 +533,7 @@ export default function PropertyDetailPage() {
                 <a
                   href={`tel:${property.agent.phone}`}
                   className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-200"
-                  style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', boxShadow: '0 4px 16px rgba(5,150,105,0.38)' }}
+                  style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
                 >
                   <Phone size={16} strokeWidth={2} />
                   {property.agent.phone}
@@ -540,24 +544,24 @@ export default function PropertyDetailPage() {
                   style={{ background: '#f7f9fb', border: '1.5px solid #eceef0', color: '#191c1e' }}
                 >
                   <Mail size={16} strokeWidth={2} />
-                  ელ-ფოსტა
+                  {t('common.email')}
                 </a>
                 <button
                   className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-sm transition-all duration-200"
-                  style={{ background: 'rgba(79,70,229,0.07)', border: '1.5px solid rgba(79,70,229,0.22)', color: '#4f46e5' }}
+                  style={{ background: 'rgba(37, 99, 235,0.07)', border: '1.5px solid rgba(37, 99, 235,0.22)', color: '#2563eb' }}
                 >
                   <Calendar size={16} strokeWidth={2} />
-                  ნახვის ჩაწერა
+                  {t('property.bookViewing')}
                 </button>
               </div>
 
               {/* Contact form */}
               <div className="mt-5 pt-5" style={{ borderTop: '1px solid #f0f2f5' }}>
-                <p className="text-sm font-bold mb-3" style={{ color: '#191c1e' }}>შეკითხვის გამოგზავნა</p>
+                <p className="text-sm font-bold mb-3" style={{ color: '#191c1e' }}>{t('property.sendInquiry')}</p>
                 <div className="space-y-2.5">
                   {[
-                    { key: 'name', placeholder: 'სახელი გვარი', type: 'text' },
-                    { key: 'phone', placeholder: 'ტელეფონი', type: 'text' },
+                    { key: 'name', placeholder: t('property.fullName'), type: 'text' },
+                    { key: 'phone', placeholder: t('property.phone'), type: 'text' },
                   ].map(f => (
                     <input
                       key={f.key}
@@ -572,38 +576,34 @@ export default function PropertyDetailPage() {
                         color: '#191c1e',
                       }}
                       onFocus={e => {
-                        e.currentTarget.style.borderColor = '#497cff';
-                        e.currentTarget.style.boxShadow = '0 0 0 3px rgba(73,124,255,0.10)';
+                        e.currentTarget.style.borderColor = '#2563eb';
                       }}
                       onBlur={e => {
                         e.currentTarget.style.borderColor = '#eceef0';
-                        e.currentTarget.style.boxShadow = 'none';
                       }}
                     />
                   ))}
                   <textarea
                     value={contactForm.message}
                     onChange={e => setContactForm(f => ({ ...f, message: e.target.value }))}
-                    placeholder="შეტყობინება..."
+                    placeholder={t('property.messagePlaceholder')}
                     rows={3}
                     className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none resize-none transition-all duration-200"
                     style={{ background: '#fafbfc', border: '1.5px solid #eceef0', color: '#191c1e' }}
                     onFocus={e => {
-                      e.currentTarget.style.borderColor = '#497cff';
-                      e.currentTarget.style.boxShadow = '0 0 0 3px rgba(73,124,255,0.10)';
+                      e.currentTarget.style.borderColor = '#2563eb';
                     }}
                     onBlur={e => {
                       e.currentTarget.style.borderColor = '#eceef0';
-                      e.currentTarget.style.boxShadow = 'none';
                     }}
                   />
                   <button
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200"
-                    style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', boxShadow: '0 3px 12px rgba(5,150,105,0.32)' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 5px 18px rgba(5,150,105,0.44)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)'; (e.currentTarget as HTMLElement).style.boxShadow = '0 3px 12px rgba(5,150,105,0.32)'; }}
+                    style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)'; }}
                   >
-                    გაგზავნა <ArrowRight size={15} strokeWidth={2.5} />
+                    {t('property.send')} <ArrowRight size={15} strokeWidth={2.5} />
                   </button>
                 </div>
               </div>
@@ -667,7 +667,7 @@ export default function PropertyDetailPage() {
                   className="flex-shrink-0 rounded-xl overflow-hidden transition-all"
                   style={{
                     width: 64, height: 48,
-                    border: i === activeImage ? '2px solid #497cff' : '2px solid transparent',
+                    border: i === activeImage ? '2px solid #2563eb' : '2px solid transparent',
                     opacity: i === activeImage ? 1 : 0.5,
                   }}
                 >

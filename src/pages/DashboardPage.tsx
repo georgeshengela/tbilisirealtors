@@ -26,7 +26,7 @@ export default function DashboardPage() {
 
   const stats = [
     { label: 'შენახული განცხადება', value: '12', change: '+3', icon: Heart, color: 'text-red-500 bg-red-50 dark:bg-red-900/20' },
-    { label: 'ბოლო ნახვები', value: '148', change: '+28', icon: Eye, color: 'text-blue-500 bg-blue-50 dark:bg-blue-900/20' },
+    { label: 'ბოლო ნახვები', value: '148', change: '+28', icon: Eye, color: 'text-blue-600 bg-blue-50 dark:bg-blue-900/20' },
     { label: 'გამოგზავნილი შეთ.', value: '7', change: '+2', icon: MessageSquare, color: 'text-emerald-500 bg-emerald-50 dark:bg-emerald-900/20' },
     { label: 'განხ. განცხადება', value: '3', change: '+1', icon: Star, color: 'text-amber-500 bg-amber-50 dark:bg-amber-900/20' },
   ];
@@ -39,7 +39,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[102px] flex">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px] flex">
       {/* Sidebar */}
       <aside className={`fixed left-0 top-20 bottom-0 z-20 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-20'}`}>
         {/* User */}
@@ -65,7 +65,7 @@ export default function DashboardPage() {
               onClick={() => setActiveMenu(item.id)}
               className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all ${
                 activeMenu === item.id
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                   : 'text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700'
               } ${!sidebarOpen ? 'justify-center' : ''}`}
             >
@@ -115,7 +115,7 @@ export default function DashboardPage() {
               </div>
               <Link
                 to="/listings"
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-600 text-white px-5 py-2.5 rounded-xl text-sm font-semibold transition-all"
               >
                 <Plus size={18} />
                 ახალი ძებნა
@@ -162,7 +162,7 @@ export default function DashboardPage() {
             <div className="grid lg:grid-cols-2 gap-6">
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700">
                 <h3 className="font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
-                  <Clock size={18} className="text-blue-500" />
+                  <Clock size={18} className="text-blue-600" />
                   ბოლო საქმიანობა
                 </h3>
                 <div className="space-y-4">
@@ -183,7 +183,7 @@ export default function DashboardPage() {
               {/* Profile quick edit */}
               <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700">
                 <h3 className="font-bold text-slate-900 dark:text-white mb-5 flex items-center gap-2">
-                  <User size={18} className="text-blue-500" />
+                  <User size={18} className="text-blue-600" />
                   პროფილი
                 </h3>
                 <div className="flex items-center gap-4 mb-5">

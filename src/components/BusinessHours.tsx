@@ -1,5 +1,6 @@
 import { Clock } from 'lucide-react';
 import { BUSINESS_HOURS, isBusinessOpenNow } from '../data/contactInfo';
+import { useTranslation } from '../i18n/LocaleContext';
 
 type Variant = 'dark' | 'light';
 
@@ -10,12 +11,19 @@ interface BusinessHoursProps {
   compact?: boolean;
 }
 
+const DAY_KEYS: Record<string, string> = {
+  'mon-fri': 'businessHours.days.monFri',
+  saturday: 'businessHours.days.saturday',
+  sunday: 'businessHours.days.sunday',
+};
+
 export default function BusinessHours({
   variant = 'light',
   showStatus = true,
   showHeader = false,
   compact = false,
 }: BusinessHoursProps) {
+  const { t } = useTranslation();
   const open = isBusinessOpenNow();
   const dark = variant === 'dark';
 
@@ -26,7 +34,7 @@ export default function BusinessHours({
           className="text-[10px] font-bold uppercase tracking-widest mb-3"
           style={{ color: dark ? 'rgba(255,255,255,0.35)' : '#94a3b8' }}
         >
-          სამუშაო საათები
+          {t('businessHours.title')}
         </p>
       )}
 
@@ -49,14 +57,13 @@ export default function BusinessHours({
             className="w-1.5 h-1.5 rounded-full flex-shrink-0"
             style={{
               background: open ? '#34d399' : '#94a3b8',
-              boxShadow: open ? '0 0 6px rgba(52,211,153,0.8)' : 'none',
             }}
           />
           <span
             className="text-[11px] font-bold"
             style={{ color: open ? (dark ? '#6ee7b7' : '#059669') : (dark ? '#94a3b8' : '#64748b') }}
           >
-            {open ? 'ახლა ღიაა' : 'ახლა დაკეტილია'}
+            {open ? t('businessHours.open') : t('businessHours.closed')}
           </span>
         </div>
       )}
@@ -64,6 +71,7 @@ export default function BusinessHours({
       <div className={compact ? 'space-y-1.5' : 'space-y-2'}>
         {BUSINESS_HOURS.map(row => {
           const isClosed = row.closed || !row.time;
+          const dayLabel = DAY_KEYS[row.id] ? t(DAY_KEYS[row.id]) : row.label;
           return (
             <div
               key={row.id}
@@ -83,14 +91,14 @@ export default function BusinessHours({
                   <Clock
                     size={13}
                     strokeWidth={2}
-                    style={{ color: isClosed ? '#94a3b8' : dark ? '#93c5fd' : '#497cff', flexShrink: 0 }}
+                    style={{ color: isClosed ? '#94a3b8' : dark ? '#2563eb' : '#2563eb', flexShrink: 0 }}
                   />
                 )}
                 <span
                   className="text-xs font-semibold truncate"
                   style={{ color: dark ? 'rgba(255,255,255,0.75)' : '#334155' }}
                 >
-                  {row.label}
+                  {dayLabel}
                 </span>
               </div>
               {isClosed ? (
@@ -102,7 +110,7 @@ export default function BusinessHours({
                     border: dark ? '1px solid rgba(239,68,68,0.2)' : '1px solid #fecaca',
                   }}
                 >
-                  დასვენება
+                  {t('businessHours.dayOff')}
                 </span>
               ) : (
                 <span

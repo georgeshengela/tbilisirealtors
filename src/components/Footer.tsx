@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Phone, Mail, MapPin, Send,
@@ -9,6 +9,9 @@ import {
 } from 'lucide-react';
 import { CONTACT } from '../data/contactInfo';
 import BusinessHours from './BusinessHours';
+import ContactAddress from './ContactAddress';
+import BrandLogo from './BrandLogo';
+import { useTranslation } from '../i18n/LocaleContext';
 
 const SocialIcon = ({ label }: { label: string }) => {
   if (label === 'Facebook') return (
@@ -43,47 +46,14 @@ const WhatsAppIcon = () => (
   </svg>
 );
 
-const PROPERTY_LINKS = [
-  { label: 'ბინები',     href: '/listings?type=apartment',  icon: Building, color: '#497cff' },
-  { label: 'სახლები',    href: '/listings?type=house',      icon: Home,     color: '#10b981' },
-  { label: 'ვილები',     href: '/listings?type=villa',      icon: Star,     color: '#ec4899' },
-  { label: 'კომერციული', href: '/listings?type=commercial', icon: Layers,   color: '#f59e0b' },
-  { label: 'გაქირავება', href: '/listings?status=rent',     icon: Key,      color: '#8b5cf6' },
-  { label: 'პრემიუმ',   href: '/listings?premium=true',    icon: Tag,      color: '#06b6d4' },
-];
-
-const COMPANY_LINKS = [
-  { label: 'ჩვენს შესახებ', href: '/about',   icon: Info },
-  { label: 'აგენტები',      href: '/agents',  icon: Users },
-  { label: 'ბლოგი',         href: '/blog',    icon: BookOpen },
-  { label: 'კონტაქტი',      href: '/contact', icon: MessageSquare },
-  { label: 'კარიერა',       href: '#',        icon: Briefcase },
-];
-
-const CITY_LINKS = [
-  { label: 'თბილისი', href: '/listings?city=თბილისი', count: '2,847' },
-  { label: 'ბათუმი',  href: '/listings?city=ბათუმი',  count: '1,234' },
-  { label: 'ქუთაისი', href: '/listings?city=ქუთაისი', count: '567'   },
-  { label: 'მცხეთა',  href: '/listings?city=მცხეთა',  count: '312'   },
-  { label: 'სიღნაღი', href: '/listings?city=სიღნაღი', count: '198'   },
-  { label: 'გორი',    href: '/listings?city=გორი',    count: '143'   },
-];
-
-const SOCIAL = [
-  { label: 'Facebook',  href: '#', color: '#1877f2' },
-  { label: 'Instagram', href: '#', color: '#e1306c' },
-  { label: 'Youtube',   href: '#', color: '#ff0000' },
-  { label: 'LinkedIn',  href: '#', color: '#0a66c2' },
-];
-
 function SectionTitle({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
   return (
     <h4 className="font-bold text-white text-sm mb-5 flex items-center gap-2.5">
       <span
         className="w-7 h-7 rounded-lg flex items-center justify-center"
-        style={{ background: 'rgba(73,124,255,0.15)', border: '1px solid rgba(73,124,255,0.25)' }}
+        style={{ background: 'rgba(37, 99, 235,0.15)', border: '1px solid rgba(37, 99, 235,0.25)' }}
       >
-        <Icon size={13} color="#93c5fd" strokeWidth={2.2} />
+        <Icon size={13} color="#2563eb" strokeWidth={2.2} />
       </span>
       {children}
     </h4>
@@ -91,12 +61,46 @@ function SectionTitle({ icon: Icon, children }: { icon: LucideIcon; children: Re
 }
 
 export default function Footer() {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+
+  const PROPERTY_LINKS = useMemo(() => [
+    { label: t('footer.apartments'), href: '/listings?type=apartment', icon: Building, color: '#2563eb' },
+    { label: t('footer.houses'), href: '/listings?type=house', icon: Home, color: '#10b981' },
+    { label: t('footer.villas'), href: '/listings?type=villa', icon: Star, color: '#ec4899' },
+    { label: t('footer.commercial'), href: '/listings?type=commercial', icon: Layers, color: '#f59e0b' },
+    { label: t('footer.forRent'), href: '/listings?status=rent', icon: Key, color: '#2563eb' },
+    { label: t('footer.premium'), href: '/listings?premium=true', icon: Tag, color: '#06b6d4' },
+  ], [t]);
+
+  const COMPANY_LINKS = useMemo(() => [
+    { label: t('footer.about'), href: '/about', icon: Info },
+    { label: t('footer.agents'), href: '/agents', icon: Users },
+    { label: t('footer.blog'), href: '/blog', icon: BookOpen },
+    { label: t('footer.contact'), href: '/contact', icon: MessageSquare },
+    { label: t('footer.careers'), href: '#', icon: Briefcase },
+  ], [t]);
+
+  const CITY_LINKS = useMemo(() => [
+    { label: t('listings.cities.tbilisi'), href: '/listings?city=თბილისი', count: '2,847' },
+    { label: t('listings.cities.batumi'), href: '/listings?city=ბათუმი', count: '1,234' },
+    { label: t('listings.cities.kutaisi'), href: '/listings?city=ქუთაისი', count: '567' },
+    { label: t('listings.cities.mtskheta'), href: '/listings?city=მცხეთა', count: '312' },
+    { label: t('listings.cities.sighnaghi'), href: '/listings?city=სიღნაღი', count: '198' },
+    { label: t('listings.cities.gori'), href: '/listings?city=გორი', count: '143' },
+  ], [t]);
 
   const handleSubscribe = () => {
     if (email) { setSent(true); setEmail(''); }
   };
+
+  const SOCIAL = [
+    { label: 'Facebook',  href: '#', color: '#1877f2' },
+    { label: 'Instagram', href: '#', color: '#e1306c' },
+    { label: 'Youtube',   href: '#', color: '#ff0000' },
+    { label: 'LinkedIn',  href: '#', color: '#0a66c2' },
+  ];
 
   return (
     <footer className="relative overflow-hidden" style={{ background: '#070b14', color: '#eff1f3' }}>
@@ -109,9 +113,9 @@ export default function Footer() {
         <div style={{
           position: 'absolute', inset: 0,
           backgroundImage: `
-            radial-gradient(ellipse 70% 50% at 15% 0%, rgba(73,124,255,0.22) 0%, transparent 55%),
+            radial-gradient(ellipse 70% 50% at 15% 0%, rgba(37, 99, 235,0.22) 0%, transparent 55%),
             radial-gradient(ellipse 50% 40% at 85% 10%, rgba(16,185,129,0.12) 0%, transparent 50%),
-            radial-gradient(circle at 50% 100%, rgba(99,102,241,0.08) 0%, transparent 45%)
+            radial-gradient(circle at 50% 100%, rgba(37, 99, 235,0.08) 0%, transparent 45%)
           `,
         }} />
         <div style={{
@@ -129,7 +133,6 @@ export default function Footer() {
             style={{
               background: 'rgba(255,255,255,0.03)',
               border: '1px solid rgba(255,255,255,0.08)',
-              boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
             }}
           >
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
@@ -137,17 +140,16 @@ export default function Footer() {
                 <div
                   className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(73,124,255,0.25), rgba(99,102,241,0.12))',
+                    background: 'linear-gradient(135deg, rgba(37, 99, 235,0.25), rgba(37, 99, 235,0.12))',
                     border: '1px solid rgba(129,140,248,0.3)',
-                    boxShadow: '0 4px 16px rgba(73,124,255,0.2)',
                   }}
                 >
-                  <Send size={20} style={{ color: '#93c5fd' }} strokeWidth={2} />
+                  <Send size={20} style={{ color: '#2563eb' }} strokeWidth={2} />
                 </div>
                 <div>
-                  <h3 className="font-bold text-white text-lg mb-1">გამოიწერეთ სიახლეები</h3>
+                  <h3 className="font-bold text-white text-lg mb-1">{t('footer.newsletterTitle')}</h3>
                   <p className="text-sm" style={{ color: 'rgba(255,255,255,0.45)', maxWidth: 400, lineHeight: 1.65 }}>
-                    ახალი განცხადებები, ბაზრის ანალიტიკა და სპეციალური შეთავაზებები — პირდაპირ თქვენს ელ-ფოსტაზე.
+                    {t('footer.newsletterDesc')}
                   </p>
                 </div>
               </div>
@@ -163,13 +165,13 @@ export default function Footer() {
                 ) : (
                   <>
                     <div className="relative flex-1">
-                      <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#497cff' }} />
+                      <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2" style={{ color: '#2563eb' }} />
                       <input
                         type="email"
                         value={email}
                         onChange={e => setEmail(e.target.value)}
                         onKeyDown={e => e.key === 'Enter' && handleSubscribe()}
-                        placeholder="თქვენი ელ-ფოსტა"
+                        placeholder={t('footer.emailPlaceholder')}
                         className="w-full pl-11 pr-4 py-3.5 rounded-xl text-sm"
                         style={{
                           background: 'rgba(0,0,0,0.25)',
@@ -177,7 +179,7 @@ export default function Footer() {
                           color: '#fff',
                           outline: 'none',
                         }}
-                        onFocus={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(73,124,255,0.5)'}
+                        onFocus={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(37, 99, 235,0.5)'}
                         onBlur={e => (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.1)'}
                       />
                     </div>
@@ -185,8 +187,7 @@ export default function Footer() {
                       onClick={handleSubscribe}
                       className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-white flex-shrink-0 transition-all"
                       style={{
-                        background: 'linear-gradient(135deg, #497cff 0%, #6366f1 100%)',
-                        boxShadow: '0 4px 16px rgba(73,124,255,0.35)',
+                        background: 'linear-gradient(135deg, #2563eb 0%, #2563eb 100%)',
                       }}
                     >
                       <Send size={15} strokeWidth={2} />
@@ -205,21 +206,22 @@ export default function Footer() {
 
             {/* Contact column */}
             <div className="lg:col-span-4">
+              <BrandLogo variant="dark" size="lg" tagline={t('header.tagline')} className="mb-6" />
+
               {/* Contact card */}
               <div
                 className="rounded-2xl p-5 mb-6 space-y-4"
                 style={{
                   background: 'rgba(255,255,255,0.04)',
                   border: '1px solid rgba(255,255,255,0.08)',
-                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.05)',
                 }}
               >
                 <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.35)' }}>კონტაქტი</p>
 
                 <a href={`tel:${CONTACT.phone.tel}`} className="flex items-center gap-3 group" style={{ textDecoration: 'none' }}>
                   <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                    style={{ background: 'rgba(73,124,255,0.12)', border: '1px solid rgba(73,124,255,0.2)' }}>
-                    <Phone size={15} style={{ color: '#93c5fd' }} />
+                    style={{ background: 'rgba(37, 99, 235,0.12)', border: '1px solid rgba(37, 99, 235,0.2)' }}>
+                    <Phone size={15} style={{ color: '#2563eb' }} />
                   </div>
                   <div>
                     <p className="text-[11px] font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>{CONTACT.phone.label}</p>
@@ -296,7 +298,7 @@ export default function Footer() {
 
             {/* Property links */}
             <div className="lg:col-span-2">
-              <SectionTitle icon={Building}>განცხადებები</SectionTitle>
+              <SectionTitle icon={Building}>{t('footer.properties')}</SectionTitle>
               <ul className="space-y-1">
                 {PROPERTY_LINKS.map(link => (
                   <li key={link.label}>
@@ -323,7 +325,7 @@ export default function Footer() {
 
             {/* Company links */}
             <div className="lg:col-span-2">
-              <SectionTitle icon={Info}>კომპანია</SectionTitle>
+              <SectionTitle icon={Info}>{t('footer.company')}</SectionTitle>
               <ul className="space-y-1">
                 {COMPANY_LINKS.map(link => (
                   <li key={link.label}>
@@ -351,7 +353,7 @@ export default function Footer() {
 
             {/* Cities */}
             <div className="lg:col-span-4">
-              <SectionTitle icon={MapPin}>პოპულარული ქალაქები</SectionTitle>
+              <SectionTitle icon={MapPin}>{t('footer.cities')}</SectionTitle>
               <div className="grid grid-cols-2 gap-2.5">
                 {CITY_LINKS.map(city => (
                   <Link
@@ -364,8 +366,8 @@ export default function Footer() {
                       textDecoration: 'none',
                     }}
                     onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(73,124,255,0.12)';
-                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(73,124,255,0.28)';
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(37, 99, 235,0.12)';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37, 99, 235,0.28)';
                       (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
                     }}
                     onMouseLeave={e => {
@@ -375,7 +377,7 @@ export default function Footer() {
                     }}
                   >
                     <div className="flex items-center gap-2 min-w-0">
-                      <MapPin size={12} style={{ color: '#497cff', flexShrink: 0 }} />
+                      <MapPin size={12} style={{ color: '#2563eb', flexShrink: 0 }} />
                       <span className="text-sm font-semibold truncate" style={{ color: 'rgba(255,255,255,0.8)' }}>{city.label}</span>
                     </div>
                     <span
@@ -393,16 +395,16 @@ export default function Footer() {
                 className="mt-5 rounded-2xl p-4 flex items-start gap-3"
                 style={{
                   background: 'linear-gradient(135deg, rgba(19,27,46,0.8), rgba(15,23,42,0.6))',
-                  border: '1px solid rgba(73,124,255,0.15)',
+                  border: '1px solid rgba(37, 99, 235,0.15)',
                 }}
               >
                 <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: 'rgba(73,124,255,0.15)' }}>
-                  <MapPin size={15} style={{ color: '#93c5fd' }} />
+                  style={{ background: 'rgba(37, 99, 235,0.15)' }}>
+                  <MapPin size={15} style={{ color: '#2563eb' }} />
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-white mb-0.5">ოფისი</p>
-                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.45)', lineHeight: 1.55 }}>{CONTACT.address}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-white mb-1.5">ოფისი</p>
+                  <ContactAddress variant="dark" showMapsHint />
                 </div>
               </div>
             </div>
@@ -413,18 +415,18 @@ export default function Footer() {
         <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
           <div
             className="h-px w-full"
-            style={{ background: 'linear-gradient(90deg, transparent, rgba(73,124,255,0.4) 30%, rgba(16,185,129,0.35) 70%, transparent)' }}
+            style={{ background: 'linear-gradient(90deg, transparent, rgba(37, 99, 235,0.4) 30%, rgba(16,185,129,0.35) 70%, transparent)' }}
           />
           <div className="container-xl py-6">
             <div className="flex flex-col lg:flex-row items-center justify-between gap-5">
               <div className="flex flex-col sm:flex-row items-center gap-4 text-center sm:text-left">
                 <p className="text-xs font-medium" style={{ color: 'rgba(255,255,255,0.28)' }}>
-                  © 2026 TbilisiRealtors.ge — ყველა უფლება დაცულია.
+                  {t('footer.rights', { year: new Date().getFullYear() })}
                 </p>
                 <div className="flex items-center gap-2 flex-wrap justify-center">
                   {[
                     { icon: CheckCircle, label: 'SSL დაცული', color: '#34d399', bg: 'rgba(16,185,129,0.1)' },
-                    { icon: Shield,      label: 'ლიც. პლატფ.', color: '#93c5fd', bg: 'rgba(73,124,255,0.1)' },
+                    { icon: Shield,      label: 'ლიც. პლატფ.', color: '#2563eb', bg: 'rgba(37, 99, 235,0.1)' },
                     { icon: Globe,       label: 'GE · EN · RU', color: '#c4b5fd', bg: 'rgba(139,92,246,0.1)' },
                   ].map(b => (
                     <div

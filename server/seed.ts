@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const ADMIN_EMAIL = 'admin@tbilisirealtors.ge';
+const ADMIN_EMAIL = 'admin@tbilisirealtor.ge';
 const ADMIN_PASSWORD = 'TbilisiAdmin2024!';
 const ADMIN_NAME = 'სუპერ ადმინი';
 
@@ -40,13 +40,13 @@ async function seed() {
 
     // Seed default site settings
     const defaultSettings = [
-      { key: 'site_name', value: 'TbilisiRealtors.ge', label: 'საიტის სახელი' },
-      { key: 'site_email', value: 'info@tbilisirealtors.ge', label: 'კონტაქტის Email' },
+      { key: 'site_name', value: 'TbilisiRealtor.GE', label: 'საიტის სახელი' },
+      { key: 'site_email', value: 'info@tbilisirealtor.ge', label: 'კონტაქტის Email' },
       { key: 'site_phone', value: '+995 596 88 11 55', label: 'ტელეფონი' },
       { key: 'site_phone_2', value: '+995 323 33 33 77', label: 'ტელეფონი 2' },
-      { key: 'site_address', value: 'თბილისი, საქართველო', label: 'მისამართი' },
-      { key: 'facebook_url', value: 'https://facebook.com/tbilisirealtors', label: 'Facebook' },
-      { key: 'instagram_url', value: 'https://instagram.com/tbilisirealtors', label: 'Instagram' },
+      { key: 'site_address', value: 'ქ. თბილისი, ეროსი მანჯგალაძის 81', label: 'მისამართი' },
+      { key: 'facebook_url', value: 'https://facebook.com/tbilisirealtor', label: 'Facebook' },
+      { key: 'instagram_url', value: 'https://instagram.com/tbilisirealtor', label: 'Instagram' },
       { key: 'properties_per_page', value: '12', label: 'განცხადება გვერდზე' },
       { key: 'featured_properties_count', value: '6', label: 'VIP განცხადებები' },
     ];

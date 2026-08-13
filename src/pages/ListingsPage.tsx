@@ -7,16 +7,20 @@ import {
 } from 'lucide-react';
 import PropertyCard from '../components/PropertyCard';
 import { properties, districts } from '../data/mockData';
-
-const SORT_OPTIONS = [
-  { label: 'ახალი პირველი', value: 'newest' },
-  { label: 'ძვ. → იაფი', value: 'price-desc' },
-  { label: 'იაფი → ძვ.', value: 'price-asc' },
-  { label: 'ყ. დიდი', value: 'area-desc' },
-  { label: 'პოპ.', value: 'popular' },
-];
+import { useTranslation } from '../i18n/LocaleContext';
+import { useCurrency } from '../contexts/CurrencyContext';
 
 export default function ListingsPage() {
+  const { t } = useTranslation();
+  const { currencySymbol } = useCurrency();
+
+  const SORT_OPTIONS = useMemo(() => [
+    { label: t('listings.sort.newest'), value: 'newest' },
+    { label: t('listings.sort.priceDesc'), value: 'price-desc' },
+    { label: t('listings.sort.priceAsc'), value: 'price-asc' },
+    { label: t('listings.sort.areaDesc'), value: 'area-desc' },
+    { label: t('listings.sort.popular'), value: 'popular' },
+  ], [t]);
   const [searchParams] = useSearchParams();
   const [view, setView] = useState<'grid' | 'list'>('grid');
   const [showFilters, setShowFilters] = useState(false);
@@ -73,7 +77,7 @@ export default function ListingsPage() {
   });
 
   return (
-    <div className="min-h-screen pt-[56px] lg:pt-[102px]" style={{ background: '#f7f9fb' }}>
+    <div className="min-h-screen pt-[56px] lg:pt-[106px]" style={{ background: '#f7f9fb' }}>
 
       {/* ── Sticky toolbar ── */}
       <div
@@ -88,7 +92,7 @@ export default function ListingsPage() {
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="ქალაქი, რაიონი, მისამართი..."
+                placeholder={t('listings.searchPlaceholder')}
                 className="w-full rounded-xl pl-10 pr-4 py-2.5 text-sm"
                 style={{ background: 'white', border: '1.5px solid #e0e3e5' }}
               />
@@ -99,13 +103,13 @@ export default function ListingsPage() {
               onClick={() => setShowFilters(v => !v)}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all flex-shrink-0"
               style={showFilters || activeCount > 0
-                ? { background: '#4f46e5', color: '#fff', border: '1.5px solid #4f46e5', boxShadow: '0 2px 8px rgba(79,70,229,0.28)' }
+                ? { background: '#2563eb', color: '#fff', border: '1.5px solid #2563eb' }
                 : { background: 'white', color: '#45464d', border: '1.5px solid #e0e3e5' }}
             >
               <SlidersHorizontal size={15} strokeWidth={2} />
-              ფილტრი
+              {t('listings.filter')}
               {activeCount > 0 && (
-                <span className="w-4.5 h-4.5 bg-[#497cff] text-white rounded-full text-[10px] font-bold flex items-center justify-center" style={{ width: 18, height: 18 }}>
+                <span className="w-4.5 h-4.5 bg-[#2563eb] text-white rounded-full text-[10px] font-bold flex items-center justify-center" style={{ width: 18, height: 18 }}>
                   {activeCount}
                 </span>
               )}
@@ -128,7 +132,7 @@ export default function ListingsPage() {
               {([['grid', Grid3X3], ['list', List]] as const).map(([v, Icon]) => (
                 <button key={v} onClick={() => setView(v)}
                   className="p-2.5 transition-colors"
-                  style={view === v ? { background: '#4f46e5', color: '#fff' } : { background: 'white', color: '#76777d' }}>
+                  style={view === v ? { background: '#2563eb', color: '#fff' } : { background: 'white', color: '#76777d' }}>
                   <Icon size={15} strokeWidth={2} />
                 </button>
               ))}
@@ -139,11 +143,11 @@ export default function ListingsPage() {
               onClick={() => setShowMap(v => !v)}
               className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all flex-shrink-0"
               style={showMap
-                ? { background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: '#fff', border: '1.5px solid #059669', boxShadow: '0 2px 8px rgba(5,150,105,0.32)' }
+                ? { background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', color: '#fff', border: '1.5px solid #059669' }
                 : { background: 'white', color: '#45464d', border: '1.5px solid #e0e3e5' }}
             >
               <Map size={15} strokeWidth={2} />
-              <span className="hidden md:inline">რუკა</span>
+              <span className="hidden md:inline">{t('listings.map')}</span>
             </button>
           </div>
         </div>
@@ -163,10 +167,10 @@ export default function ListingsPage() {
             <div className="container-xl py-6">
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
                 {[
-                  { label: 'სტატუსი', key: 'status', opts: [['', 'ყველა'], ['sale', 'იყიდება'], ['rent', 'ქირავ.']] },
-                  { label: 'ქალაქი', key: 'city', opts: [['', 'ყველა'], ['თბილისი', 'თბ.'], ['ბათუმი', 'ბათ.'], ['ქუთაისი', 'ქუთ.'], ['მცხეთა', 'მცხ.'], ['სიღნაღი', 'სიგ.'], ['გორი', 'გორი']] },
-                  { label: 'ტიპი', key: 'type', opts: [['', 'ყველა'], ['apartment', 'ბინა'], ['house', 'სახლი'], ['villa', 'ვილა'], ['commercial', 'კომ.']] },
-                  { label: 'საძინ.', key: 'bedrooms', opts: [['', 'ნება.'], ['1', '1+'], ['2', '2+'], ['3', '3+'], ['4', '4+']] },
+                  { label: t('listings.status'), key: 'status', opts: [['', t('common.all')], ['sale', t('propertyStatus.sale')], ['rent', t('propertyStatus.rent')]] },
+                  { label: t('listings.city'), key: 'city', opts: [['', t('common.all')], ['თბილისი', t('listings.cities.tbilisi')], ['ბათუმი', t('listings.cities.batumi')], ['ქუთაისი', t('listings.cities.kutaisi')], ['მცხეთა', t('listings.cities.mtskheta')], ['სიღნაღი', t('listings.cities.sighnaghi')], ['გორი', t('listings.cities.gori')]] },
+                  { label: t('listings.type'), key: 'type', opts: [['', t('common.all')], ['apartment', t('propertyTypes.apartment')], ['house', t('propertyTypes.house')], ['villa', t('propertyTypes.villa')], ['commercial', t('propertyTypes.commercial')]] },
+                  { label: t('listings.bedrooms'), key: 'bedrooms', opts: [['', t('common.any')], ['1', '1+'], ['2', '2+'], ['3', '3+'], ['4', '4+']] },
                 ].map(f => (
                   <div key={f.key}>
                     <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">{f.label}</label>
@@ -183,7 +187,7 @@ export default function ListingsPage() {
 
                 {/* Rаиon */}
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">რაიონი</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">{t('listings.district')}</label>
                   <select
                     value={filters.district}
                     onChange={e => setF('district', e.target.value)}
@@ -191,14 +195,14 @@ export default function ListingsPage() {
                     className="w-full rounded-xl px-3 py-2.5 text-sm disabled:opacity-40"
                     style={{ background: '#f7f9fb', border: '1.5px solid #e0e3e5', color: '#191c1e' }}
                   >
-                    <option value="">ყველა</option>
+                    <option value="">{t('common.all')}</option>
                     {districtList.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                 </div>
 
                 {/* Price min */}
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">ფ. მინ. $</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">{t('listings.priceMin')} ({currencySymbol})</label>
                   <input type="number" placeholder="0"
                     value={filters.priceMin} onChange={e => setF('priceMin', e.target.value)}
                     className="w-full rounded-xl px-3 py-2.5 text-sm"
@@ -207,7 +211,7 @@ export default function ListingsPage() {
 
                 {/* Price max */}
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">ფ. მაქ. $</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">{t('listings.priceMax')} ({currencySymbol})</label>
                   <input type="number" placeholder="∞"
                     value={filters.priceMax} onChange={e => setF('priceMax', e.target.value)}
                     className="w-full rounded-xl px-3 py-2.5 text-sm"
@@ -216,7 +220,7 @@ export default function ListingsPage() {
 
                 {/* Area min */}
                 <div>
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">ფართ. მ²</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[#76777d] mb-1.5 block">{t('listings.areaMin')}</label>
                   <input type="number" placeholder="0"
                     value={filters.areaMin} onChange={e => setF('areaMin', e.target.value)}
                     className="w-full rounded-xl px-3 py-2.5 text-sm"
@@ -225,7 +229,7 @@ export default function ListingsPage() {
 
                 {/* Checkboxes */}
                 <div className="flex flex-col gap-2 justify-end pb-0.5">
-                  {[['isPremium', 'პრემ.'], ['isNew', 'ახ.']].map(([k, l]) => (
+                  {[['isPremium', t('listings.premiumOnly')], ['isNew', t('listings.newOnly')]].map(([k, l]) => (
                     <label key={k} className="flex items-center gap-2 cursor-pointer text-sm text-[#45464d] font-medium">
                       <input type="checkbox"
                         checked={filters[k as 'isPremium' | 'isNew']}
@@ -240,7 +244,7 @@ export default function ListingsPage() {
                 <div className="flex items-end">
                   <button onClick={clear}
                     className="flex items-center gap-1.5 text-sm text-[#76777d] hover:text-[#ba1a1a] font-semibold transition-colors">
-                    <X size={14} strokeWidth={2} />გასუფ.
+                    <X size={14} strokeWidth={2} />{t('listings.clearFilters')}
                   </button>
                 </div>
               </div>
@@ -248,11 +252,11 @@ export default function ListingsPage() {
               {/* Active chips */}
               {activeCount > 0 && (
                 <div className="flex flex-wrap gap-2 mt-4 pt-4" style={{ borderTop: '1px solid #eceef0' }}>
-                  {filters.status && <Chip label={filters.status === 'sale' ? 'იყ.' : 'ქ.'} onRemove={() => setF('status', '')} />}
+                  {filters.status && <Chip label={filters.status === 'sale' ? t('listings.chipSale') : t('listings.chipRent')} onRemove={() => setF('status', '')} />}
                   {filters.city && <Chip label={filters.city} onRemove={() => setF('city', '')} />}
                   {filters.type && <Chip label={filters.type} onRemove={() => setF('type', '')} />}
-                  {filters.isPremium && <Chip label="პრემ." onRemove={() => setF('isPremium', false)} />}
-                  {filters.isNew && <Chip label="ახ." onRemove={() => setF('isNew', false)} />}
+                  {filters.isPremium && <Chip label={t('listings.chipPremium')} onRemove={() => setF('isPremium', false)} />}
+                  {filters.isNew && <Chip label={t('listings.chipNew')} onRemove={() => setF('isNew', false)} />}
                 </div>
               )}
             </div>
@@ -266,11 +270,11 @@ export default function ListingsPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="font-bold text-[#191c1e] text-xl">
-              {filtered.length} <span className="font-400 text-[#76777d]">განცხადება</span>
+              {t('listings.results', { count: filtered.length })}
             </h1>
             <p className="text-sm text-[#76777d] mt-0.5 flex items-center gap-1">
-              <MapPin size={12} strokeWidth={2} style={{ color: '#497cff' }} />
-              {filters.city || 'საქართველო — ყველა ქ.'}
+              <MapPin size={12} strokeWidth={2} style={{ color: '#2563eb' }} />
+              {filters.city || t('listings.allGeorgia')}
             </p>
           </div>
         </div>
@@ -280,9 +284,9 @@ export default function ListingsPage() {
           {showMap && (
             <div className="sticky top-36 h-[calc(100vh-10rem)] rounded-2xl overflow-hidden map-bg border border-[#e0e3e5]">
               <div className="relative z-10 h-full flex flex-col items-center justify-center text-white">
-                <MapPin size={40} style={{ color: '#497cff', marginBottom: 12 }} strokeWidth={1.5} />
-                <p className="text-xl font-bold mb-1">ინტ. რუკა</p>
-                <p className="text-white/50 text-sm">{filtered.length} განცხადება</p>
+                <MapPin size={40} style={{ color: '#2563eb', marginBottom: 12 }} strokeWidth={1.5} />
+                <p className="text-xl font-bold mb-1">{t('listings.interactiveMap')}</p>
+                <p className="text-white/50 text-sm">{t('listings.results', { count: filtered.length })}</p>
                 <div className="flex flex-wrap gap-2 mt-4 justify-center max-w-xs px-4">
                   {filtered.slice(0, 5).map(p => (
                     <div key={p.id} className="glass-navy rounded-lg px-2.5 py-1 text-xs text-white font-semibold">
@@ -298,9 +302,9 @@ export default function ListingsPage() {
           {filtered.length === 0 ? (
             <div className="text-center py-20 col-span-full">
               <Building2 size={48} strokeWidth={1} className="mx-auto mb-4 text-[#c6c6cd]" />
-              <h3 className="headline-md text-[#45464d] mb-2">შედეგი არ მოიძ.</h3>
-              <p className="text-[#76777d] mb-6">სცადეთ ფილტ. შეცვლა</p>
-              <button onClick={clear} className="btn-primary px-6 py-3 rounded-xl">ფილტ. გასუფ.</button>
+              <h3 className="headline-md text-[#45464d] mb-2">{t('listings.emptyTitle')}</h3>
+              <p className="text-[#76777d] mb-6">{t('listings.emptyHint')}</p>
+              <button onClick={clear} className="btn-primary px-6 py-3 rounded-xl">{t('listings.clearFilters')}</button>
             </div>
           ) : (
             <div>
@@ -328,7 +332,7 @@ export default function ListingsPage() {
                     key={i}
                     className="w-10 h-10 rounded-xl text-sm font-semibold transition-all"
                     style={page === 1
-                      ? { background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)', color: '#fff', boxShadow: '0 2px 8px rgba(79,70,229,0.30)' }
+                      ? { background: 'linear-gradient(135deg, #2563eb 0%, #2563eb 100%)', color: '#fff' }
                       : { background: 'white', color: '#45464d', border: '1.5px solid #e0e3e5' }}
                   >
                     {page}

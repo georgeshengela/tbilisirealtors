@@ -19,6 +19,8 @@ import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPage from './pages/AdminPage';
 import AdminAddListingPage from './pages/AdminAddListingPage';
 import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
+import { LocaleProvider } from './i18n/LocaleContext';
+import { CurrencyProvider } from './contexts/CurrencyContext';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -99,9 +101,13 @@ export default function App() {
 
   return (
     <BrowserRouter>
-      <AdminAuthProvider>
-        <AppContent darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
-      </AdminAuthProvider>
+      <LocaleProvider>
+        <CurrencyProvider>
+          <AdminAuthProvider>
+            <AppContent darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+          </AdminAuthProvider>
+        </CurrencyProvider>
+      </LocaleProvider>
     </BrowserRouter>
   );
 }

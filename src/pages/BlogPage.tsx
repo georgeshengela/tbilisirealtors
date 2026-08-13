@@ -3,11 +3,21 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Clock, ArrowRight, Tag } from 'lucide-react';
 import { blogPosts } from '../data/mockData';
+import { useTranslation } from '../i18n/LocaleContext';
 
-const categories = ['ყველა', 'ბაზრის ანალიზი', 'გზამკვლევი', 'ინვესტიცია', 'ცხოვრების სტილი', 'დიზაინი'];
+const CATEGORY_VALUES = ['ყველა', 'ბაზრის ანალიზი', 'გზამკვლევი', 'ინვესტიცია', 'ცხოვრების სტილი', 'დიზაინი'] as const;
 
 export default function BlogPage() {
-  const [activeCategory, setActiveCategory] = useState('ყველა');
+  const { t } = useTranslation();
+  const categoryLabels: Record<string, string> = {
+    'ყველა': t('common.all'),
+    'ბაზრის ანალიზი': t('nav.blogMega.market'),
+    'გზამკვლევი': t('nav.blogMega.guide'),
+    'ინვესტიცია': t('nav.blogMega.invest'),
+    'ცხოვრების სტილი': t('blog.title'),
+    'დიზაინი': t('nav.blogMega.design'),
+  };
+  const [activeCategory, setActiveCategory] = useState<string>('ყველა');
   const [search, setSearch] = useState('');
 
   const filtered = blogPosts.filter(post => {
@@ -19,18 +29,14 @@ export default function BlogPage() {
   const featured = blogPosts.find(p => p.isFeatured) || blogPosts[0];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[102px]">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px]">
       {/* Hero */}
       <div className="bg-gradient-to-br from-slate-900 to-blue-900 py-20">
         <div className="container-xl text-center">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-            <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">ბლოგი</span>
-            <h1 className="text-4xl lg:text-5xl font-bold text-white mt-3 mb-4">
-              სიახლეები & გზამკვლევი
-            </h1>
-            <p className="text-slate-400 text-lg max-w-xl mx-auto">
-              ბაზრის ანალიზი, ექსპერტების რჩევები და სასარგებლო სახელმძღვანელო
-            </p>
+            <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">{t('blog.badge')}</span>
+            <h1 className="text-4xl lg:text-5xl font-bold text-white mt-3 mb-4">{t('blog.title')}</h1>
+            <p className="text-slate-400 text-lg max-w-xl mx-auto">{t('blog.subtitle')}</p>
           </motion.div>
         </div>
       </div>
@@ -48,7 +54,7 @@ export default function BlogPage() {
                 />
                 <div className="absolute top-4 left-4">
                   <span className="bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded-full">
-                    გამორჩეული
+                    {t('blog.featured')}
                   </span>
                 </div>
               </div>
@@ -72,13 +78,13 @@ export default function BlogPage() {
                   <div>
                     <p className="font-semibold text-slate-800 dark:text-white text-sm">{featured.author.name}</p>
                     <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <span className="flex items-center gap-1"><Clock size={11} />{featured.readTime} წთ.</span>
+                      <span className="flex items-center gap-1"><Clock size={11} />{t('blog.readTime', { min: featured.readTime })}</span>
                       <span>{featured.publishDate}</span>
                     </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 text-blue-600 font-semibold">
-                  სრულად წაკითხვა
+                  {t('common.readMore')}
                   <ArrowRight size={18} className="group-hover:translate-x-1 transition-transform" />
                 </div>
               </div>
@@ -93,22 +99,22 @@ export default function BlogPage() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="სტატიის ძებნა..."
-              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-11 pr-4 py-3 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-white"
+              placeholder={t('blog.searchPlaceholder')}
+              className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl pl-11 pr-4 py-3 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white"
             />
           </div>
           <div className="flex gap-2 flex-wrap">
-            {categories.map(cat => (
+            {CATEGORY_VALUES.map(cat => (
               <button
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
                 className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   activeCategory === cat
-                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20'
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20'
                     : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:border-blue-300'
                 }`}
               >
-                {cat}
+                {categoryLabels[cat] ?? cat}
               </button>
             ))}
           </div>
@@ -159,7 +165,7 @@ export default function BlogPage() {
                     </div>
                     <div className="flex items-center gap-2 text-xs text-slate-400">
                       <Clock size={12} />
-                      <span>{post.readTime} წთ.</span>
+                      <span>{t('blog.readTime', { min: post.readTime })}</span>
                     </div>
                   </div>
                 </div>

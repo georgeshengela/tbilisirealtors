@@ -1,129 +1,45 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Building2, Menu, X, ChevronDown, Heart, User, Moon, Sun, Search,
-  Phone, Home, MapPin, Users, BookOpen, Info, MessageSquare,
-  Tag, Key, Star, Layers, TrendingUp, DollarSign, Map,
-  ArrowRight, Sparkles, Plus, Globe, Newspaper,
-  HardHat, Calculator, UserCheck, BarChart3,
+  Menu, X, ChevronDown, Heart, User, Moon, Sun, Search,
+  Phone, ArrowRight, Star,
 } from 'lucide-react';
+import BrandLogo from './BrandLogo';
 import { CONTACT } from '../data/contactInfo';
+import LocaleCurrencySwitcher from './LocaleCurrencySwitcher';
+import { useLocale } from '../i18n/LocaleContext';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { buildNavItems } from '../i18n/navItems';
+
+/* ─── design tokens — match hero / search panel ─── */
+const UI = {
+  radius: 12,       /* rounded-xl — buttons, icon tiles, nav pills */
+  radiusLg: 16,     /* rounded-2xl — mega menu items */
+  radiusXl: 20,     /* 1.25rem — mega menu card, matches hero card */
+  btnH: 40,
+  border: '#e4e6ea',
+  borderLight: '#f0f2f5',
+  surfaceMuted: '#f2f4f6',
+  ink: '#191c1e',
+  muted: '#76777d',
+  accent: '#2563eb',
+} as const;
 
 /* ─── height constants (exported so pages can use) ─── */
 export const HEADER_ROW1 = 56;
-export const HEADER_ROW2 = 46;
-export const HEADER_H    = HEADER_ROW1 + HEADER_ROW2; // 102 px
-
-/* ══════════════════════════════════════════════════
-   NAV STRUCTURE
-══════════════════════════════════════════════════ */
-const navItems = [
-  {
-    label: 'განცხადებები',
-    href:  '/listings',
-    icon:  Building2,
-    mega: {
-      title: 'განცხადებების კატეგორიები',
-      columns: [
-        {
-          heading: 'ქონების ტიპი',
-          color:   '#497cff',
-          items: [
-            { label: 'ბინები',       href: '/listings?type=apartment', icon: Building2, color: '#497cff', desc: 'ქალაქური ბინები'   },
-            { label: 'კერძო სახლი',  href: '/listings?type=house',     icon: Home,      color: '#10b981', desc: 'კოტეჯი, ვილა'     },
-            { label: 'კომერციული',   href: '/listings?type=commercial', icon: Layers,    color: '#f59e0b', desc: 'ოფისი, მაღაზია'   },
-            { label: 'მიწის ნაკვ.',  href: '/listings?type=land',      icon: MapPin,    color: '#8b5cf6', desc: 'სასოფლო, ქ. მიწა' },
-          ],
-        },
-        {
-          heading: 'გარიგების ტიპი',
-          color:   '#10b981',
-          items: [
-            { label: 'იყიდება',    href: '/listings?status=sale',   icon: Tag,        color: '#f59e0b', desc: 'შესაძენი ობიექტები'  },
-            { label: 'ქირავდება',  href: '/listings?status=rent',   icon: Key,        color: '#10b981', desc: 'ქირით ასაღები'        },
-            { label: 'VIP / პრემ.', href: '/listings?premium=true', icon: Sparkles,   color: '#ec4899', desc: 'ელიტური ობიექტები'   },
-            { label: 'ახლახ. დამ.', href: '/listings?new=true',    icon: TrendingUp,  color: '#22c55e', desc: 'ბოლო 7 დღე'         },
-          ],
-        },
-        {
-          heading: 'ქალაქის მიხ.',
-          color:   '#ef4444',
-          items: [
-            { label: 'თბილისი', href: '/listings?city=tbilisi', icon: MapPin, color: '#ef4444', desc: '2,847 განცხ.' },
-            { label: 'ბათუმი',  href: '/listings?city=batumi',  icon: MapPin, color: '#0ea5e9', desc: '1,234 განცხ.' },
-            { label: 'ქუთაისი', href: '/listings?city=kutaisi', icon: MapPin, color: '#8b5cf6', desc: '567 განცხ.'   },
-            { label: 'ყველა ქ.', href: '/listings',             icon: Map,    color: '#64748b', desc: 'სრული სია'    },
-          ],
-        },
-      ],
-      featured: {
-        image: 'https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=400&q=80',
-        title: 'მთაწმინდის ვილა',
-        price: '₾1,200,000',
-        label: 'თვის გამორჩეული',
-        href:  '/property/p7',
-      },
-    },
-  },
-  {
-    label: 'ახალი პროექტები',
-    href:  '/listings?new=true',
-    icon:  HardHat,
-    badge: 'NEW',
-  },
-  {
-    label: 'სააგენტოები',
-    href:  '/agents',
-    icon:  Users,
-    mega: {
-      title: 'სპეციალისტები & სერვისები',
-      columns: [
-        {
-          heading: 'სააგენტოები',
-          color:   '#497cff',
-          items: [
-            { label: 'ყველა აგენტი',      href: '/agents',               icon: Users,     color: '#497cff', desc: '350+ სპეციალ.'    },
-            { label: 'ვერიფიც. აგენტი',   href: '/agents?verified=true', icon: UserCheck, color: '#10b981', desc: 'სანდო პარტნ.'      },
-            { label: 'ბაზრის ანალიზი',    href: '/blog?cat=market',      icon: BarChart3, color: '#f59e0b', desc: 'ექსპ. ანალიზი'     },
-            { label: 'ინვ. კონსულტ.',     href: '/contact',              icon: DollarSign, color: '#8b5cf6', desc: 'ინვ. კონსულტ.'    },
-          ],
-        },
-      ],
-    },
-  },
-  {
-    label: 'ბინის შეფასება',
-    href:  '/contact',
-    icon:  Calculator,
-  },
-  {
-    label: 'ბლოგი',
-    href:  '/blog',
-    icon:  Newspaper,
-    mega: {
-      title: 'სტატიები & გზამკვლევი',
-      columns: [
-        {
-          heading: 'კატეგორია',
-          color:   '#0ea5e9',
-          items: [
-            { label: 'ბაზრის ანალიზი',  href: '/blog?cat=market',  icon: BarChart3, color: '#0ea5e9', desc: '2026 ტენდ.'   },
-            { label: 'ყიდვა-გაყიდვა',   href: '/blog?cat=guide',   icon: BookOpen,  color: '#497cff', desc: 'გზამკვლევი'   },
-            { label: 'ინვესტიციები',    href: '/blog?cat=invest',  icon: TrendingUp, color: '#22c55e', desc: 'ROI ანალიზი'  },
-            { label: 'ინტ. დიზაინი',    href: '/blog?cat=design',  icon: Sparkles,  color: '#ec4899', desc: 'ტენდ. 2026'   },
-          ],
-        },
-      ],
-    },
-  },
-  { label: 'ჩვენ შესახებ', href: '/about',   icon: Info        },
-  { label: 'კონტაქტი',    href: '/contact', icon: MessageSquare },
-];
+export const HEADER_ROW2 = 50;
+export const HEADER_H    = HEADER_ROW1 + HEADER_ROW2; // 106 px
 
 interface HeaderProps { darkMode: boolean; toggleDarkMode: () => void; }
 
 export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
+  const { t } = useLocale();
+  const { formatMoney } = useCurrency();
+  const navItems = useMemo(
+    () => buildNavItems(t, (amount) => formatMoney(amount)),
+    [t, formatMoney],
+  );
   const [scrolled, setScrolled]             = useState(false);
   const [mobileOpen, setMobileOpen]         = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
@@ -155,286 +71,212 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
       <header style={{
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 50,
         background: '#ffffff',
-        borderBottom: scrolled ? 'none' : '1px solid #edf0f3',
-        boxShadow: scrolled ? '0 4px 32px rgba(0,0,0,0.10)' : 'none',
-        transition: 'box-shadow 0.3s',
+        borderBottom: scrolled ? 'none' : `1px solid ${UI.borderLight}`,
+        boxShadow: scrolled
+          ? '0 10px 40px rgba(15,20,35,0.08), 0 1px 0 rgba(228,230,234,0.6)'
+          : 'none',
+        transition: 'box-shadow 0.25s ease, border-color 0.25s ease',
       }}>
 
         {/* ─────────── ROW 1 : Brand + Utility ─────────── */}
-        <div style={{ borderBottom: '1px solid #edf0f3' }}>
-          <div className="container-xl">
-            <div style={{ display: 'flex', alignItems: 'center', height: HEADER_ROW1, gap: 10 }}>
+        <div className="container-xl">
+          <div style={{ display: 'flex', alignItems: 'center', height: HEADER_ROW1, gap: 16 }}>
 
-              {/* Logo */}
-              <Link to="/"
-                style={{ display: 'flex', alignItems: 'center', gap: 10, marginRight: 8, flexShrink: 0, textDecoration: 'none' }}
-              >
-                <div style={{
-                  width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                  background: 'linear-gradient(135deg, #1a1f2e 0%, #2a3a6e 100%)',
+            <BrandLogo size="md" responsiveText className="flex-shrink-0" />
+
+            {/* Utility toolbar */}
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+
+              <LocaleCurrencySwitcher className="hidden xl:flex" />
+
+              <Link to="/favorites"
+                title={t('common.favorites')}
+                style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  boxShadow: '0 2px 8px rgba(73,124,255,0.3)',
-                }}>
-                  <Building2 size={18} color="#fff" strokeWidth={2} />
-                </div>
-                <div className="hidden sm:block">
-                  <div style={{ fontWeight: 800, fontSize: 15, color: '#111827', lineHeight: 1.2, letterSpacing: '-0.02em' }}>
-                    TbilisiRealtors<span style={{ color: '#497cff' }}>.ge</span>
-                  </div>
-                  <div style={{ fontWeight: 500, fontSize: 10.5, color: '#9ca3af', lineHeight: 1, marginTop: 1, letterSpacing: '0.02em' }}>
-                    პრემიუმ უძრავი ქონება
-                  </div>
-                </div>
+                  position: 'relative', width: 38, height: 38, borderRadius: UI.radius,
+                  border: `1.5px solid ${UI.border}`, background: '#fff',
+                  color: '#6b7280', textDecoration: 'none', transition: 'all 0.15s', flexShrink: 0,
+                }}
+                onMouseEnter={e => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.borderColor = '#fecaca'; el.style.background = '#fff5f5'; el.style.color = '#ef4444';
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.borderColor = UI.border; el.style.background = '#fff'; el.style.color = '#6b7280';
+                }}
+              >
+                <Heart size={16} strokeWidth={2} />
+                <span style={{
+                  position: 'absolute', top: -5, right: -5,
+                  width: 17, height: 17, borderRadius: '50%',
+                  background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 800,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  border: '2px solid #fff',
+                }}>3</span>
               </Link>
 
-              {/* ── Right utility strip ── */}
-              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Link to="/login" className="hidden lg:flex"
+                style={{
+                  alignItems: 'center', gap: 7,
+                  height: 38, padding: '0 14px',
+                  borderRadius: UI.radius, border: `1.5px solid ${UI.border}`,
+                  fontSize: 13, fontWeight: 600, color: UI.ink,
+                  textDecoration: 'none', background: '#fff',
+                  transition: 'all 0.15s', flexShrink: 0,
+                }}
+                onMouseEnter={e => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.borderColor = 'rgba(37,99,235,0.45)'; el.style.background = '#eff6ff'; el.style.color = UI.accent;
+                }}
+                onMouseLeave={e => {
+                  const el = e.currentTarget as HTMLElement;
+                  el.style.borderColor = UI.border; el.style.background = '#fff'; el.style.color = UI.ink;
+                }}
+              >
+                <User size={15} strokeWidth={2} />
+                {t('common.login')}
+              </Link>
 
-                {/* Language/Currency */}
-                <button className="hidden xl:flex"
-                  style={{
-                    alignItems: 'center', gap: 5,
-                    height: 36, padding: '0 13px',
-                    borderRadius: 9, border: '1.5px solid #e5e7eb',
-                    background: 'transparent', cursor: 'pointer',
-                    fontSize: 13, fontWeight: 600, color: '#374151',
-                    transition: 'all 0.15s', flexShrink: 0,
-                  }}
-                  onMouseEnter={e => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = '#c7d2fe'; el.style.background = '#f0f4ff'; el.style.color = '#4f46e5';
-                  }}
-                  onMouseLeave={e => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = '#e5e7eb'; el.style.background = 'transparent'; el.style.color = '#374151';
-                  }}
-                >
-                  <Globe size={13} strokeWidth={2} />
-                  <span>ქართ. — ₾</span>
-                  <ChevronDown size={11} strokeWidth={2.5} style={{ color: '#9ca3af' }} />
-                </button>
-
-                {/* Favorites */}
-                <Link to="/favorites"
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    position: 'relative', width: 36, height: 36, borderRadius: 9,
-                    border: '1.5px solid #e5e7eb', background: 'transparent',
-                    color: '#6b7280', textDecoration: 'none', transition: 'all 0.15s', flexShrink: 0,
-                  }}
-                  onMouseEnter={e => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = '#fca5a5'; el.style.background = '#fff1f2'; el.style.color = '#ef4444';
-                  }}
-                  onMouseLeave={e => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = '#e5e7eb'; el.style.background = 'transparent'; el.style.color = '#6b7280';
-                  }}
-                >
-                  <Heart size={15} strokeWidth={2} />
-                  <span style={{
-                    position: 'absolute', top: -5, right: -5,
-                    width: 17, height: 17, borderRadius: '50%',
-                    background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 800,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: '2px solid #fff', boxShadow: '0 2px 6px rgba(239,68,68,0.45)',
-                  }}>3</span>
-                </Link>
-
-                {/* ─ Divider ─ */}
-                <div className="hidden lg:block" style={{ width: 1, height: 24, background: '#e5e7eb', flexShrink: 0 }} />
-
-                {/* Single auth button — შესვლა / დარეგ. */}
-                <Link to="/login" className="hidden lg:flex"
-                  style={{
-                    alignItems: 'center', gap: 7,
-                    height: 36, padding: '0 16px',
-                    borderRadius: 9, border: '1.5px solid #e5e7eb',
-                    fontSize: 13.5, fontWeight: 600, color: '#374151',
-                    textDecoration: 'none', background: '#fff',
-                    transition: 'all 0.15s', flexShrink: 0,
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
-                  }}
-                  onMouseEnter={e => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = '#d1d5db'; el.style.color = '#111827';
-                    el.style.boxShadow = '0 2px 8px rgba(0,0,0,0.10)';
-                  }}
-                  onMouseLeave={e => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.borderColor = '#e5e7eb'; el.style.color = '#374151';
-                    el.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)';
-                  }}
-                >
-                  <div style={{
-                    width: 22, height: 22, borderRadius: 7, flexShrink: 0,
-                    background: '#f3f4f6',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <User size={12} strokeWidth={2.2} style={{ color: '#374151' }} />
-                  </div>
-                  შესვლა
-                </Link>
-
-                {/* + განცხადების დამატება — pill, green gradient */}
-                <Link to="/admin/listings/new" className="hidden sm:flex"
-                  style={{
-                    alignItems: 'center', gap: 8,
-                    height: 38, padding: '0 18px 0 6px',
-                    borderRadius: 999, textDecoration: 'none', flexShrink: 0,
-                    background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                    color: '#fff',
-                    fontSize: 13.5, fontWeight: 700, letterSpacing: '-0.01em',
-                    border: 'none',
-                    transition: 'all 0.18s',
-                    boxShadow: '0 3px 12px rgba(5,150,105,0.35)',
-                  }}
-                  onMouseEnter={e => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
-                    el.style.boxShadow = '0 6px 20px rgba(5,150,105,0.45)';
-                    el.style.transform = 'translateY(-1px)';
-                  }}
-                  onMouseLeave={e => {
-                    const el = e.currentTarget as HTMLElement;
-                    el.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
-                    el.style.boxShadow = '0 3px 12px rgba(5,150,105,0.35)';
-                    el.style.transform = 'none';
-                  }}
-                >
-                  <div style={{
-                    width: 26, height: 26, borderRadius: 999, flexShrink: 0,
-                    background: 'rgba(255,255,255,0.22)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    <Plus size={14} strokeWidth={2.8} />
-                  </div>
-                  განცხ. დამატება
-                </Link>
-
-                {/* Burger — mobile only */}
-                <button
-                  onClick={() => setMobileOpen(!mobileOpen)}
-                  className="flex lg:hidden"
-                  style={{
-                    width: 38, height: 38, borderRadius: 10,
-                    border: '1.5px solid #e5e7eb', background: 'transparent',
-                    alignItems: 'center', justifyContent: 'center',
-                    cursor: 'pointer', color: '#111827', flexShrink: 0, transition: 'all 0.15s',
-                  }}
-                >
-                  {mobileOpen ? <X size={19} strokeWidth={2} /> : <Menu size={19} strokeWidth={2} />}
-                </button>
-              </div>
+              <button
+                onClick={() => setMobileOpen(!mobileOpen)}
+                className="flex lg:hidden"
+                style={{
+                  width: 38, height: 38, borderRadius: UI.radius,
+                  border: `1.5px solid ${UI.border}`, background: '#fff',
+                  alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: UI.ink, flexShrink: 0,
+                }}
+              >
+                {mobileOpen ? <X size={18} strokeWidth={2} /> : <Menu size={18} strokeWidth={2} />}
+              </button>
             </div>
           </div>
         </div>
 
-        {/* ─────────── ROW 2 : Navigation + Phone (desktop) ─────────── */}
+        {/* ─────────── ROW 2 : Category navigation (desktop) ─────────── */}
         <div className="hidden lg:block" style={{ background: '#fff' }}>
           <div className="container-xl">
-            <div style={{ display: 'flex', alignItems: 'center', height: HEADER_ROW2 }}>
-
-              {/* Nav */}
-              <nav style={{ display: 'flex', alignItems: 'center', flex: 1, gap: 2 }}>
+            <div
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                height: HEADER_ROW2, gap: 14,
+                borderTop: `1px solid ${UI.borderLight}`,
+                padding: '7px 0',
+              }}
+            >
+              <nav style={{ display: 'flex', alignItems: 'center', flex: 1, gap: 6, minWidth: 0, overflow: 'hidden' }}>
                 {navItems.map((item) => {
                   const isActive = location.pathname === item.href;
                   const hasMega  = 'mega' in item && !!item.mega;
                   const isOpen   = activeDropdown === item.label;
+                  const on       = isActive || isOpen;
+                  const Icon     = item.icon;
 
                   return (
-                    <div key={item.label} style={{ position: 'relative' }}
+                    <div
+                      key={item.label}
+                      style={{ position: 'relative', flexShrink: 0 }}
                       onMouseEnter={() => hasMega && openDrop(item.label)}
                       onMouseLeave={closeDrop}
                     >
-                      <Link to={item.href}
+                      <Link
+                        to={item.href}
                         style={{
-                          display: 'flex', alignItems: 'center', gap: 5,
-                          padding: '5px 11px', borderRadius: 8,
-                          fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap',
-                          textDecoration: 'none', transition: 'all 0.15s',
-                          color: isActive ? '#4f46e5' : '#374151',
-                          background: isActive ? '#f0f4ff' : 'transparent',
-                          position: 'relative',
+                          display: 'inline-flex', alignItems: 'center', gap: 8,
+                          height: 36, padding: '0 12px 0 5px',
+                          borderRadius: UI.radius,
+                          fontSize: 13, fontWeight: 600,
+                          whiteSpace: 'nowrap', textDecoration: 'none',
+                          boxSizing: 'border-box',
+                          color: on ? UI.accent : UI.ink,
+                          background: on ? 'rgba(37,99,235,0.07)' : '#fff',
+                          border: `1.5px solid ${on ? UI.accent : UI.border}`,
+                          transition: 'color 0.18s ease, background 0.18s ease, border-color 0.18s ease',
                         }}
                         onMouseEnter={e => {
-                          if (!isActive) {
-                            (e.currentTarget as HTMLElement).style.color = '#111827';
-                            (e.currentTarget as HTMLElement).style.background = '#f3f4f6';
-                          }
+                          if (on) return;
+                          const el = e.currentTarget as HTMLElement;
+                          el.style.borderColor = 'rgba(37,99,235,0.35)';
+                          el.style.background = '#f8faff';
+                          el.style.color = UI.accent;
                         }}
                         onMouseLeave={e => {
-                          if (!isActive) {
-                            (e.currentTarget as HTMLElement).style.color = '#374151';
-                            (e.currentTarget as HTMLElement).style.background = 'transparent';
-                          }
+                          if (on) return;
+                          const el = e.currentTarget as HTMLElement;
+                          el.style.borderColor = UI.border;
+                          el.style.background = '#fff';
+                          el.style.color = UI.ink;
                         }}
                       >
-                        <item.icon size={13.5} strokeWidth={2}
-                          style={{ color: isActive ? '#4f46e5' : '#9ca3af', flexShrink: 0 }} />
+                        <span style={{
+                          width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                          boxSizing: 'border-box',
+                          background: on ? UI.accent : '#f3f4f7',
+                          border: `1px solid ${on ? UI.accent : '#eceef0'}`,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'background 0.18s ease, border-color 0.18s ease',
+                        }}>
+                          <Icon size={13} strokeWidth={2.2} style={{ color: on ? '#fff' : '#9ca3af' }} />
+                        </span>
                         {item.label}
                         {'badge' in item && item.badge && (
                           <span style={{
-                            fontSize: 9, fontWeight: 800, padding: '2px 5px',
-                            borderRadius: 4, background: '#ef4444', color: '#fff',
+                            fontSize: 9, fontWeight: 800, padding: '2px 6px',
+                            borderRadius: 6, background: '#ef4444', color: '#fff',
                             letterSpacing: '0.04em',
                           }}>{item.badge}</span>
                         )}
                         {hasMega && (
                           <ChevronDown size={11} strokeWidth={2.5}
                             style={{
-                              color: '#9ca3af', flexShrink: 0,
+                              width: 11, height: 11, flexShrink: 0,
+                              color: on ? UI.accent : '#b0b2ba',
                               transform: isOpen ? 'rotate(180deg)' : 'none',
-                              transition: 'transform 0.2s',
+                              transition: 'transform 0.2s, color 0.18s ease',
                             }}
                           />
                         )}
-                        {/* Active underline dot */}
-                        {isActive && (
-                          <span style={{
-                            position: 'absolute', bottom: -1, left: '50%',
-                            transform: 'translateX(-50%)',
-                            width: 18, height: 2.5, borderRadius: 99,
-                            background: '#4f46e5',
-                          }} />
-                        )}
                       </Link>
-
                     </div>
                   );
                 })}
               </nav>
 
-              {/* Phone — right */}
+              {/* Contact cluster */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                <a href={`tel:${CONTACT.phone.tel}`}
+                <a
+                  href={`tel:${CONTACT.phone.tel}`}
                   style={{
-                    display: 'flex', alignItems: 'center', gap: 7,
-                    padding: '6px 12px', borderRadius: 9,
-                    fontSize: 13, fontWeight: 700, color: '#374151',
-                    textDecoration: 'none', transition: 'all 0.15s',
-                    border: '1.5px solid transparent',
+                    display: 'inline-flex', alignItems: 'center', gap: 9,
+                    height: 36, padding: '0 14px 0 5px',
+                    borderRadius: UI.radius, textDecoration: 'none',
+                    background: 'linear-gradient(135deg, #eff6ff 0%, #fff 100%)',
+                    border: '1.5px solid rgba(37,99,235,0.22)',
+                    transition: 'all 0.18s ease',
                   }}
                   onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.background = '#f0f4ff';
-                    (e.currentTarget as HTMLElement).style.borderColor = '#c7d2fe';
-                    (e.currentTarget as HTMLElement).style.color = '#4f46e5';
+                    (e.currentTarget as HTMLElement).style.borderColor = UI.accent;
                   }}
                   onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.background = 'transparent';
-                    (e.currentTarget as HTMLElement).style.borderColor = 'transparent';
-                    (e.currentTarget as HTMLElement).style.color = '#374151';
+                    (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37,99,235,0.22)';
                   }}
                 >
-                  <div style={{
-                    width: 26, height: 26, borderRadius: 7,
-                    background: 'linear-gradient(135deg, #497cff, #6366f1)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                  <span style={{
+                    width: 26, height: 26, borderRadius: 8, flexShrink: 0,
+                    background: UI.accent,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
                   }}>
-                    <Phone size={12} color="#fff" strokeWidth={2.2} />
-                  </div>
-                  <span style={{ color: 'rgba(55,65,81,0.55)', fontWeight: 600, fontSize: 12 }}>{CONTACT.phone.label}:</span>
-                  {CONTACT.phone.display}
+                    <Phone size={12} strokeWidth={2.5} style={{ color: '#fff' }} />
+                  </span>
+                  <span>
+                    <span style={{ display: 'block', fontSize: 10, fontWeight: 600, color: UI.muted, lineHeight: 1.1 }}>
+                      {CONTACT.phone.label}
+                    </span>
+                    <span style={{ display: 'block', fontSize: 13, fontWeight: 800, color: UI.ink, lineHeight: 1.2, letterSpacing: '-0.01em' }}>
+                      {CONTACT.phone.display}
+                    </span>
+                  </span>
                 </a>
                 <a
                   href={CONTACT.mobile.whatsapp}
@@ -442,13 +284,25 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                   rel="noopener noreferrer"
                   title={`WhatsApp ${CONTACT.mobile.label}`}
                   style={{
-                    width: 28, height: 28, borderRadius: 8,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: 'rgba(37,211,102,0.12)', color: '#16a34a',
-                    border: '1.5px solid rgba(37,211,102,0.25)', textDecoration: 'none',
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    width: 36, height: 36, borderRadius: UI.radius,
+                    background: 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, #fff 100%)',
+                    color: '#059669',
+                    border: '1.5px solid rgba(16,185,129,0.28)',
+                    textDecoration: 'none', transition: 'all 0.18s ease',
+                  }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = '#10b981';
+                    el.style.background = 'rgba(16,185,129,0.12)';
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = 'rgba(16,185,129,0.28)';
+                    el.style.background = 'linear-gradient(135deg, rgba(16,185,129,0.1) 0%, #fff 100%)';
                   }}
                 >
-                  <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.435 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413z"/>
                   </svg>
                 </a>
@@ -477,34 +331,39 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                 <div className="container-xl">
                   <div style={{
                     background: '#fff',
-                    borderRadius: 16,
-                    boxShadow: '0 20px 60px rgba(15,23,42,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
+                    borderRadius: UI.radiusXl,
+                    boxShadow: '0 22px 56px rgba(15,20,35,0.16), 0 0 0 1px rgba(228,230,234,0.9)',
                     overflow: 'hidden',
                     marginBottom: 12,
                   }}>
-                  {/* Accent header bar */}
+                  {/* Accent rail — matches search card */}
+                  <div
+                    className="h-[3px]"
+                    style={{ background: 'linear-gradient(90deg, #2563eb 0%, #2563eb 55%, #10b981 100%)' }}
+                  />
+                  {/* Mega header bar */}
                   <div style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '14px 22px 13px',
-                    borderBottom: '1px solid #f0f2f5',
-                    background: 'linear-gradient(135deg, #fafbff 0%, #f8f9fb 100%)',
+                    borderBottom: `1px solid ${UI.borderLight}`,
+                    background: 'linear-gradient(180deg, #fafbfc 0%, #fff 100%)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       <div style={{
-                        width: 26, height: 26, borderRadius: 8,
-                        background: 'linear-gradient(135deg, #497cff, #6366f1)',
+                        width: 32, height: 32, borderRadius: UI.radius,
+                        background: UI.accent,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                       }}>
-                        <activeItem.icon size={13} color="#fff" strokeWidth={2.5} />
+                        <activeItem.icon size={15} color="#fff" strokeWidth={2.5} />
                       </div>
-                      <span style={{ fontSize: 11.5, fontWeight: 700, color: '#6366f1', letterSpacing: '0.09em', textTransform: 'uppercase' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: UI.accent, letterSpacing: '0.09em', textTransform: 'uppercase' }}>
                         {mega.title}
                       </span>
                     </div>
                     <Link to={activeItem.href}
-                      style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 600, color: '#6366f1', textDecoration: 'none' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12.5, fontWeight: 600, color: UI.accent, textDecoration: 'none' }}
                     >
-                      ყველა <ArrowRight size={13} />
+                      {t('common.viewAll')} <ArrowRight size={13} />
                     </Link>
                   </div>
 
@@ -526,15 +385,15 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                             <Link key={nav.label} to={nav.href}
                               style={{
                                 display: 'flex', alignItems: 'center', gap: 12,
-                                padding: '9px 10px', borderRadius: 12,
+                                padding: '9px 10px', borderRadius: UI.radius,
                                 textDecoration: 'none', marginBottom: 2,
                                 transition: 'background 0.12s',
                               }}
-                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f7f8fb'}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = UI.surfaceMuted}
                               onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                             >
                               <div style={{
-                                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                                width: 36, height: 36, borderRadius: UI.radius, flexShrink: 0,
                                 background: `${nav.color}16`,
                                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                               }}>
@@ -570,13 +429,13 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                           <div style={{
                             display: 'inline-flex', alignItems: 'center', gap: 4,
                             padding: '3px 10px', borderRadius: 20, marginBottom: 8,
-                            background: 'linear-gradient(135deg,#497cff,#6366f1)',
+                            background: 'linear-gradient(135deg,#2563eb,#2563eb)',
                           }}>
                             <Star size={9} color="#fff" strokeWidth={2.5} />
                             <span style={{ fontSize: 9.5, fontWeight: 800, color: '#fff', letterSpacing: '0.06em' }}>FEATURED</span>
                           </div>
                           <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', lineHeight: 1.3 }}>{mega.featured.title}</p>
-                          <p style={{ fontSize: 16, fontWeight: 800, color: '#4f46e5', marginTop: 5 }}>{mega.featured.price}</p>
+                          <p style={{ fontSize: 16, fontWeight: 800, color: '#2563eb', marginTop: 5 }}>{mega.featured.price}</p>
                         </Link>
                       </div>
                     )}
@@ -617,26 +476,19 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
               {/* Header */}
               <div style={{
                 padding: '20px 16px 18px', flexShrink: 0,
-                background: 'linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%)',
+                background: '#0f172a',
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                      background: 'rgba(255,255,255,0.15)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Building2 size={18} color="#fff" strokeWidth={2} />
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 800, fontSize: 14.5, color: '#fff', lineHeight: 1.2 }}>TbilisiRealtors<span style={{ color: '#93c5fd' }}>.ge</span></div>
-                      <div style={{ fontWeight: 500, fontSize: 10.5, color: 'rgba(147,197,253,0.75)', lineHeight: 1, marginTop: 1 }}>პრემიუმ უძრავი ქონება</div>
-                    </div>
-                  </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <BrandLogo
+                    variant="dark"
+                    size="md"
+                    tagline={t('header.tagline')}
+                    href="/"
+                  />
                   <button onClick={() => setMobileOpen(false)}
                     style={{
-                      width: 34, height: 34, borderRadius: 9, border: 'none',
-                      background: 'rgba(255,255,255,0.12)', cursor: 'pointer',
+                      width: 40, height: 40, borderRadius: 12, border: 'none',
+                      background: 'rgba(255,255,255,0.10)', cursor: 'pointer',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0,
                     }}>
                     <X size={18} strokeWidth={2} />
@@ -645,38 +497,35 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                 {/* Search */}
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 10,
-                  background: 'rgba(255,255,255,0.12)', borderRadius: 12,
-                  padding: '11px 14px', border: '1px solid rgba(255,255,255,0.18)',
+                  background: 'rgba(255,255,255,0.08)', borderRadius: 12,
+                  padding: '11px 14px', border: '1px solid rgba(255,255,255,0.14)',
                 }}>
                   <Search size={14} style={{ color: 'rgba(255,255,255,0.5)', flexShrink: 0 }} />
-                  <input placeholder="განცხადების ძებნა..."
+                  <input placeholder={t('header.searchPlaceholder')}
                     style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 14, color: '#fff', flex: 1, boxShadow: 'none' }} />
                 </div>
               </div>
 
               {/* Quick actions */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 16px', borderBottom: '1px solid #f1f5f9', flexShrink: 0 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 16px', borderBottom: `1px solid ${UI.borderLight}`, flexShrink: 0 }}>
+                <LocaleCurrencySwitcher className="w-full" compact />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <a href={`tel:${CONTACT.phone.tel}`}
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', borderRadius: 10, background: '#f8faff', color: '#4f46e5', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', border: '1.5px solid #e0e7ff' }}>
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', borderRadius: UI.radius, background: '#eff6ff', color: UI.accent, fontSize: 12.5, fontWeight: 700, textDecoration: 'none', border: '1.5px solid #dbeafe' }}>
                     <Phone size={14} strokeWidth={2} /> {CONTACT.phone.label}: {CONTACT.phone.display}
                   </a>
                   <a href={CONTACT.mobile.whatsapp} target="_blank" rel="noopener noreferrer"
-                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', borderRadius: 10, background: '#f0fdf4', color: '#16a34a', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', border: '1.5px solid #bbf7d0' }}>
+                    style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', borderRadius: UI.radius, background: 'rgba(16,185,129,0.08)', color: '#059669', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', border: '1.5px solid rgba(16,185,129,0.22)' }}>
                     WhatsApp {CONTACT.mobile.label}
                   </a>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Link to="/favorites" onClick={() => setMobileOpen(false)}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', borderRadius: 10, background: '#fff1f2', color: '#ef4444', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', border: '1.5px solid #fecdd3' }}>
-                  <Heart size={14} strokeWidth={2} /> ფავ.
-                </Link>
-                <Link to="/admin/listings/new" onClick={() => setMobileOpen(false)}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', borderRadius: 10, background: '#f0fdf4', color: '#16a34a', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', border: '1.5px solid #bbf7d0' }}>
-                  <Plus size={14} strokeWidth={2.5} /> დამ.
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '10px 8px', borderRadius: UI.radius, background: '#fff1f2', color: '#ef4444', fontSize: 12.5, fontWeight: 700, textDecoration: 'none', border: '1.5px solid #fecdd3' }}>
+                  <Heart size={14} strokeWidth={2} /> {t('common.favorites')}
                 </Link>
                 <button onClick={toggleDarkMode}
-                  style={{ width: 42, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 10, background: '#f8f9fa', border: '1.5px solid #e8eaed', color: '#374151', cursor: 'pointer', flexShrink: 0 }}>
+                  style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: UI.radius, background: UI.surfaceMuted, border: `1.5px solid ${UI.border}`, color: UI.ink, cursor: 'pointer', flexShrink: 0 }}>
                   {darkMode ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
                 </button>
                 </div>
@@ -685,28 +534,28 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
               {/* Nav list */}
               <nav style={{ flex: 1, overflowY: 'auto', padding: '10px 10px' }}>
                 {navItems.map(item => {
-                  const expanded = mobileExpanded === item.label;
+                  const expanded = mobileExpanded === item.href;
                   const isActive = location.pathname === item.href;
                   const hasMega  = 'mega' in item && !!item.mega;
                   return (
                     <div key={item.label} style={{ marginBottom: 2 }}>
                       <div style={{
-                        display: 'flex', alignItems: 'center', borderRadius: 12,
-                        background: isActive ? '#f0f4ff' : 'transparent',
+                        display: 'flex', alignItems: 'center', borderRadius: UI.radius,
+                        background: isActive ? 'rgba(37, 99, 235,0.08)' : 'transparent',
                       }}>
                         <Link to={item.href} onClick={() => setMobileOpen(false)}
                           style={{
                             flex: 1, display: 'flex', alignItems: 'center', gap: 12,
                             padding: '10px 10px', fontSize: 14, fontWeight: 600,
-                            color: isActive ? '#4f46e5' : '#374151', textDecoration: 'none',
+                            color: isActive ? UI.accent : UI.ink, textDecoration: 'none',
                           }}>
                           <div style={{
-                            width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-                            background: isActive ? 'rgba(79,70,229,0.14)' : '#f3f4f6',
+                            width: 36, height: 36, borderRadius: UI.radius, flexShrink: 0,
+                            background: isActive ? 'rgba(37, 99, 235,0.14)' : UI.surfaceMuted,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                           }}>
                             <item.icon size={15} strokeWidth={2}
-                              style={{ color: isActive ? '#4f46e5' : '#9ca3af' }} />
+                              style={{ color: isActive ? '#2563eb' : '#9ca3af' }} />
                           </div>
                           {item.label}
                           {'badge' in item && item.badge && (
@@ -714,7 +563,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                           )}
                         </Link>
                         {hasMega && (
-                          <button onClick={() => setMobileExpanded(expanded ? null : item.label)}
+                          <button onClick={() => setMobileExpanded(expanded ? null : item.href)}
                             style={{ width: 38, height: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: 'transparent', color: '#9ca3af', cursor: 'pointer', flexShrink: 0, marginRight: 4 }}>
                             <ChevronDown size={15} strokeWidth={2.2}
                               style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
@@ -752,14 +601,14 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
               </nav>
 
               {/* Footer CTA */}
-              <div style={{ padding: '14px 14px 20px', borderTop: '1px solid #f1f5f9', display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
+              <div style={{ padding: '14px 14px 20px', borderTop: `1px solid ${UI.borderLight}`, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
                 <Link to="/login" onClick={() => setMobileOpen(false)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 700, color: '#374151', border: '1.5px solid #e8eaed', textDecoration: 'none', background: '#fff', transition: 'all 0.15s' }}>
-                  <User size={16} strokeWidth={2} /> შესვლა
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: UI.radius, fontSize: 14, fontWeight: 700, color: UI.ink, border: `1.5px solid ${UI.border}`, textDecoration: 'none', background: '#fff' }}>
+                  <User size={16} strokeWidth={2} /> {t('common.login')}
                 </Link>
                 <Link to="/register" onClick={() => setMobileOpen(false)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: 12, fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: '#111827', border: '1.5px solid #111827' }}>
-                  დარეგისტრირება
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: UI.radius, fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: UI.ink, border: `1.5px solid ${UI.ink}` }}>
+                  {t('common.register')}
                 </Link>
               </div>
             </motion.div>

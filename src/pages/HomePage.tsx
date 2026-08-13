@@ -1,15 +1,17 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useInView } from 'framer-motion';
 import {
   Search, MapPin, ChevronDown, ChevronLeft, ChevronRight, ArrowRight,
-  Sparkles, Phone, X, Tag, Home, Maximize2, DollarSign,
+  Sparkles, X, Tag, Home, Maximize2, DollarSign,
   Bed, Bath, SlidersHorizontal,
   Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent,
-  TrendingUp, Shield, Building2,
 } from 'lucide-react';
 import { properties, blogPosts, constructionProjects, faqItems } from '../data/mockData';
 import type { Property, BlogPost, ConstructionProject } from '../data/mockData';
+import { useCurrency } from '../contexts/CurrencyContext';
+import { useTranslation } from '../i18n/LocaleContext';
+import { cityFilterOptions, propertyTypeFilterOptions, dealTypeOptions, bedroomOptions, projectStatusLabels } from '../i18n/labels';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -32,7 +34,7 @@ function InViewFade({ children, delay = 0, className = '' }: { children: React.R
 type SectionAccent = 'blue' | 'green';
 
 const SECTION_ACCENTS: Record<SectionAccent, { color: string }> = {
-  blue: { color: '#497cff' },
+  blue: { color: '#2563eb' },
   green: { color: '#10B981' },
 };
 
@@ -119,21 +121,19 @@ function SectionTitle({
 }
 
 function BlogCard({ post }: { post: BlogPost }) {
+  const { t } = useTranslation();
   return (
     <Link
       to={`/blog/${post.id}`}
       className="group flex flex-col h-full rounded-2xl overflow-hidden bg-white"
       style={{
         border: '1px solid #eceef0',
-        boxShadow: '0 2px 10px rgba(15,23,42,0.06)',
-        transition: 'box-shadow 0.22s ease, border-color 0.22s ease',
+        transition: 'border-color 0.22s ease',
       }}
       onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 8px 24px rgba(15,23,42,0.10)';
-        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(73,124,255,0.35)';
+        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37, 99, 235,0.35)';
       }}
       onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.boxShadow = '0 2px 10px rgba(15,23,42,0.06)';
         (e.currentTarget as HTMLElement).style.borderColor = '#eceef0';
       }}
     >
@@ -149,7 +149,7 @@ function BlogCard({ post }: { post: BlogPost }) {
         />
         <span
           className="absolute top-3 left-3 px-2.5 py-1 rounded-full text-[10px] font-bold"
-          style={{ background: 'rgba(255,255,255,0.95)', color: '#497cff' }}
+          style={{ background: 'rgba(255,255,255,0.95)', color: '#2563eb' }}
         >
           {post.category}
         </span>
@@ -158,13 +158,13 @@ function BlogCard({ post }: { post: BlogPost }) {
           style={{ background: 'rgba(0,0,0,0.45)', color: '#fff', backdropFilter: 'blur(6px)' }}
         >
           <Clock size={10} />
-          {post.readTime} წთ
+          {t('home.readTime', { min: post.readTime })}
         </span>
       </div>
 
       <div className="flex flex-col flex-1 p-5">
         <h3
-          className="font-bold text-[15px] leading-snug line-clamp-2 group-hover:text-[#497cff] transition-colors"
+          className="font-bold text-[15px] leading-snug line-clamp-2 group-hover:text-[#2563eb] transition-colors"
           style={{ color: '#191c1e', minHeight: '2.75rem' }}
         >
           {post.title}
@@ -193,7 +193,7 @@ function BlogCard({ post }: { post: BlogPost }) {
           </div>
           <span
             className="flex items-center gap-1 text-[12px] font-semibold flex-shrink-0 group-hover:gap-1.5 transition-all"
-            style={{ color: '#497cff' }}
+            style={{ color: '#2563eb' }}
           >
             წაიკითხე
             <ArrowRight size={12} />
@@ -204,14 +204,12 @@ function BlogCard({ post }: { post: BlogPost }) {
   );
 }
 
-const PROJECT_STATUS: Record<ConstructionProject['status'], { label: string; bg: string }> = {
-  building: { label: 'მშენებარე', bg: '#d97706' },
-  presale: { label: 'პრე-გაყიდვა', bg: '#497cff' },
-  completed: { label: 'დასრულებული', bg: '#059669' },
-};
-
 function ConstructionProjectCard({ project }: { project: ConstructionProject }) {
-  const status = PROJECT_STATUS[project.status];
+  const { t } = useTranslation();
+  const statusLabels = projectStatusLabels(t);
+  const statusBg: Record<ConstructionProject['status'], string> = { building: '#d97706', presale: '#2563eb', completed: '#059669' };
+  const status = { label: statusLabels[project.status], bg: statusBg[project.status] };
+  const { formatMoney } = useCurrency();
 
   return (
     <Link
@@ -219,11 +217,8 @@ function ConstructionProjectCard({ project }: { project: ConstructionProject }) 
       className="group relative block overflow-hidden rounded-2xl"
       style={{
         aspectRatio: '3/4',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
-        transition: 'box-shadow 0.25s ease',
+        border: '1px solid rgba(255,255,255,0.12)',
       }}
-      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 12px 36px rgba(73,124,255,0.28)'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px rgba(0,0,0,0.25)'; }}
     >
       <img
         src={project.image}
@@ -239,11 +234,9 @@ function ConstructionProjectCard({ project }: { project: ConstructionProject }) 
       />
 
       <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{ background: 'linear-gradient(160deg, rgba(73,124,255,0.25) 0%, transparent 55%)' }}
+        className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+        style={{ background: 'linear-gradient(160deg, rgba(255,255,255,0.06) 0%, transparent 55%)' }}
       />
-
-      <div className="absolute inset-0 rounded-2xl border-2 border-transparent group-hover:border-[rgba(73,124,255,0.55)] transition-all duration-300" />
 
       <div className="absolute top-2 left-2 right-2 sm:top-3 sm:left-3 sm:right-3 flex items-start justify-between gap-1.5 sm:gap-2">
         <span
@@ -267,8 +260,8 @@ function ConstructionProjectCard({ project }: { project: ConstructionProject }) 
           <span className="truncate">{project.district}, {project.city}</span>
         </p>
 
-        <p className="font-extrabold text-base sm:text-xl mb-2 sm:mb-3" style={{ color: '#7aabff', letterSpacing: '-0.02em' }}>
-          ₾{project.priceFrom.toLocaleString()}
+        <p className="font-extrabold text-base sm:text-xl mb-2 sm:mb-3" style={{ color: '#2563eb', letterSpacing: '-0.02em' }}>
+          {formatMoney(project.priceFrom)}
           <span className="text-[11px] sm:text-[12px] font-semibold" style={{ color: 'rgba(255,255,255,0.45)' }}>+</span>
         </p>
 
@@ -278,18 +271,18 @@ function ConstructionProjectCard({ project }: { project: ConstructionProject }) 
         >
           <div className="text-center flex-1 min-w-0">
             <p className="text-[11px] sm:text-[13px] font-bold text-white leading-none truncate">{project.units}</p>
-            <p className="text-[8px] sm:text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>ბინა</p>
+            <p className="text-[8px] sm:text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>{t('home.projectCard.units')}</p>
           </div>
           <div className="flex-shrink-0" style={{ width: 1, height: 22, background: 'rgba(255,255,255,0.12)' }} />
           <div className="text-center flex-1 min-w-0">
             <p className="text-[11px] sm:text-[13px] font-bold text-white leading-none truncate">{project.completion}</p>
-            <p className="text-[8px] sm:text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>დასრულება</p>
+            <p className="text-[8px] sm:text-[9px] font-semibold mt-1" style={{ color: 'rgba(255,255,255,0.45)' }}>{t('home.projectCard.completion')}</p>
           </div>
         </div>
 
         <div className="hidden sm:flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-          <span className="text-[11px] font-bold" style={{ color: '#7aabff' }}>დეტალები</span>
-          <ArrowRight size={11} style={{ color: '#7aabff' }} />
+          <span className="text-[11px] font-bold" style={{ color: '#2563eb' }}>{t('home.projectCard.details')}</span>
+          <ArrowRight size={11} style={{ color: '#2563eb' }} />
         </div>
       </div>
     </Link>
@@ -309,14 +302,14 @@ const AD_THEMES: Record<AdVariant, {
 }> = {
   navy: {
     bg: 'linear-gradient(135deg, #131b2e 0%, #1a2d5a 60%, #131b2e 100%)',
-    accent: '#7aabff',
+    accent: '#2563eb',
     title: '#fff',
     subtitle: 'rgba(255,255,255,0.55)',
-    ctaBg: '#497cff',
+    ctaBg: '#2563eb',
     ctaColor: '#fff',
   },
   blue: {
-    bg: 'linear-gradient(135deg, #1e3a6e 0%, #497cff 100%)',
+    bg: 'linear-gradient(135deg, #1e3a6e 0%, #2563eb 100%)',
     accent: 'rgba(255,255,255,0.75)',
     title: '#fff',
     subtitle: 'rgba(255,255,255,0.65)',
@@ -325,10 +318,10 @@ const AD_THEMES: Record<AdVariant, {
   },
   light: {
     bg: '#fff',
-    accent: '#497cff',
+    accent: '#2563eb',
     title: '#14161a',
     subtitle: '#76777d',
-    ctaBg: '#497cff',
+    ctaBg: '#2563eb',
     ctaColor: '#fff',
     border: '1px solid #eceef0',
   },
@@ -353,6 +346,7 @@ function AdBanner({
   image?: string;
   icon?: React.ComponentType<{ size?: number; strokeWidth?: number; style?: React.CSSProperties; color?: string }>;
 }) {
+  const { t: tr } = useTranslation();
   const t = AD_THEMES[variant];
 
   return (
@@ -362,18 +356,7 @@ function AdBanner({
       style={{
         background: t.bg,
         border: t.border,
-        boxShadow: variant === 'light' ? '0 2px 12px rgba(15,23,42,0.06)' : '0 4px 24px rgba(15,23,42,0.18)',
-        transition: 'box-shadow 0.22s ease',
-      }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.boxShadow = variant === 'light'
-          ? '0 8px 28px rgba(73,124,255,0.14)'
-          : '0 8px 32px rgba(73,124,255,0.22)';
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.boxShadow = variant === 'light'
-          ? '0 2px 12px rgba(15,23,42,0.06)'
-          : '0 4px 24px rgba(15,23,42,0.18)';
+        transition: 'border-color 0.22s ease',
       }}
     >
       <span
@@ -383,7 +366,7 @@ function AdBanner({
           background: variant === 'light' ? '#f2f4f6' : 'rgba(255,255,255,0.08)',
         }}
       >
-        სარეკლამო
+        {tr('home.ads.sponsored')}
       </span>
 
       <div
@@ -392,11 +375,11 @@ function AdBanner({
           width: 48,
           height: 48,
           borderRadius: 14,
-          border: `2px solid ${variant === 'light' ? '#497cff' : 'rgba(255,255,255,0.25)'}`,
-          background: variant === 'light' ? 'rgba(73,124,255,0.08)' : 'rgba(255,255,255,0.08)',
+          border: `2px solid ${variant === 'light' ? '#2563eb' : 'rgba(255,255,255,0.25)'}`,
+          background: variant === 'light' ? 'rgba(37, 99, 235,0.08)' : 'rgba(255,255,255,0.08)',
         }}
       >
-        <Icon size={22} strokeWidth={2.2} style={{ color: variant === 'light' ? '#497cff' : '#fff' }} />
+        <Icon size={22} strokeWidth={2.2} style={{ color: variant === 'light' ? '#2563eb' : '#fff' }} />
       </div>
 
       <div className="flex-1 min-w-0">
@@ -454,38 +437,22 @@ function AdStrip({ bg, children }: { bg: string; children: React.ReactNode }) {
 /* ─────────────── Compact card (6-per-row) — VIP & New ─────────────────── */
 type CardBadge = 'vip' | 'new';
 
-const BADGE_CONFIG: Record<CardBadge, {
-  bg: string; color: string; shadow: string;
-  icon: React.ReactNode; label: string;
-}> = {
-  vip: {
-    bg: 'linear-gradient(135deg, #497cff 0%, #3458d8 100%)',
-    color: '#fff',
-    shadow: '0 2px 8px rgba(73,124,255,0.40)',
-    icon: <Rocket size={8} strokeWidth={3} />,
-    label: 'SUPER VIP',
-  },
-  new: {
-    bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
-    color: '#fff',
-    shadow: '0 2px 8px rgba(16,185,129,0.45)',
-    icon: <Sparkles size={8} strokeWidth={3} />,
-    label: 'ახალი',
-  },
-};
-
 function VipListingCard({ property, badge = 'vip' }: { property: Property; badge?: CardBadge }) {
+  const { t } = useTranslation();
   const [liked, setLiked] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [imgIndex, setImgIndex] = useState(0);
   const cardRef = useRef<HTMLAnchorElement>(null);
-  const cfg = BADGE_CONFIG[badge];
+  const badgeCfg = {
+    vip: { bg: 'linear-gradient(135deg, #2563eb 0%, #3458d8 100%)', color: '#fff', icon: <Rocket size={8} strokeWidth={3} />, label: t('home.superVip') },
+    new: { bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#fff', icon: <Sparkles size={8} strokeWidth={3} />, label: t('common.new') },
+  };
+  const cfg = badgeCfg[badge];
   const images = property.images;
-  const accentColor = badge === 'vip' ? '#497cff' : '#059669';
+  const accentColor = badge === 'vip' ? '#2563eb' : '#059669';
+  const { formatMoney } = useCurrency();
 
-  const priceLabel = property.status === 'rent'
-    ? `₾${property.price.toLocaleString()}/თვ.`
-    : `₾${property.price.toLocaleString()}`;
+  const priceLabel = formatMoney(property.price, { perMonth: property.status === 'rent' });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (images.length <= 1) return;
@@ -502,9 +469,8 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
       to={`/property/${property.id}`}
       className="group relative flex flex-col h-full rounded-2xl overflow-hidden bg-white"
       style={{
-        boxShadow: hovered ? '0 10px 28px rgba(15,23,42,0.12)' : '0 2px 10px rgba(15,23,42,0.06)',
         border: `1px solid ${hovered ? `${accentColor}45` : '#eceef0'}`,
-        transition: 'box-shadow 0.25s ease, border-color 0.25s ease',
+        transition: 'border-color 0.25s ease',
       }}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setHovered(true)}
@@ -556,7 +522,7 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
         <div className="absolute top-2.5 left-2.5">
           <span
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-            style={{ background: cfg.bg, color: cfg.color, boxShadow: cfg.shadow, letterSpacing: '0.03em' }}
+            style={{ background: cfg.bg, color: cfg.color, letterSpacing: '0.03em' }}
           >
             {cfg.icon} {cfg.label}
           </span>
@@ -580,7 +546,7 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
             className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold"
             style={{ background: 'rgba(15,17,20,0.55)', color: '#fff', backdropFilter: 'blur(6px)' }}
           >
-            {property.status === 'sale' ? 'იყიდება' : 'ქირავდება'}
+            {property.status === 'sale' ? t('propertyStatus.sale') : t('propertyStatus.rent')}
           </span>
         </div>
       </div>
@@ -593,7 +559,7 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
           </span>
           {property.floor && (
             <span className="text-[10px] font-semibold flex-shrink-0 mt-0.5" style={{ color: '#9ea0a7' }}>
-              {property.floor}/{property.totalFloors} სთ.
+              {property.floor}/{property.totalFloors} {t('property.floorShort')}
             </span>
           )}
         </div>
@@ -648,6 +614,7 @@ function ListingSlider({
   items: Property[];
   badge?: CardBadge;
 }) {
+  const { t } = useTranslation();
   const trackRef = useRef<HTMLDivElement>(null);
   const [canLeft, setCanLeft] = useState(false);
   const [canRight, setCanRight] = useState(false);
@@ -672,7 +639,7 @@ function ListingSlider({
   }, [items]);
 
   const accent = badge === 'vip'
-    ? { main: '#497cff', soft: 'rgba(73,124,255,0.10)', ring: 'rgba(73,124,255,0.28)' }
+    ? { main: '#2563eb', soft: 'rgba(37, 99, 235,0.10)', ring: 'rgba(37, 99, 235,0.28)' }
     : { main: '#059669', soft: 'rgba(5,150,105,0.10)', ring: 'rgba(5,150,105,0.28)' };
 
   const scroll = (dir: 'left' | 'right') => {
@@ -690,7 +657,7 @@ function ListingSlider({
         type="button"
         onClick={() => scroll(dir)}
         disabled={!enabled}
-        aria-label={dir === 'left' ? 'წინა' : 'შემდეგი'}
+        aria-label={dir === 'left' ? t('home.prev') : t('home.next')}
         className={[
           'absolute top-1/2 -translate-y-1/2 z-10 hidden sm:flex items-center justify-center rounded-full',
           'opacity-0 group-hover/slider:opacity-100 transition-all duration-200',
@@ -751,7 +718,13 @@ function ListingSlider({
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
+  const propertyTypeOpts = useMemo(() => propertyTypeFilterOptions(t), [t]);
+  const propertyTypeShortOpts = useMemo(() => propertyTypeFilterOptions(t, true), [t]);
+  const dealTypeOpts = useMemo(() => dealTypeOptions(t), [t]);
+  const bedroomOpts = useMemo(() => bedroomOptions(t), [t]);
+  const cityOpts = useMemo(() => cityFilterOptions(t), [t]);
   const [tab, setTab] = useState<'sale' | 'rent'>('sale');
   const [form, setForm] = useState({
     city: '', type: '', bedrooms: '',
@@ -787,497 +760,113 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           HERO — contained, border-radius background
       ══════════════════════════════════════════════════════ */}
-      <section className="pt-[56px] lg:pt-[102px]" style={{ background: '#f7f9fb' }}>
+      <section className="pt-[56px] lg:pt-[106px] pb-6 sm:pb-8" style={{ background: '#f7f9fb' }}>
         <div className="container-xl pt-2 lg:pt-3">
-          {/* Contained hero card — hidden on mobile, search panel takes over */}
-          <div
-            className="hidden md:block relative overflow-hidden"
-            style={{
-              borderRadius: '2rem',
-              height: 'clamp(420px, 52vh, 560px)',
-            }}
-          >
-            {/* BG Image */}
-            <img
-              src="https://static.vecteezy.com/system/resources/previews/059/552/778/large_2x/aerial-view-of-saburtalo-and-vake-districts-of-tbilisi-photo.jpg"
-              alt="Hero"
-              className="absolute inset-0 w-full h-full object-cover"
-            />
-            {/* Gradient overlay */}
+          {/* Wrapper — search floats over hero via absolute positioning */}
+          <div className="relative">
+
+            {/* ── Hero image (overflow-hidden only here for border-radius) ── */}
             <div
-              className="absolute inset-0"
-              style={{ background: 'linear-gradient(125deg, rgba(8,10,18,0.88) 0%, rgba(0,23,75,0.55) 50%, rgba(8,10,18,0.40) 100%)' }}
-            />
-            {/* Ambient glow */}
-            <div
-              className="absolute pointer-events-none"
-              style={{
-                width: 480, height: 480, borderRadius: '50%',
-                background: 'radial-gradient(circle, rgba(73,124,255,0.22) 0%, transparent 70%)',
-                top: '-10%', right: '5%',
-              }}
-            />
-            {/* Subtle grid */}
-            <div
-              className="absolute inset-0 opacity-[0.06]"
-              style={{
-                backgroundImage: 'linear-gradient(rgba(255,255,255,1) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,1) 1px,transparent 1px)',
-                backgroundSize: '64px 64px',
-              }}
-            />
-
-            {/* ── Hero content ── */}
-            <div className="relative h-full flex flex-col justify-center px-8 sm:px-12 lg:px-16 py-10 lg:py-12">
-              <div className="max-w-2xl">
-
-                {/* Trust pill */}
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.45 }}
-                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full mb-6"
-                  style={{
-                    background: 'rgba(255,255,255,0.10)',
-                    border: '1px solid rgba(255,255,255,0.18)',
-                    backdropFilter: 'blur(8px)',
-                  }}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse flex-shrink-0" />
-                  <span className="text-[11px] font-bold tracking-widest uppercase text-white/80">
-                    საქართველოს #1 უძრავი განცხადების პლატფორმა
-                  </span>
-                </motion.div>
-
-                {/* Brand headline */}
-                <motion.h1
-                  initial={{ opacity: 0, y: 14 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
-                  className="font-bold leading-[1.12] tracking-tight mb-4"
-                  style={{ fontSize: 'clamp(28px, 3.8vw, 46px)', letterSpacing: '-0.02em' }}
-                >
-                  <span className="text-white">თბილისი </span>
-                  <span
-                    style={{
-                      background: 'linear-gradient(135deg, #7aabff 0%, #497cff 60%, #3567f5 100%)',
-                      WebkitBackgroundClip: 'text',
-                      WebkitTextFillColor: 'transparent',
-                      backgroundClip: 'text',
-                    }}
-                  >
-                    რეალტორსი
-                  </span>
-                  <span
-                    className="font-semibold ml-1"
-                    style={{ fontSize: '0.55em', color: 'rgba(255,255,255,0.45)', verticalAlign: 'super' }}
-                  >
-                    .ge
-                  </span>
-                </motion.h1>
-
-                {/* Subtitle */}
-                <motion.p
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.22 }}
-                  className="text-white/70 mb-7 max-w-md"
-                  style={{ fontSize: 15, lineHeight: 1.65 }}
-                >
-                  იპოვეთ თქვენი საოცნებო სახლი, ბინა ან კომერციული ფართი —
-                  12,400+ განცხადება მთელი საქართველოდან.
-                </motion.p>
-
-                {/* Stats strip */}
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.34 }}
-                  className="inline-flex items-stretch rounded-2xl overflow-hidden mb-7 max-w-full"
-                  style={{
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.14)',
-                    backdropFilter: 'blur(10px)',
-                  }}
-                >
-                  {[
-                    { v: '12,400+', l: 'განცხადება' },
-                    { v: '350+',    l: 'აგენტი' },
-                    { v: '96%',     l: 'კმაყოფ.' },
-                  ].map((s, i) => (
-                    <div
-                      key={s.l}
-                      className="flex flex-col items-center px-3 sm:px-5 py-2.5 sm:py-3"
-                      style={{ borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.10)' : 'none' }}
-                    >
-                      <span className="text-white font-bold text-sm sm:text-base leading-none">{s.v}</span>
-                      <span className="text-white/45 text-[10px] sm:text-[11px] font-medium mt-1 whitespace-nowrap">{s.l}</span>
-                    </div>
-                  ))}
-                </motion.div>
-
-                {/* CTA buttons */}
-                <motion.div
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: 0.44 }}
-                  className="flex flex-wrap items-center gap-3"
-                >
-                  <Link
-                    to="/listings"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200"
-                    style={{
-                      background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                      boxShadow: '0 4px 20px rgba(5,150,105,0.40)',
-                    }}
-                    onMouseEnter={e => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
-                      el.style.boxShadow = '0 6px 28px rgba(5,150,105,0.52)';
-                      el.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={e => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
-                      el.style.boxShadow = '0 4px 20px rgba(5,150,105,0.40)';
-                      el.style.transform = 'none';
-                    }}
-                  >
-                    განცხადებების ნახვა
-                    <ArrowRight size={16} strokeWidth={2.5} />
-                  </Link>
-                  <Link
-                    to="/contact"
-                    className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm transition-all duration-200"
-                    style={{
-                      background: 'rgba(255,255,255,0.10)',
-                      color: '#fff',
-                      border: '1px solid rgba(255,255,255,0.22)',
-                      backdropFilter: 'blur(8px)',
-                    }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.18)';
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.10)';
-                    }}
-                  >
-                    <Phone size={15} strokeWidth={2} />
-                    უფასო კონსულტაცია
-                  </Link>
-                </motion.div>
-
-              </div>
-            </div>
-          </div>
-
-          {/* ── FILTER MODAL ── */}
-          <AnimatePresence>
-            {filterModalOpen && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.18 }}
-                className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center"
-                style={{ background: 'rgba(15,20,30,0.55)', backdropFilter: 'blur(4px)' }}
-                onClick={e => { if (e.target === e.currentTarget) setFilterModalOpen(false); }}
-              >
-                <motion.div
-                  initial={{ opacity: 0, y: 40, scale: 0.97 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 30, scale: 0.97 }}
-                  transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
-                  className="w-full sm:w-[560px] max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-t-3xl sm:rounded-3xl"
-                  style={{ background: '#fff', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}
-                >
-                  {/* Modal header */}
-                  <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid #f0f2f5' }}>
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(73,124,255,0.10)' }}>
-                        <SlidersHorizontal size={16} strokeWidth={2.2} style={{ color: '#497cff' }} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 16 }}>დეტალური ფილტრი</p>
-                        <p style={{ fontSize: 12, color: '#9ea0a7' }}>გაფილტრეთ განცხადებები</p>
-                      </div>
-                    </div>
-                    <button onClick={() => setFilterModalOpen(false)} className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors" style={{ background: '#f2f4f6' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#eceef0'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#f2f4f6'}>
-                      <X size={16} strokeWidth={2.5} style={{ color: '#45464d' }} />
-                    </button>
-                  </div>
-
-                  <div className="px-6 py-2">
-
-                    {/* ── Property type ── */}
-                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(73,124,255,0.10)' }}>
-                          <Home size={13} strokeWidth={2.3} style={{ color: '#497cff' }} />
-                        </div>
-                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>ქონების ტიპი</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {[
-                          { v: '', l: 'ყველა' },
-                          { v: 'apartment', l: 'ბინა' },
-                          { v: 'house', l: 'კერძო სახლი' },
-                          { v: 'villa', l: 'აგარაკი' },
-                          { v: 'land', l: 'მინის ნაკვეთი' },
-                          { v: 'commercial', l: 'კომერციული ფართი' },
-                          { v: 'hotel', l: 'სასტუმრო' },
-                        ].map(c => (
-                          <button key={c.v}
-                            onClick={() => setForm(f => ({ ...f, propType: c.v }))}
-                            className="px-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
-                            style={{
-                              background: form.propType === c.v ? '#191c1e' : '#f4f5f7',
-                              color: form.propType === c.v ? '#fff' : '#4b5563',
-                              border: `1.5px solid ${form.propType === c.v ? '#191c1e' : '#eceef0'}`,
-                            }}>{c.l}</button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* ── Deal type ── */}
-                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(34,197,94,0.10)' }}>
-                          <Tag size={13} strokeWidth={2.3} style={{ color: '#16a34a' }} />
-                        </div>
-                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>გარიგების ტიპი</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {[
-                          { v: 'sale', l: 'იყიდება' },
-                          { v: 'rent', l: 'ქირავდება' },
-                          { v: 'mortgage', l: 'გირავდება' },
-                          { v: 'daily', l: 'ქირავდება დღიურად' },
-                        ].map(c => (
-                          <button key={c.v}
-                            onClick={() => setTab(c.v as 'sale' | 'rent')}
-                            className="px-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
-                            style={{
-                              background: tab === c.v ? '#497cff' : '#f4f5f7',
-                              color: tab === c.v ? '#fff' : '#4b5563',
-                              border: `1.5px solid ${tab === c.v ? '#497cff' : '#eceef0'}`,
-                            }}>{c.l}</button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* ── Bedrooms ── */}
-                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.10)' }}>
-                          <Bed size={13} strokeWidth={2.3} style={{ color: '#d97706' }} />
-                        </div>
-                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>საძინებლების რაოდენობა</p>
-                      </div>
-                      <div className="flex gap-2">
-                        {[{ v: '', l: 'ნებ.' }, { v: '1', l: '1' }, { v: '2', l: '2' }, { v: '3', l: '3' }, { v: '4', l: '4' }, { v: '5', l: '5+' }].map(c => (
-                          <button key={c.v}
-                            onClick={() => setForm(f => ({ ...f, bedrooms: c.v }))}
-                            className="flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-all duration-150 text-center"
-                            style={{
-                              background: form.bedrooms === c.v ? '#191c1e' : '#f4f5f7',
-                              color: form.bedrooms === c.v ? '#fff' : '#4b5563',
-                              border: `1.5px solid ${form.bedrooms === c.v ? '#191c1e' : '#eceef0'}`,
-                            }}>{c.l}</button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* ── Price range ── */}
-                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(16,185,129,0.10)' }}>
-                          <DollarSign size={13} strokeWidth={2.3} style={{ color: '#059669' }} />
-                        </div>
-                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>სრული ფასი</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-2xl transition-all" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}
-                          onFocus={() => {}} onBlur={() => {}}>
-                          <span style={{ color: '#9ea0a7', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>₾</span>
-                          <input type="number" placeholder="დან" value={form.priceMin}
-                            onChange={e => setForm(f => ({ ...f, priceMin: e.target.value }))}
-                            className="bare-input" />
-                        </div>
-                        <div className="flex-shrink-0 w-5 h-px" style={{ background: '#d1d5db' }} />
-                        <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-2xl transition-all" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
-                          <span style={{ color: '#9ea0a7', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>₾</span>
-                          <input type="number" placeholder="მდე" value={form.priceMax}
-                            onChange={e => setForm(f => ({ ...f, priceMax: e.target.value }))}
-                            className="bare-input" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ── Area range ── */}
-                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(139,92,246,0.10)' }}>
-                          <Maximize2 size={13} strokeWidth={2.3} style={{ color: '#7c3aed' }} />
-                        </div>
-                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>ფართობი</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 flex items-center justify-between gap-2 px-4 py-3 rounded-2xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
-                          <input type="number" placeholder="დან" value={form.areaMin}
-                            onChange={e => setForm(f => ({ ...f, areaMin: e.target.value }))}
-                            className="bare-input" />
-                          <span style={{ color: '#b0b2ba', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>მ²</span>
-                        </div>
-                        <div className="flex-shrink-0 w-5 h-px" style={{ background: '#d1d5db' }} />
-                        <div className="flex-1 flex items-center justify-between gap-2 px-4 py-3 rounded-2xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
-                          <input type="number" placeholder="მდე" value={form.areaMax}
-                            onChange={e => setForm(f => ({ ...f, areaMax: e.target.value }))}
-                            className="bare-input" />
-                          <span style={{ color: '#b0b2ba', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>მ²</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* ── City ── */}
-                    <div className="py-5">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.10)' }}>
-                          <MapPin size={13} strokeWidth={2.3} style={{ color: '#dc2626' }} />
-                        </div>
-                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>ქალაქი</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {[
-                          { v: '', l: 'ყველა' }, { v: 'თბილისი', l: 'თბილისი' }, { v: 'ბათუმი', l: 'ბათუმი' },
-                          { v: 'ქუთაისი', l: 'ქუთაისი' }, { v: 'მცხეთა', l: 'მცხეთა' }, { v: 'გორი', l: 'გორი' },
-                          { v: 'სიღნაღი', l: 'სიღნაღი' },
-                        ].map(c => (
-                          <button key={c.v}
-                            onClick={() => setForm(f => ({ ...f, city: c.v }))}
-                            className="px-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
-                            style={{
-                              background: form.city === c.v ? '#497cff' : '#f4f5f7',
-                              color: form.city === c.v ? '#fff' : '#4b5563',
-                              border: `1.5px solid ${form.city === c.v ? '#497cff' : '#eceef0'}`,
-                            }}>{c.l}</button>
-                        ))}
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* Modal footer */}
-                  <div className="flex items-center justify-between px-6 py-4 gap-3" style={{ borderTop: '1px solid #f0f2f5' }}>
-                    <button onClick={clearFilters}
-                      className="px-5 py-3 rounded-2xl text-sm font-bold transition-all duration-150"
-                      style={{ background: '#f2f4f6', color: '#45464d' }}
-                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#eceef0'}
-                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#f2f4f6'}>
-                      გასუფთავება
-                    </button>
-                    <button onClick={handleSearch}
-                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white transition-all duration-200"
-                      style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', boxShadow: '0 4px 18px rgba(5,150,105,0.35)' }}
-                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 24px rgba(5,150,105,0.48)'; (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)'; }}
-                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 18px rgba(5,150,105,0.35)'; (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)'; }}>
-                      <Search size={15} strokeWidth={2.5} />
-                      ძებნა
-                    </button>
-                  </div>
-                </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* ── PREMIUM SEARCH PANEL ── */}
-          <motion.div
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.65, delay: 0.5, ease: [0.22, 1, 0.36, 1] }}
-            className="relative z-10 mt-3 md:-mt-10 mx-3 sm:mx-6 lg:mx-12"
-          >
-            {/* ── NEW SEARCH CARD ── */}
-            <div
-              ref={searchPanelRef}
-              className="rounded-3xl"
-              style={{
-                background: '#fff',
-                border: '1px solid #e4e6ea',
-                boxShadow: '0 8px 40px rgba(15,20,35,0.13), 0 2px 8px rgba(15,20,35,0.06)',
-              }}
+              className="relative overflow-hidden min-h-[500px] sm:min-h-[480px] lg:min-h-[500px]"
+              style={{ borderRadius: '2rem' }}
             >
-              {/* ── Row 1: Deal type tabs + property type chips ── */}
-              <div className="flex items-center gap-3 px-4 pt-4 pb-3 flex-wrap" style={{ borderBottom: '1px solid #f2f4f6' }}>
-                {/* Sale / Rent tabs */}
-                <div className="flex rounded-xl p-1 gap-0.5 flex-shrink-0" style={{ background: '#f2f4f6' }}>
-                  {([{ v: 'sale', l: 'იყიდება' }, { v: 'rent', l: 'ქირავდება' }] as const).map(({ v, l }) => (
+              <motion.img
+                src="/5e6a55c3201bd.jpg"
+                alt="Hero"
+                className="absolute inset-0 w-full h-full object-cover"
+                initial={{ scale: 1.08 }}
+                animate={{ scale: 1 }}
+                transition={{ duration: 1.6, ease: [0.22, 1, 0.36, 1] }}
+              />
+              <div
+                className="absolute inset-0"
+                style={{ background: 'linear-gradient(180deg, rgba(8,10,18,0.22) 0%, rgba(8,10,18,0.50) 100%)' }}
+              />
+            </div>
+
+            {/* ── Search panel — outside overflow-hidden so dropdowns escape ── */}
+            <div className="absolute inset-0 flex items-center justify-center px-3 sm:px-6 lg:px-10 py-8 z-10" style={{ pointerEvents: 'none' }}>
+              <motion.div
+                initial={{ opacity: 0, y: 20, scale: 0.99 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.65, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+                className="relative w-full"
+                style={{ pointerEvents: 'auto' }}
+              >
+                <div
+                  ref={searchPanelRef}
+                  className="relative"
+                  style={{
+                    borderRadius: 20,
+                    background: '#fff',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.04), 0 12px 40px rgba(10,15,30,0.18), 0 0 0 1px rgba(210,218,230,0.8)',
+                  }}
+                >
+
+              {/* ── Row 1: Deal type + property chips ── */}
+              <div className="flex items-center gap-2 px-3 sm:px-4 pt-2.5 pb-2.5 flex-wrap" style={{ borderBottom: '1px solid #f0f2f5' }}>
+                <div className="flex rounded-lg p-0.5 gap-0.5 flex-shrink-0" style={{ background: '#eef0f4' }}>
+                  {([{ v: 'sale', l: t('propertyStatus.sale') }, { v: 'rent', l: t('propertyStatus.rent') }] as const).map(({ v, l }) => (
                     <button key={v} onClick={() => setTab(v)}
-                      className="px-4 py-1.5 rounded-lg text-[13px] font-bold transition-all duration-200"
-                      style={{
-                        background: tab === v ? '#4f46e5' : 'transparent',
-                        color: tab === v ? '#fff' : '#76777d',
-                        boxShadow: tab === v ? '0 2px 8px rgba(79,70,229,0.28)' : 'none',
-                      }}>{l}</button>
+                      className="px-3 py-1 rounded-md text-[12px] font-bold transition-all duration-200"
+                      style={{ background: tab === v ? '#2563eb' : 'transparent', color: tab === v ? '#fff' : '#76777d' }}
+                    >{l}</button>
                   ))}
                 </div>
 
-                {/* Property type chips */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {([
-                    { v: '', l: 'ყველა' },
-                    { v: 'apartment', l: 'ბინა' },
-                    { v: 'house', l: 'სახლი' },
-                    { v: 'villa', l: 'აგარაკი' },
-                    { v: 'commercial', l: 'კომერც.' },
-                  ] as const).map(c => (
-                    <button key={c.v}
-                      onClick={() => setForm(f => ({ ...f, propType: c.v }))}
-                      className="px-3 py-1.5 rounded-full text-[12px] font-semibold transition-all duration-150"
-                      style={{
-                        background: form.propType === c.v ? 'rgba(79,70,229,0.08)' : 'transparent',
-                        color: form.propType === c.v ? '#4f46e5' : '#76777d',
-                        border: `1.5px solid ${form.propType === c.v ? '#a5b4fc' : '#e4e6ea'}`,
-                      }}>{c.l}</button>
-                  ))}
+                <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
+                  {propertyTypeShortOpts.map(c => {
+                    const active = form.propType === c.v;
+                    const Icon = c.icon;
+                    return (
+                      <button key={c.v}
+                        onClick={() => setForm(f => ({ ...f, propType: c.v }))}
+                        className="flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-lg text-[11.5px] font-semibold transition-all duration-150"
+                        style={{
+                          background: active ? 'rgba(37,99,235,0.08)' : 'transparent',
+                          color: active ? '#2563eb' : '#76777d',
+                          border: `1.5px solid ${active ? '#2563eb' : '#e4e6ea'}`,
+                        }}
+                      >
+                        <span className="flex items-center justify-center flex-shrink-0" style={{ width: 20, height: 20, borderRadius: 6, background: active ? '#2563eb' : '#f0f2f5' }}>
+                          <Icon size={11} strokeWidth={2.2} style={{ color: active ? '#fff' : '#9ca3af' }} />
+                        </span>
+                        {c.l}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {/* Live count badge */}
-                <div className="hidden sm:flex items-center gap-1.5 ml-auto px-3 py-1.5 rounded-full"
+                <div className="hidden sm:flex items-center gap-1.5 ml-auto px-2.5 py-1 rounded-full flex-shrink-0"
                   style={{ background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.22)' }}>
                   <span className="w-1.5 h-1.5 rounded-full bg-[#10B981] animate-pulse" />
-                  <span className="text-[11px] font-bold" style={{ color: '#10B981' }}>12,400+ განცხადება</span>
+                  <span className="text-[10.5px] font-bold" style={{ color: '#10B981' }}>{t('home.liveCount')}</span>
                 </div>
               </div>
 
               {/* ── Row 2: Search fields ── */}
-              <div className="flex flex-col lg:flex-row items-stretch p-3 gap-2 lg:gap-0">
+              <div className="px-3 sm:px-4 pt-3 pb-3">
+                <div
+                  className="flex flex-col lg:flex-row"
+                  style={{ border: '1.5px solid #e4e6ea', borderRadius: 14, background: '#fff' }}
+                >
 
-                {/* ① Location field */}
-                <div className="relative flex-[2.2] lg:pr-px">
+                {/* ① Location */}
+                <div className="relative flex-[2.2] lg:border-r lg:border-[#eceef0]">
                   <div
-                    className="group flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 h-full"
-                    style={{
-                      border: `1.5px solid ${openField === 'location' ? '#497cff' : '#eceef0'}`,
-                      background: openField === 'location' ? 'rgba(73,124,255,0.02)' : '#fafbfc',
-                      boxShadow: openField === 'location' ? '0 0 0 3px rgba(73,124,255,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
-                    }}
+                    className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all duration-150 h-full border-b lg:border-b-0 border-[#f0f2f5]"
+                    style={{ background: openField === 'location' ? 'rgba(37,99,235,0.04)' : 'transparent', borderRadius: '12px 0 0 12px' }}
                     onClick={() => setOpenField(openField === 'location' ? null : 'location')}
                   >
                     <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: openField === 'location' ? 'rgba(73,124,255,0.12)' : '#eef0f3' }}>
-                      <MapPin size={14} strokeWidth={2.3} style={{ color: openField === 'location' ? '#497cff' : '#6b7280' }} />
+                      style={{ background: openField === 'location' ? 'rgba(37,99,235,0.14)' : '#f3f4f7' }}>
+                      <MapPin size={14} strokeWidth={2.3} style={{ color: openField === 'location' ? '#2563eb' : '#6b7280' }} />
                     </div>
-                    <div className="flex-1 min-w-0 overflow-hidden">
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: openField === 'location' ? '#497cff' : '#9ea0a7', marginBottom: 1 }}>
-                        ადგილმდებარეობა
-                      </p>
-                      <p className="text-sm font-semibold truncate" style={{ color: form.city ? '#191c1e' : '#bbbdc4' }}>
-                        {form.city || 'ქალაქი, რაიონი, მისამართი...'}
-                      </p>
+                    <div className="flex-1 min-w-0">
+                      <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: openField === 'location' ? '#2563eb' : '#9ea0a7', marginBottom: 1 }}>ადგილმდებარეობა</p>
+                      <p className="text-[13px] font-semibold truncate" style={{ color: form.city ? '#191c1e' : '#bbbdc4' }}>{form.city || t('listings.searchPlaceholder')}</p>
                     </div>
-                    <ChevronDown size={13} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0, transform: openField === 'location' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                    <ChevronDown size={12} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0, transform: openField === 'location' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                   </div>
 
                   <AnimatePresence>
@@ -1292,11 +881,7 @@ export default function HomePage() {
                         <div className="px-4 pt-4 pb-2" style={{ borderBottom: '1px solid #f2f4f6' }}>
                           <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 8 }}>ქალაქი</p>
                           <div className="flex flex-wrap gap-1.5">
-                            {[
-                              { v: '', l: 'ყველა' }, { v: 'თბილისი', l: 'თბილისი' },
-                              { v: 'ბათუმი', l: 'ბათუმი' }, { v: 'ქუთაისი', l: 'ქუთაისი' },
-                              { v: 'მცხეთა', l: 'მცხეთა' }, { v: 'გორი', l: 'გორი' },
-                            ].map(c => (
+                            {cityOpts.slice(0, 6).map(c => (
                               <button key={c.v}
                                 onClick={() => { setForm(f => ({ ...f, city: c.v })); setOpenField(null); }}
                                 className="px-3 py-1.5 rounded-xl text-[12px] font-semibold transition-all duration-100"
@@ -1346,35 +931,22 @@ export default function HomePage() {
                   </AnimatePresence>
                 </div>
 
-                {/* Divider */}
-                <div className="hidden lg:flex items-center px-1">
-                  <div className="w-px h-10" style={{ background: '#e8eaed' }} />
-                </div>
-
-                {/* ② Bedrooms field */}
-                <div className="relative flex-1 lg:px-px">
+                {/* ② Bedrooms */}
+                <div className="relative flex-1 lg:border-r lg:border-[#eceef0]">
                   <div
-                    className="flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 h-full"
-                    style={{
-                      border: `1.5px solid ${openField === 'beds' ? '#497cff' : '#eceef0'}`,
-                      background: openField === 'beds' ? 'rgba(73,124,255,0.02)' : '#fafbfc',
-                      boxShadow: openField === 'beds' ? '0 0 0 3px rgba(73,124,255,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
-                    }}
+                    className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all duration-150 h-full border-b lg:border-b-0 border-[#f0f2f5]"
+                    style={{ background: openField === 'beds' ? 'rgba(37,99,235,0.04)' : 'transparent' }}
                     onClick={() => setOpenField(openField === 'beds' ? null : 'beds')}
                   >
                     <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: openField === 'beds' ? 'rgba(73,124,255,0.12)' : '#eef0f3' }}>
-                      <Bed size={14} strokeWidth={2.3} style={{ color: openField === 'beds' ? '#497cff' : '#6b7280' }} />
+                      style={{ background: openField === 'beds' ? 'rgba(37,99,235,0.14)' : '#f3f4f7' }}>
+                      <Bed size={14} strokeWidth={2.3} style={{ color: openField === 'beds' ? '#2563eb' : '#6b7280' }} />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: openField === 'beds' ? '#497cff' : '#9ea0a7', marginBottom: 1 }}>
-                        საძინებელი
-                      </p>
-                      <p className="text-sm font-semibold" style={{ color: form.bedrooms ? '#191c1e' : '#bbbdc4' }}>
-                        {form.bedrooms ? `${form.bedrooms}+ ოთახი` : 'ნებისმიერი'}
-                      </p>
+                      <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: openField === 'beds' ? '#2563eb' : '#9ea0a7', marginBottom: 1 }}>საძინებელი</p>
+                      <p className="text-[13px] font-semibold" style={{ color: form.bedrooms ? '#191c1e' : '#bbbdc4' }}>{form.bedrooms ? t('home.roomsCount', { n: form.bedrooms }) : t('common.any')}</p>
                     </div>
-                    <ChevronDown size={13} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0, transform: openField === 'beds' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                    <ChevronDown size={12} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0, transform: openField === 'beds' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                   </div>
 
                   <AnimatePresence>
@@ -1385,9 +957,9 @@ export default function HomePage() {
                         className="absolute top-full left-0 right-0 mt-2 rounded-2xl p-4 z-50"
                         style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.06)', minWidth: 200 }}
                       >
-                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 10 }}>ოთახების რაოდენობა</p>
+                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 10 }}>{t('home.rooms')}</p>
                         <div className="grid grid-cols-3 gap-2">
-                          {[{ v: '', l: 'ნებ.' }, { v: '1', l: '1' }, { v: '2', l: '2' }, { v: '3', l: '3' }, { v: '4', l: '4' }, { v: '5', l: '5+' }].map(opt => (
+                          {bedroomOpts.map(opt => (
                             <button key={opt.v}
                               onClick={() => { setForm(f => ({ ...f, bedrooms: opt.v })); setOpenField(null); }}
                               className="py-2.5 rounded-xl text-sm font-bold transition-all duration-150 text-center"
@@ -1402,41 +974,24 @@ export default function HomePage() {
                   </AnimatePresence>
                 </div>
 
-                {/* Divider */}
-                <div className="hidden lg:flex items-center px-1">
-                  <div className="w-px h-10" style={{ background: '#e8eaed' }} />
-                </div>
-
-                {/* ③ Price field */}
-                <div className="relative flex-[1.4] lg:px-px">
+                {/* ③ Price */}
+                <div className="relative flex-[1.4] lg:border-r lg:border-[#eceef0]">
                   <div
-                    className="flex items-center gap-3 px-4 py-3.5 rounded-2xl cursor-pointer transition-all duration-200 h-full"
-                    style={{
-                      border: `1.5px solid ${openField === 'price' ? '#497cff' : '#eceef0'}`,
-                      background: openField === 'price' ? 'rgba(73,124,255,0.02)' : '#fafbfc',
-                      boxShadow: openField === 'price' ? '0 0 0 3px rgba(73,124,255,0.12)' : '0 1px 3px rgba(0,0,0,0.04)',
-                    }}
+                    className="flex items-center gap-2.5 px-3 py-2.5 cursor-pointer transition-all duration-150 h-full border-b lg:border-b-0 border-[#f0f2f5]"
+                    style={{ background: openField === 'price' ? 'rgba(37,99,235,0.04)' : 'transparent' }}
                     onClick={() => setOpenField(openField === 'price' ? null : 'price')}
                   >
                     <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: openField === 'price' ? 'rgba(73,124,255,0.12)' : '#eef0f3' }}>
-                      <span style={{ fontSize: 15, fontWeight: 800, color: openField === 'price' ? '#497cff' : '#6b7280', lineHeight: 1 }}>₾</span>
+                      style={{ background: openField === 'price' ? 'rgba(37,99,235,0.14)' : '#f3f4f7' }}>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: openField === 'price' ? '#2563eb' : '#6b7280', lineHeight: 1 }}>₾</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: openField === 'price' ? '#497cff' : '#9ea0a7', marginBottom: 1 }}>
-                        ფასი
-                      </p>
-                      <p className="text-sm font-semibold truncate" style={{ color: (form.priceMin || form.priceMax) ? '#191c1e' : '#bbbdc4' }}>
-                        {form.priceMin && form.priceMax
-                          ? `₾${Number(form.priceMin).toLocaleString()} – ₾${Number(form.priceMax).toLocaleString()}`
-                          : form.priceMax
-                          ? `მდე ₾${Number(form.priceMax).toLocaleString()}`
-                          : form.priceMin
-                          ? `₾${Number(form.priceMin).toLocaleString()}+`
-                          : 'ნებისმიერი'}
+                      <p style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '0.07em', textTransform: 'uppercase', color: openField === 'price' ? '#2563eb' : '#9ea0a7', marginBottom: 1 }}>ფასი</p>
+                      <p className="text-[13px] font-semibold truncate" style={{ color: (form.priceMin || form.priceMax) ? '#191c1e' : '#bbbdc4' }}>
+                        {form.priceMin && form.priceMax ? `₾${Number(form.priceMin).toLocaleString()} – ₾${Number(form.priceMax).toLocaleString()}` : form.priceMax ? t('home.upToPrice', { amount: Number(form.priceMax).toLocaleString() }) : form.priceMin ? t('home.fromPricePlus', { amount: Number(form.priceMin).toLocaleString() }) : t('common.any')}
                       </p>
                     </div>
-                    <ChevronDown size={13} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0, transform: openField === 'price' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                    <ChevronDown size={12} strokeWidth={2.5} style={{ color: '#b0b2ba', flexShrink: 0, transform: openField === 'price' ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                   </div>
 
                   <AnimatePresence>
@@ -1447,12 +1002,12 @@ export default function HomePage() {
                         className="absolute top-full left-0 mt-2 rounded-2xl p-4 z-50"
                         style={{ background: '#fff', boxShadow: '0 20px 60px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.06)', width: 280 }}
                       >
-                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 10 }}>ფასის დიაპაზონი</p>
+                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9ea0a7', marginBottom: 10 }}>{t('home.priceRange')}</p>
                         {/* Min/Max inputs at top */}
                         <div className="flex items-center gap-2 mb-4">
                           <div className="flex-1 flex items-center gap-1.5 px-3 py-2.5 rounded-xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
                             <span style={{ color: '#b0b2ba', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>₾</span>
-                            <input type="number" placeholder="დან" value={form.priceMin}
+                            <input type="number" placeholder={t('home.from')} value={form.priceMin}
                               onChange={e => setForm(f => ({ ...f, priceMin: e.target.value }))}
                               onClick={e => e.stopPropagation()}
                               className="bare-input" />
@@ -1460,14 +1015,14 @@ export default function HomePage() {
                           <span style={{ color: '#b0b2ba', fontSize: 13, fontWeight: 600, flexShrink: 0 }}>—</span>
                           <div className="flex-1 flex items-center gap-1.5 px-3 py-2.5 rounded-xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
                             <span style={{ color: '#b0b2ba', fontWeight: 700, fontSize: 12, flexShrink: 0 }}>₾</span>
-                            <input type="number" placeholder="მდე" value={form.priceMax}
+                            <input type="number" placeholder={t('home.to')} value={form.priceMax}
                               onChange={e => setForm(f => ({ ...f, priceMax: e.target.value }))}
                               onClick={e => e.stopPropagation()}
                               className="bare-input" />
                           </div>
                         </div>
                         {/* Quick presets */}
-                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#c0c2ca', marginBottom: 8 }}>სწრაფი არჩევა</p>
+                        <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#c0c2ca', marginBottom: 8 }}>{t('home.quickSelect')}</p>
                         <div className="grid grid-cols-3 gap-1.5">
                           {[
                             { max: '50000', l: '₾50K' }, { max: '100000', l: '₾100K' },
@@ -1478,7 +1033,7 @@ export default function HomePage() {
                               onClick={() => { setForm(f => ({ ...f, priceMin: '', priceMax: opt.max })); setOpenField(null); }}
                               className="py-2 rounded-xl text-xs font-bold transition-all duration-150"
                               style={{
-                                background: form.priceMax === opt.max && !form.priceMin ? '#497cff' : '#f2f4f6',
+                                background: form.priceMax === opt.max && !form.priceMin ? '#2563eb' : '#f2f4f6',
                                 color: form.priceMax === opt.max && !form.priceMin ? '#fff' : '#45464d',
                               }}>{opt.l}</button>
                           ))}
@@ -1488,126 +1043,278 @@ export default function HomePage() {
                   </AnimatePresence>
                 </div>
 
-                {/* Divider */}
-                <div className="hidden lg:flex items-center px-1">
-                  <div className="w-px h-10" style={{ background: '#e8eaed' }} />
-                </div>
-
-                {/* ④ Filter button + Search button */}
-                <div className="flex items-stretch gap-2 lg:pl-px">
-                  {/* Advanced filter button */}
+                {/* ④ Actions */}
+                <div className="flex items-stretch gap-0 flex-shrink-0">
                   <button
                     onClick={() => { setOpenField(null); setFilterModalOpen(true); }}
-                    className="flex items-center gap-2 px-4 py-3.5 rounded-2xl font-bold text-sm transition-all duration-200 flex-shrink-0"
-                    style={{
-                      background: '#f2f4f6',
-                      color: '#45464d',
-                      border: '1.5px solid #eceef0',
-                    }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.background = '#eceef0';
-                      (e.currentTarget as HTMLElement).style.borderColor = '#d0d2da';
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.background = '#f2f4f6';
-                      (e.currentTarget as HTMLElement).style.borderColor = '#eceef0';
-                    }}
+                    className="flex items-center justify-center gap-1.5 px-3 py-2.5 lg:py-0 font-bold text-[13px] transition-all duration-150 border-b lg:border-b-0 lg:border-r border-[#eceef0]"
+                    style={{ background: '#f8f9fb', color: '#45464d', minWidth: 46 }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#f0f2f5'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f8f9fb'; }}
                   >
-                    <SlidersHorizontal size={15} strokeWidth={2.3} />
-                    <span className="hidden sm:inline">ფილტრი</span>
+                    <SlidersHorizontal size={14} strokeWidth={2.3} />
+                    <span className="hidden sm:inline">{t('listings.filter')}</span>
                   </button>
 
-                  {/* Search button */}
                   <button
                     onClick={handleSearch}
-                    className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-bold text-white text-sm transition-all duration-200 lg:min-w-[130px]"
-                    style={{
-                      background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                      boxShadow: '0 4px 18px rgba(5,150,105,0.35)',
-                    }}
-                    onMouseEnter={e => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)';
-                      el.style.boxShadow = '0 6px 24px rgba(5,150,105,0.48)';
-                      el.style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={e => {
-                      const el = e.currentTarget as HTMLElement;
-                      el.style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)';
-                      el.style.boxShadow = '0 4px 18px rgba(5,150,105,0.35)';
-                      el.style.transform = 'none';
-                    }}
+                    className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 sm:px-7 py-2.5 lg:py-0 font-bold text-white text-[14px] transition-all duration-150 lg:min-w-[148px]"
+                    style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)', borderRadius: '0 12px 12px 0' }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)'; }}
                   >
-                    <Search size={16} strokeWidth={2.5} />
-                    ძებნა
+                    <Search size={15} strokeWidth={2.5} />
+                    {t('home.searchBtn')}
                   </button>
+                </div>
                 </div>
               </div>
 
               {/* ── Row 3: Popular tags ── */}
-              <div className="flex items-center gap-2 flex-wrap px-4 pb-3.5 pt-0">
-                <span style={{ fontSize: 11, color: '#b0b2ba', fontWeight: 600 }}>პოპულარული:</span>
+              <div
+                className="flex items-center gap-2 flex-wrap px-3 sm:px-4 py-3 rounded-b-[1.25rem]"
+                style={{ background: '#fafbfc', borderTop: '1px solid #f0f2f5' }}
+              >
+                <span style={{ fontSize: 11, color: '#9ea0a7', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('home.popular')}</span>
                 {[
-                  { l: 'ვაკე, თბილისი', q: '?city=თბილისი&district=ვაკე' },
-                  { l: 'ბათუმის ცენტრი', q: '?city=ბათუმი' },
-                  { l: 'ახალი კომპლექსი', q: '?new=true' },
-                  { l: '3-ოთახიანი', q: '?bedrooms=3' },
-                  { l: 'ბინა ქირით', q: '?status=rent&propType=apartment' },
+                  { l: t('home.popularTags.vake'), q: '?city=თბილისი&district=ვაკე' },
+                  { l: t('home.popularTags.batumiCenter'), q: '?city=ბათუმი' },
+                  { l: t('home.popularTags.newComplex'), q: '?new=true' },
+                  { l: t('home.popularTags.threeRoom'), q: '?bedrooms=3' },
+                  { l: t('home.popularTags.rentApartment'), q: '?status=rent&propType=apartment' },
                 ].map(tag => (
                   <button key={tag.l}
                     onClick={() => navigate(`/listings${tag.q}`)}
-                    className="px-3 py-1 rounded-full text-[11px] font-semibold transition-all duration-150"
-                    style={{ background: '#f2f4f6', color: '#5a5c64' }}
+                    className="px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-150"
+                    style={{ background: '#fff', color: '#5a5c64', border: '1px solid #e8eaed' }}
                     onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(73,124,255,0.10)';
-                      (e.currentTarget as HTMLElement).style.color = '#497cff';
+                      (e.currentTarget as HTMLElement).style.background = 'rgba(37, 99, 235,0.08)';
+                      (e.currentTarget as HTMLElement).style.color = '#2563eb';
+                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37, 99, 235,0.25)';
                     }}
                     onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.background = '#f2f4f6';
+                      (e.currentTarget as HTMLElement).style.background = '#fff';
                       (e.currentTarget as HTMLElement).style.color = '#5a5c64';
+                      (e.currentTarget as HTMLElement).style.borderColor = '#e8eaed';
                     }}>{tag.l}</button>
                 ))}
               </div>
-            </div>
-          </motion.div>
+                </div>{/* searchPanelRef */}
+              </motion.div>
+            </div>{/* search overlay */}
+          </div>{/* relative wrapper */}
 
-          {/* ── Quick-access pills ── */}
-          <InViewFade delay={0.1}>
-            <div className="mt-4 sm:mt-5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 mx-3 sm:mx-6 lg:mx-12">
-              {[
-                { icon: TrendingUp,  label: 'ფასების ანალიტიკა',   color: '#497cff', href: '/blog?cat=market' },
-                { icon: BadgePercent,label: 'ბინის შეფასება',      color: '#d97706', href: '/contact' },
-                { icon: HardHat,     label: 'ახალი პროექტები',     color: '#10B981', href: '/listings?type=apartment&new=true' },
-                { icon: Shield,      label: 'ვერიფიც. აგენტები',   color: '#8b5cf6', href: '/agents?verified=true' },
-                { icon: Building2,   label: 'კომერციული ფართები',  color: '#0ea5e9', href: '/listings?type=commercial' },
-              ].map(item => (
-                <Link
-                  key={item.label}
-                  to={item.href}
-                  className="group flex items-center gap-2.5 rounded-2xl px-3.5 py-3 transition-all duration-200"
-                  style={{ background: '#fff', border: '1px solid #eceef0' }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = `${item.color}55`;
-                    (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 20px rgba(15,23,42,0.08)';
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLElement).style.borderColor = '#eceef0';
-                    (e.currentTarget as HTMLElement).style.boxShadow = 'none';
-                  }}
+          {/* ── FILTER MODAL ── */}
+          <AnimatePresence>
+            {filterModalOpen && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.18 }}
+                className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center"
+                style={{ background: 'rgba(15,20,30,0.55)', backdropFilter: 'blur(4px)' }}
+                onClick={e => { if (e.target === e.currentTarget) setFilterModalOpen(false); }}
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 40, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 30, scale: 0.97 }}
+                  transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+                  className="w-full sm:w-[560px] max-h-[92vh] overflow-y-auto overflow-x-hidden rounded-t-3xl sm:rounded-3xl"
+                  style={{ background: '#fff', boxShadow: '0 32px 80px rgba(0,0,0,0.28)' }}
                 >
-                  <div
-                    className="flex items-center justify-center flex-shrink-0 w-9 h-9 rounded-xl transition-transform duration-200 group-hover:scale-105"
-                    style={{ background: `${item.color}14` }}
-                  >
-                    <item.icon size={16} strokeWidth={2.2} style={{ color: item.color }} />
+                  {/* Modal header */}
+                  <div className="flex items-center justify-between px-6 py-5" style={{ borderBottom: '1px solid #f0f2f5' }}>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'rgba(37, 99, 235,0.10)' }}>
+                        <SlidersHorizontal size={16} strokeWidth={2.2} style={{ color: '#2563eb' }} />
+                      </div>
+                      <div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 16 }}>{t('home.filterTitle')}</p>
+                        <p style={{ fontSize: 12, color: '#9ea0a7' }}>{t('home.filterSubtitle')}</p>
+                      </div>
+                    </div>
+                    <button onClick={() => setFilterModalOpen(false)} className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors" style={{ background: '#f2f4f6' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#eceef0'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#f2f4f6'}>
+                      <X size={16} strokeWidth={2.5} style={{ color: '#45464d' }} />
+                    </button>
                   </div>
-                  <span className="text-[12.5px] font-bold leading-tight" style={{ color: '#2c2d31' }}>
-                    {item.label}
-                  </span>
-                </Link>
-              ))}
-            </div>
-          </InViewFade>
+
+                  <div className="px-6 py-2">
+
+                    {/* ── Property type ── */}
+                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(37, 99, 235,0.10)' }}>
+                          <Home size={13} strokeWidth={2.3} style={{ color: '#2563eb' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>{t('home.propertyType')}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {propertyTypeOpts.map(c => {
+                          const active = form.propType === c.v;
+                          const Icon = c.icon;
+                          return (
+                            <button key={c.v}
+                              onClick={() => setForm(f => ({ ...f, propType: c.v }))}
+                              className="flex items-center gap-2 pl-2 pr-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
+                              style={{
+                                background: active ? '#191c1e' : '#f4f5f7',
+                                color: active ? '#fff' : '#4b5563',
+                                border: `1.5px solid ${active ? '#191c1e' : '#eceef0'}`,
+                              }}
+                            >
+                              <Icon size={14} strokeWidth={2.2} style={{ color: active ? '#fff' : '#9ca3af', flexShrink: 0 }} />
+                              {c.l}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* ── Deal type ── */}
+                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(34,197,94,0.10)' }}>
+                          <Tag size={13} strokeWidth={2.3} style={{ color: '#16a34a' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>{t('home.dealType')}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {dealTypeOpts.map(c => (
+                          <button key={c.v}
+                            onClick={() => setTab(c.v as 'sale' | 'rent')}
+                            className="px-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
+                            style={{
+                              background: tab === c.v ? '#2563eb' : '#f4f5f7',
+                              color: tab === c.v ? '#fff' : '#4b5563',
+                              border: `1.5px solid ${tab === c.v ? '#2563eb' : '#eceef0'}`,
+                            }}>{c.l}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Bedrooms ── */}
+                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(245,158,11,0.10)' }}>
+                          <Bed size={13} strokeWidth={2.3} style={{ color: '#d97706' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>{t('home.bedroomCount')}</p>
+                      </div>
+                      <div className="flex gap-2">
+                        {bedroomOpts.map(c => (
+                          <button key={c.v}
+                            onClick={() => setForm(f => ({ ...f, bedrooms: c.v }))}
+                            className="flex-1 py-2.5 rounded-xl text-[13px] font-bold transition-all duration-150 text-center"
+                            style={{
+                              background: form.bedrooms === c.v ? '#191c1e' : '#f4f5f7',
+                              color: form.bedrooms === c.v ? '#fff' : '#4b5563',
+                              border: `1.5px solid ${form.bedrooms === c.v ? '#191c1e' : '#eceef0'}`,
+                            }}>{c.l}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* ── Price range ── */}
+                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(16,185,129,0.10)' }}>
+                          <DollarSign size={13} strokeWidth={2.3} style={{ color: '#059669' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>{t('home.totalPrice')}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-2xl transition-all" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                          <span style={{ color: '#9ea0a7', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>₾</span>
+                          <input type="number" placeholder={t('home.from')} value={form.priceMin}
+                            onChange={e => setForm(f => ({ ...f, priceMin: e.target.value }))}
+                            className="bare-input" />
+                        </div>
+                        <div className="flex-shrink-0 w-5 h-px" style={{ background: '#d1d5db' }} />
+                        <div className="flex-1 flex items-center gap-2 px-4 py-3 rounded-2xl transition-all" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                          <span style={{ color: '#9ea0a7', fontSize: 14, fontWeight: 800, flexShrink: 0 }}>₾</span>
+                          <input type="number" placeholder={t('home.to')} value={form.priceMax}
+                            onChange={e => setForm(f => ({ ...f, priceMax: e.target.value }))}
+                            className="bare-input" />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── Area range ── */}
+                    <div className="py-5" style={{ borderBottom: '1px solid #f2f4f6' }}>
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(139,92,246,0.10)' }}>
+                          <Maximize2 size={13} strokeWidth={2.3} style={{ color: '#2563eb' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>{t('home.area')}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 flex items-center justify-between gap-2 px-4 py-3 rounded-2xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                          <input type="number" placeholder={t('home.from')} value={form.areaMin}
+                            onChange={e => setForm(f => ({ ...f, areaMin: e.target.value }))}
+                            className="bare-input" />
+                          <span style={{ color: '#b0b2ba', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>მ²</span>
+                        </div>
+                        <div className="flex-shrink-0 w-5 h-px" style={{ background: '#d1d5db' }} />
+                        <div className="flex-1 flex items-center justify-between gap-2 px-4 py-3 rounded-2xl" style={{ border: '1.5px solid #eceef0', background: '#fafbfc' }}>
+                          <input type="number" placeholder={t('home.to')} value={form.areaMax}
+                            onChange={e => setForm(f => ({ ...f, areaMax: e.target.value }))}
+                            className="bare-input" />
+                          <span style={{ color: '#b0b2ba', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>მ²</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* ── City ── */}
+                    <div className="py-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(239,68,68,0.10)' }}>
+                          <MapPin size={13} strokeWidth={2.3} style={{ color: '#dc2626' }} />
+                        </div>
+                        <p className="font-bold text-[#191c1e]" style={{ fontSize: 13 }}>{t('home.city')}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {cityOpts.map(c => (
+                          <button key={c.v}
+                            onClick={() => setForm(f => ({ ...f, city: c.v }))}
+                            className="px-3.5 py-2 rounded-xl text-[13px] font-semibold transition-all duration-150"
+                            style={{
+                              background: form.city === c.v ? '#2563eb' : '#f4f5f7',
+                              color: form.city === c.v ? '#fff' : '#4b5563',
+                              border: `1.5px solid ${form.city === c.v ? '#2563eb' : '#eceef0'}`,
+                            }}>{c.l}</button>
+                        ))}
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Modal footer */}
+                  <div className="flex items-center justify-between px-6 py-4 gap-3" style={{ borderTop: '1px solid #f0f2f5' }}>
+                    <button onClick={clearFilters}
+                      className="px-5 py-3 rounded-2xl text-sm font-bold transition-all duration-150"
+                      style={{ background: '#f2f4f6', color: '#45464d' }}
+                      onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#eceef0'}
+                      onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#f2f4f6'}>
+                      გასუფთავება
+                    </button>
+                    <button onClick={handleSearch}
+                      className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-sm font-bold text-white transition-all duration-200"
+                      style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)'; }}>
+                      <Search size={15} strokeWidth={2.5} />
+                      {t('home.searchBtn')}
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
         </div>
       </section>
 
@@ -1619,9 +1326,9 @@ export default function HomePage() {
           <InViewFade>
             <SectionTitle
               icon={Rocket}
-              title="VIP განცხადებები"
+              title={t('home.sections.vip')}
               linkTo="/listings?vip=true"
-              linkLabel="ყველა VIP"
+              linkLabel={t('home.sections.vipAll')}
             />
           </InViewFade>
           <ListingSlider items={featured} badge="vip" />
@@ -1631,9 +1338,9 @@ export default function HomePage() {
       <AdStrip bg="#f7f9fb">
         <AdBanner
           sponsor="Bank of Georgia"
-          title="იპოთეკა 8.9%-დან — პირველი 2 წელი ფიქსირებული"
-          subtitle="გამოითვლეთ თქვენი ყოველთვიური გადახდა ონლაინ და მიიღეთ წინასწარი დამტკიცება 24 საათში"
-          ctaLabel="გამოთვლა"
+          title={t('home.ads.mortgageTitle')}
+          subtitle={t('home.ads.mortgageSubtitle')}
+          ctaLabel={t('home.ads.calculate')}
           ctaHref="/contact"
           variant="navy"
         />
@@ -1647,10 +1354,10 @@ export default function HomePage() {
           <InViewFade>
             <SectionTitle
               icon={Sparkles}
-              title="ახალი განცხადებები"
+              title={t('home.sections.newListings')}
               accent="green"
               linkTo="/listings?new=true"
-              linkLabel="ყველა ახალი"
+              linkLabel={t('home.sections.newAll')}
             />
           </InViewFade>
           <ListingSlider items={newest} badge="new" />
@@ -1659,10 +1366,10 @@ export default function HomePage() {
 
       <AdStrip bg="#fff">
         <AdBanner
-          sponsor="TbilisiRealtors.ge"
-          title="SUPER VIP — გაზარდეთ ხილვადობა 10×"
-          subtitle="თქვენი განცხადება საიტის პრიორიტეტულ ზონაში. მეტი ვიზიტი, სწრაფი გაყიდვა."
-          ctaLabel="VIP აქტივაცია"
+          sponsor="TbilisiRealtor.GE"
+          title={t('home.ads.vipTitle')}
+          subtitle={t('home.ads.vipSubtitle')}
+          ctaLabel={t('home.ads.vipCta')}
           ctaHref="/listings?vip=true"
           variant="blue"
           icon={Rocket}
@@ -1677,9 +1384,9 @@ export default function HomePage() {
           <InViewFade>
             <SectionTitle
               icon={HardHat}
-              title="პროექტები"
+              title={t('home.sections.projects')}
               linkTo="/listings?type=apartment&new=true"
-              linkLabel="ყველა პროექტი"
+              linkLabel={t('home.sections.projectsAll')}
             />
           </InViewFade>
 
@@ -1698,9 +1405,9 @@ export default function HomePage() {
 
               <div className="relative flex flex-wrap items-center gap-1.5 sm:gap-2 mb-4 sm:mb-5">
                 {[
-                  { label: 'პრე-გაყიდვა', color: '#497cff' },
-                  { label: '0% საკომისიო', color: '#10B981' },
-                  { label: 'უფასო კონსულტაცია', color: '#d97706' },
+                  { label: t('home.projectChips.presale'), color: '#2563eb' },
+                  { label: t('home.projectChips.noCommission'), color: '#10B981' },
+                  { label: t('home.projectChips.freeConsult'), color: '#d97706' },
                 ].map(chip => (
                   <span
                     key={chip.label}
@@ -1727,9 +1434,9 @@ export default function HomePage() {
       <AdStrip bg="#f7f9fb">
         <AdBanner
           sponsor="Archi Group"
-          title="Panorama Residence — პრე-გაყიდვა ვაკეში"
-          subtitle="186 ბინა · დასრულება 2027 Q2 · ფასი ₾185,000-დან · 0% საკომისიო"
-          ctaLabel="პროექტის ნახვა"
+          title={t('home.ads.archiTitle')}
+          subtitle={t('home.ads.archiSubtitle')}
+          ctaLabel={t('home.ads.viewProject')}
           ctaHref="/listings?type=apartment&new=true"
           variant="light"
           icon={HardHat}
@@ -1745,9 +1452,9 @@ export default function HomePage() {
           <InViewFade>
             <SectionTitle
               icon={BookOpen}
-              title="ბლოგი"
+              title={t('home.sections.blog')}
               linkTo="/blog"
-              linkLabel="ყველა სტატია"
+              linkLabel={t('home.sections.blogAll')}
             />
           </InViewFade>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
@@ -1768,7 +1475,7 @@ export default function HomePage() {
           <InViewFade>
             <SectionTitle
               icon={HelpCircle}
-              title="ხშირად დასმული კითხვები"
+              title={t('home.sections.faq')}
             />
           </InViewFade>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1781,7 +1488,6 @@ export default function HomePage() {
                     style={{
                       border: '1px solid #eceef0',
                       background: '#fff',
-                      boxShadow: isOpen ? '0 8px 24px rgba(15,23,42,0.08)' : '0 2px 10px rgba(15,23,42,0.06)',
                     }}
                   >
                     <button
@@ -1791,7 +1497,7 @@ export default function HomePage() {
                     >
                       <span
                         className="font-semibold text-sm leading-snug"
-                        style={{ color: isOpen ? '#497cff' : '#191c1e' }}
+                        style={{ color: isOpen ? '#2563eb' : '#191c1e' }}
                       >
                         {item.question}
                       </span>
@@ -1801,7 +1507,7 @@ export default function HomePage() {
                           width: 28,
                           height: 28,
                           borderRadius: 8,
-                          border: '2px solid #497cff',
+                          border: '2px solid #2563eb',
                           background: 'transparent',
                         }}
                       >
@@ -1809,7 +1515,7 @@ export default function HomePage() {
                           size={14}
                           strokeWidth={2.5}
                           style={{
-                            color: '#497cff',
+                            color: '#2563eb',
                             transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)',
                             transition: 'transform 0.2s ease',
                           }}

@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import AdminPropertiesSection from '../components/admin/AdminPropertiesSection';
+import BrandLogo from '../components/BrandLogo';
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
@@ -62,7 +63,7 @@ const TYPE_LABELS: Record<string, string> = {
   apartment: 'ბინა', house: 'სახლი', commercial: 'კომ.', land: 'მიწა', villa: 'ვილა',
 };
 const TYPE_COLORS: Record<string, string> = {
-  apartment: '#497cff', house: '#10B981', commercial: '#f59e0b', land: '#8b5cf6', villa: '#ec4899',
+  apartment: '#2563eb', house: '#10B981', commercial: '#f59e0b', land: '#2563eb', villa: '#ec4899',
 };
 const STATUS_COLOR: Record<string, string> = { sale: '#f59e0b', rent: '#10B981' };
 
@@ -126,8 +127,8 @@ function ImgThumb({ src }: { src?: string }) {
   );
 }
 
-const inputCls = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all';
-const selectCls = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white';
+const inputCls = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm placeholder-slate-400 focus:outline-none transition-all';
+const selectCls = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm focus:outline-none transition-all bg-white';
 
 function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
@@ -201,9 +202,9 @@ function MonthlyBarChart() {
             <rect x={cx - bw - 1.5} y={padT + H - vh} width={bw} height={vh} rx="3.5"
               fill={active ? '#bbf7d0' : '#dcfce7'} />
             <rect x={cx + 1.5} y={padT + H - lh} width={bw} height={lh} rx="3.5"
-              fill={active ? '#4f46e5' : '#c7d2fe'} />
+              fill={active ? '#2563eb' : '#bfdbfe'} />
             <text x={cx} y={padT + H + padB - 4} textAnchor="middle" fontSize="8.5"
-              fill={active ? '#4f46e5' : '#94a3b8'} fontWeight={active ? '700' : '400'}>{m}</text>
+              fill={active ? '#2563eb' : '#94a3b8'} fontWeight={active ? '700' : '400'}>{m}</text>
           </g>
         );
       })}
@@ -262,7 +263,7 @@ function PropertyTypeChart({ properties }: { properties: PropertyRow[] }) {
     .filter(s => s.value > 0);
   if (segs.length === 0) {
     const demo = [
-      { label: 'ბინა',  value: 60, color: '#4f46e5' },
+      { label: 'ბინა',  value: 60, color: '#2563eb' },
       { label: 'სახლი', value: 20, color: '#10b981' },
       { label: 'კომ.',  value: 12, color: '#f59e0b' },
       { label: 'ვილა',  value: 8,  color: '#ec4899' },
@@ -448,44 +449,26 @@ export default function AdminPage() {
           {/* Main bar */}
           <div className="flex items-center justify-between gap-4 py-3.5 min-h-[68px]">
             {/* Brand */}
-            <div className="flex items-center gap-3 min-w-0 flex-shrink-0">
-              <div className="relative flex-shrink-0">
-                <div
-                  className="w-11 h-11 rounded-2xl flex items-center justify-center"
+            <BrandLogo
+              variant="dark"
+              size="md"
+              tagline={`${navItems.find(n => n.id === section)?.label} · პანელი`}
+              responsiveText
+              href="/admin"
+              badge={(
+                <span
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest"
                   style={{
-                    background: '#497cff',
-                    boxShadow: '0 4px 14px rgba(73,124,255,0.35)',
+                    background: 'rgba(37,99,235,0.18)',
+                    color: '#BFDBFE',
+                    border: '1px solid rgba(37,99,235,0.35)',
                   }}
                 >
-                  <Building2 size={20} color="#fff" strokeWidth={2.2} />
-                </div>
-                <div
-                  className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2"
-                  style={{ background: '#10b981', borderColor: '#111827' }}
-                />
-              </div>
-              <div className="min-w-0 hidden sm:block">
-                <div className="flex items-center gap-2">
-                  <p className="font-extrabold text-white text-[15px] leading-none tracking-tight">
-                    TbilisiRealtors<span style={{ color: '#93c5fd' }}>.ge</span>
-                  </p>
-                  <span
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest"
-                    style={{
-                      background: 'rgba(73,124,255,0.2)',
-                      color: '#c7d2fe',
-                      border: '1px solid rgba(73,124,255,0.35)',
-                    }}
-                  >
-                    <Sparkles size={9} />
-                    Admin
-                  </span>
-                </div>
-                <p className="text-slate-500 text-[11px] mt-1 font-medium">
-                  {navItems.find(n => n.id === section)?.label} · პანელი
-                </p>
-              </div>
-            </div>
+                  <Sparkles size={9} />
+                  Admin
+                </span>
+              )}
+            />
 
             {/* Center nav — desktop */}
             <nav
@@ -516,7 +499,7 @@ export default function AdminPage() {
                     {active && (
                       <span
                         className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full"
-                        style={{ background: '#497cff' }}
+                        style={{ background: '#2563eb' }}
                       />
                     )}
                     <item.icon size={14} strokeWidth={active ? 2.3 : 2} className={active ? undefined : 'opacity-75'} />
@@ -541,10 +524,9 @@ export default function AdminPage() {
                       background: 'rgba(255,255,255,0.06)',
                       border: '1px solid rgba(255,255,255,0.1)',
                       color: '#f1f5f9',
-                      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.15)',
                     }}
                     onFocus={e => {
-                      (e.target as HTMLInputElement).style.borderColor = 'rgba(73,124,255,0.5)';
+                      (e.target as HTMLInputElement).style.borderColor = 'rgba(37, 99, 235,0.5)';
                       (e.target as HTMLInputElement).style.background = 'rgba(255,255,255,0.09)';
                     }}
                     onBlur={e => {
@@ -581,7 +563,6 @@ export default function AdminPage() {
                 className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
                 style={{
                   background: '#10b981',
-                  boxShadow: '0 4px 14px rgba(16,185,129,0.35)',
                 }}
                 onMouseEnter={e => {
                   (e.currentTarget as HTMLElement).style.background = '#059669';
@@ -604,7 +585,7 @@ export default function AdminPage() {
               >
                 <div
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-                  style={{ background: '#4f46e5' }}
+                  style={{ background: '#2563eb' }}
                 >
                   {user.name.charAt(0)}
                 </div>
@@ -626,9 +607,9 @@ export default function AdminPage() {
                 }}
                 title="საიტზე გადასვლა"
                 onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.background = 'rgba(73,124,255,0.15)';
-                  (e.currentTarget as HTMLElement).style.color = '#93c5fd';
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(73,124,255,0.3)';
+                  (e.currentTarget as HTMLElement).style.background = 'rgba(37, 99, 235,0.15)';
+                  (e.currentTarget as HTMLElement).style.color = '#2563eb';
+                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37, 99, 235,0.3)';
                 }}
                 onMouseLeave={e => {
                   (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
@@ -677,9 +658,9 @@ export default function AdminPage() {
                   style={
                     active
                       ? {
-                          background: 'rgba(73,124,255,0.25)',
+                          background: 'rgba(37, 99, 235,0.25)',
                           color: '#fff',
-                          border: '1px solid rgba(73,124,255,0.4)',
+                          border: '1px solid rgba(37, 99, 235,0.4)',
                         }
                       : {
                           background: 'rgba(255,255,255,0.04)',
@@ -709,7 +690,7 @@ export default function AdminPage() {
                 placeholder="ძიება..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+                className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm placeholder-slate-400 focus:outline-none bg-white"
               />
             </div>
           )}
@@ -734,7 +715,7 @@ export default function AdminPage() {
               <div className="rounded-2xl p-6 relative overflow-hidden" style={{
                 background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 45%, #1d4ed8 100%)',
               }}>
-                <div style={{ position:'absolute', top:-50, right:-50, width:220, height:220, borderRadius:'50%', background:'rgba(99,102,241,0.13)', pointerEvents:'none' }} />
+                <div style={{ position:'absolute', top:-50, right:-50, width:220, height:220, borderRadius:'50%', background:'rgba(37, 99, 235,0.13)', pointerEvents:'none' }} />
                 <div style={{ position:'absolute', bottom:-70, right:120, width:260, height:260, borderRadius:'50%', background:'rgba(16,185,129,0.08)', pointerEvents:'none' }} />
                 <div className="relative flex flex-wrap items-center justify-between gap-5">
                   <div>
@@ -746,12 +727,12 @@ export default function AdminPage() {
                       გამარჯობა, {user.name.split(' ')[0]} 👋
                     </h2>
                     <p style={{ color:'rgba(255,255,255,0.4)', fontSize:12.5 }}>
-                      {user.role === 'super_admin' ? 'სუპერ ადმინი' : 'ადმინი'} · TbilisiRealtors.ge
+                      {user.role === 'super_admin' ? 'სუპერ ადმინი' : 'ადმინი'} · TbilisiRealtor.GE
                     </p>
                   </div>
                   <div className="hidden sm:flex items-center gap-7">
                     {[
-                      { label:'განცხ.', value: stats?.properties ?? 0, color:'#a5b4fc' },
+                      { label:'განცხ.', value: stats?.properties ?? 0, color:'#2563eb' },
                       { label:'ნახვა',  value:(stats?.totalViews ?? 0).toLocaleString(), color:'#6ee7b7' },
                       { label:'აგენტი', value: stats?.agents ?? 0,     color:'#fcd34d' },
                       { label:'ბლოგი',  value: stats?.blogPosts ?? 0,  color:'#f9a8d4' },
@@ -776,10 +757,10 @@ export default function AdminPage() {
               {/* ── KPI stat cards ── */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label:'სულ განცხადება', value: stats?.properties ?? 0,                 icon: Building2, color:'#4f46e5', bg:'#eef2ff', trend:'+8%',  spark:[8,10,9,12,14,11,15,13,16,14,18,stats?.properties??0] },
+                  { label:'სულ განცხადება', value: stats?.properties ?? 0,                 icon: Building2, color:'#2563eb', bg:'#eff6ff', trend:'+8%',  spark:[8,10,9,12,14,11,15,13,16,14,18,stats?.properties??0] },
                   { label:'სულ ნახვა',       value:(stats?.totalViews ?? 0).toLocaleString(), icon: Eye,       color:'#059669', bg:'#ecfdf5', trend:'+23%', spark:[400,600,700,900,1100,950,1200,1050,1300,1150,1400,stats?.totalViews??0] },
                   { label:'აქტ. აგენტი',    value: stats?.agents ?? 0,                     icon: UserCheck, color:'#d97706', bg:'#fffbeb', trend:'+3%',  spark:[4,5,5,6,7,6,8,7,9,8,9,stats?.agents??0] },
-                  { label:'ბლოგ სტატია',    value: stats?.blogPosts ?? 0,                  icon: BookOpen,  color:'#7c3aed', bg:'#f5f3ff', trend:'+5%',  spark:[2,3,3,4,4,5,5,6,6,7,7,stats?.blogPosts??0] },
+                  { label:'ბლოგ სტატია',    value: stats?.blogPosts ?? 0,                  icon: BookOpen,  color:'#2563eb', bg:'#f5f3ff', trend:'+5%',  spark:[2,3,3,4,4,5,5,6,6,7,7,stats?.blogPosts??0] },
                 ].map(({ label, value, icon: Icon, color, bg, trend, spark }) => (
                   <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
                     <div className="flex items-start justify-between mb-3">
@@ -810,7 +791,7 @@ export default function AdminPage() {
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                        <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background:'#c7d2fe' }} />განცხ.
+                        <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background:'#bfdbfe' }} />განცხ.
                       </span>
                       <span className="flex items-center gap-1.5 text-xs text-slate-500">
                         <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background:'#bbf7d0' }} />ნახვა
@@ -833,7 +814,7 @@ export default function AdminPage() {
                   { label:'იყიდება',        count: forSaleCount,  total: propList.length, color:'#f59e0b', bg:'#fffbeb', icon: TrendingUp },
                   { label:'ქირავდება',       count: forRentCount,  total: propList.length, color:'#10b981', bg:'#ecfdf5', icon: Home       },
                   { label:'VIP / პრემიუმი', count: premiumCount,  total: propList.length, color:'#f59e0b', bg:'#fef9c3', icon: Zap        },
-                  { label:'გამორჩეული',      count: featuredCount, total: propList.length, color:'#4f46e5', bg:'#eef2ff', icon: Star       },
+                  { label:'გამორჩეული',      count: featuredCount, total: propList.length, color:'#2563eb', bg:'#eff6ff', icon: Star       },
                 ].map(({ label, count, total, color, bg, icon: Icon }) => {
                   const pct = total ? Math.round(count / total * 100) : 0;
                   return (
@@ -867,7 +848,7 @@ export default function AdminPage() {
                   </div>
                   <button onClick={() => setSection('properties')}
                     className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                    style={{ color:'#4f46e5', background:'#eef2ff' }}>
+                    style={{ color:'#2563eb', background:'#eff6ff' }}>
                     ყველა <ArrowUpRight size={12} />
                   </button>
                 </div>
@@ -907,10 +888,10 @@ export default function AdminPage() {
               {/* ── Quick actions ── */}
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { label:'+ განცხადება',  color:'#4f46e5', bg:'#eef2ff',  icon: Plus,          action: () => navigate('/admin/listings/new') },
+                  { label:'+ განცხადება',  color:'#2563eb', bg:'#eff6ff',  icon: Plus,          action: () => navigate('/admin/listings/new') },
                   { label:'განცხადებები',  color:'#059669', bg:'#ecfdf5',  icon: Building2,     action: () => setSection('properties') },
                   { label:'აგენტები',      color:'#d97706', bg:'#fffbeb',  icon: UserCheck,     action: () => setSection('agents') },
-                  { label:'ბლოგი',         color:'#7c3aed', bg:'#f5f3ff',  icon: BookOpen,      action: () => setSection('blog') },
+                  { label:'ბლოგი',         color:'#2563eb', bg:'#f5f3ff',  icon: BookOpen,      action: () => setSection('blog') },
                 ].map(({ label, color, bg, icon: Icon, action }) => (
                   <button key={label} onClick={action}
                     className="flex items-center gap-3 p-4 rounded-2xl border transition-all hover:shadow-md text-left"
@@ -944,7 +925,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-500">სულ: <b className="text-slate-700">{filteredAgents.length}</b></p>
                 <button onClick={() => setModal({ type: 'agent', mode: 'create', data: {} })}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors">
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 transition-colors">
                   <Plus size={15} />აგენტი
                 </button>
               </div>
@@ -958,7 +939,7 @@ export default function AdminPage() {
                     {a.photo ? (
                       <img src={a.photo} alt={a.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 bg-slate-100" />
                     ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white font-bold flex-shrink-0">{a.name.charAt(0)}</div>
+                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0">{a.name.charAt(0)}</div>
                     )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
@@ -997,7 +978,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-500">სულ: <b className="text-slate-700">{filteredBlog.length}</b></p>
                 <button onClick={() => setModal({ type: 'blog', mode: 'create', data: {} })}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors">
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 transition-colors">
                   <Plus size={15} />სტატია
                 </button>
               </div>
@@ -1018,8 +999,8 @@ export default function AdminPage() {
                     <div className="flex-1 min-w-0">
                       <p className="font-bold text-slate-800 text-sm leading-snug">{b.title}</p>
                       <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-                        <Badge label={b.category || 'კატ.'} color="#8b5cf6" />
-                        {b.isFeatured && <Badge label="გამ." color="#497cff" />}
+                        <Badge label={b.category || 'კატ.'} color="#2563eb" />
+                        {b.isFeatured && <Badge label="გამ." color="#2563eb" />}
                         <Badge label={b.isPublished ? 'გამოქვ.' : 'პროექტი'} color={b.isPublished ? '#10B981' : '#94a3b8'} />
                         <span className="text-xs text-slate-400">{b.readTime} წთ</span>
                         <span className="text-xs text-slate-400">{b.authorName}</span>
@@ -1044,14 +1025,14 @@ export default function AdminPage() {
               <div className="flex items-center justify-between">
                 <p className="text-xs text-slate-500">სულ: <b className="text-slate-700">{filteredUsers.length}</b></p>
                 <button onClick={() => setModal({ type: 'user', mode: 'create', data: {} })}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors">
+                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 transition-colors">
                   <Plus size={15} />ადმინი
                 </button>
               </div>
               <div className="grid gap-3">
                 {filteredUsers.map(u => (
                   <div key={u.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4 group">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${u.role === 'super_admin' ? 'bg-gradient-to-br from-violet-500 to-violet-700' : 'bg-gradient-to-br from-blue-500 to-blue-700'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${u.role === 'super_admin' ? 'bg-gradient-to-br from-blue-600 to-blue-600' : 'bg-gradient-to-br from-blue-600 to-blue-600'}`}>
                       {u.name.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1059,7 +1040,7 @@ export default function AdminPage() {
                       <p className="text-xs text-slate-400">{u.email}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Badge label={u.role === 'super_admin' ? 'სუპ. ადმ.' : 'ადმინი'} color={u.role === 'super_admin' ? '#8b5cf6' : '#497cff'} />
+                      <Badge label={u.role === 'super_admin' ? 'სუპ. ადმ.' : 'ადმინი'} color={u.role === 'super_admin' ? '#2563eb' : '#2563eb'} />
                       <Badge label={u.isActive ? 'აქტ.' : 'დაბლ.'} color={u.isActive ? '#10B981' : '#ef4444'} />
                     </div>
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
@@ -1094,7 +1075,7 @@ export default function AdminPage() {
                 {settingList.length === 0 && <p className="text-slate-400 text-sm text-center py-4">იტვირთება...</p>}
                 {settingList.length > 0 && (
                   <button onClick={saveSettings}
-                    className="mt-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors">
+                    className="mt-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 transition-colors">
                     შენახვა
                   </button>
                 )}
@@ -1153,7 +1134,7 @@ function AgentModal({ mode, data, onClose, onSave }: { mode: 'create' | 'edit'; 
     phone: String(data.phone || ''),
     photo: String(data.photo || ''),
     bio: String(data.bio || ''),
-    company: String(data.company || 'TbilisiRealtors.ge'),
+    company: String(data.company || 'TbilisiRealtor.GE'),
     yearsExperience: String(data.yearsExperience || ''),
     specialization: Array.isArray(data.specialization) ? (data.specialization as string[]).join(', ') : String(data.specialization || ''),
     languages: Array.isArray(data.languages) ? (data.languages as string[]).join(', ') : String(data.languages || ''),
@@ -1226,7 +1207,7 @@ function AgentModal({ mode, data, onClose, onSave }: { mode: 'create' | 'edit'; 
       </div>
       <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-slate-100">
         <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50">გაუქმება</button>
-        <button onClick={handleSave} disabled={saving || !form.name} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-60">
+        <button onClick={handleSave} disabled={saving || !form.name} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 disabled:opacity-60">
           {saving ? 'მიმდინ...' : mode === 'create' ? 'დამატება' : 'შენახვა'}
         </button>
       </div>
@@ -1299,7 +1280,7 @@ function BlogModal({ mode, data, onClose, onSave }: { mode: 'create' | 'edit'; d
       </div>
       <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-slate-100">
         <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50">გაუქმება</button>
-        <button onClick={handleSave} disabled={saving || !form.title} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-60">
+        <button onClick={handleSave} disabled={saving || !form.title} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 disabled:opacity-60">
           {saving ? 'მიმდინ...' : mode === 'create' ? 'დამატება' : 'შენახვა'}
         </button>
       </div>
@@ -1355,7 +1336,7 @@ function UserModal({ mode, data, onClose, onSave }: { mode: 'create' | 'edit'; d
       <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-slate-100">
         <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50">გაუქმება</button>
         <button onClick={handleSave} disabled={saving || !form.name || (mode === 'create' && !form.password)}
-          className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-60">
+          className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 disabled:opacity-60">
           {saving ? 'მიმდინ...' : mode === 'create' ? 'დამატება' : 'შენახვა'}
         </button>
       </div>

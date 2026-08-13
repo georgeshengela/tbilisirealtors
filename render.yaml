@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: tbilisirealtors
+    name: tbilisirealtor
     runtime: node
     buildCommand: npm install && npm run build
     startCommand: npm start

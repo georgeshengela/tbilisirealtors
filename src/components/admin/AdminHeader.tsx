@@ -5,6 +5,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useAdminAuth } from '../../contexts/AdminAuthContext';
+import BrandLogo from '../BrandLogo';
 
 export type AdminNavSection = 'dashboard' | 'properties' | 'agents' | 'blog' | 'users' | 'settings';
 
@@ -44,44 +45,27 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
     >
       <div className="container-xl">
         <div className="flex items-center justify-between gap-4 py-3.5 min-h-[68px]">
-          <button
-            type="button"
-            onClick={() => navigate('/admin')}
-            className="flex items-center gap-3 min-w-0 flex-shrink-0 text-left"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-          >
-            <div className="relative flex-shrink-0">
-              <div
-                className="w-11 h-11 rounded-2xl flex items-center justify-center"
-                style={{ background: '#497cff', boxShadow: '0 4px 14px rgba(73,124,255,0.35)' }}
+          <BrandLogo
+            variant="dark"
+            size="md"
+            tagline={subtitle}
+            responsiveText
+            href="/admin"
+            className="min-w-0"
+            badge={(
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest"
+                style={{
+                  background: 'rgba(37,99,235,0.18)',
+                  color: '#BFDBFE',
+                  border: '1px solid rgba(37,99,235,0.35)',
+                }}
               >
-                <Building2 size={20} color="#fff" strokeWidth={2.2} />
-              </div>
-              <div
-                className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2"
-                style={{ background: '#10b981', borderColor: '#111827' }}
-              />
-            </div>
-            <div className="min-w-0 hidden sm:block">
-              <div className="flex items-center gap-2">
-                <p className="font-extrabold text-white text-[15px] leading-none tracking-tight">
-                  TbilisiRealtors<span style={{ color: '#93c5fd' }}>.ge</span>
-                </p>
-                <span
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-widest"
-                  style={{
-                    background: 'rgba(73,124,255,0.2)',
-                    color: '#c7d2fe',
-                    border: '1px solid rgba(73,124,255,0.35)',
-                  }}
-                >
-                  <Sparkles size={9} />
-                  Admin
-                </span>
-              </div>
-              <p className="text-slate-500 text-[11px] mt-1 font-medium truncate">{subtitle}</p>
-            </div>
-          </button>
+                <Sparkles size={9} />
+                Admin
+              </span>
+            )}
+          />
 
           <nav
             className="hidden lg:flex items-center p-1 rounded-2xl flex-shrink-0"
@@ -106,7 +90,7 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
                   {active && (
                     <span
                       className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full"
-                      style={{ background: '#497cff' }}
+                      style={{ background: '#2563eb' }}
                     />
                   )}
                   <item.icon size={14} strokeWidth={active ? 2.3 : 2} className={active ? undefined : 'opacity-75'} />
@@ -122,7 +106,7 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
                 type="button"
                 onClick={() => navigate('/admin/listings/new')}
                 className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
-                style={{ background: '#10b981', boxShadow: '0 4px 14px rgba(16,185,129,0.35)' }}
+                style={{ background: '#10b981' }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#059669'; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#10b981'; }}
               >
@@ -137,7 +121,7 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
             >
               <div
                 className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
-                style={{ background: '#4f46e5' }}
+                style={{ background: '#2563eb' }}
               >
                 {user.name.charAt(0)}
               </div>
@@ -194,9 +178,9 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
                 style={
                   active
                     ? {
-                        background: 'rgba(73,124,255,0.25)',
+                        background: 'rgba(37, 99, 235,0.25)',
                         color: '#fff',
-                        border: '1px solid rgba(73,124,255,0.4)',
+                        border: '1px solid rgba(37, 99, 235,0.4)',
                       }
                     : {
                         background: 'rgba(255,255,255,0.04)',

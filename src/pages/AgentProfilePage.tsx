@@ -19,7 +19,7 @@ export default function AgentProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[102px]">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px]">
       {/* Profile Header */}
       <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10"
@@ -103,7 +103,7 @@ export default function AgentProfilePage() {
             >
               <a
                 href={`tel:${agent.phone}`}
-                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3.5 px-6 rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-blue-500/30"
+                className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-600 text-white py-3.5 px-6 rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-blue-600/30"
               >
                 <Phone size={18} />
                 {agent.phone}
@@ -150,7 +150,7 @@ export default function AgentProfilePage() {
               <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed">{agent.bio}</p>
               <div className="mt-4 flex flex-wrap gap-4">
                 <div className="flex items-center gap-2 text-slate-600 dark:text-slate-400 text-sm">
-                  <MapPin size={16} className="text-blue-500" />
+                  <MapPin size={16} className="text-blue-600" />
                   <span>თბილისი, საქართველო</span>
                 </div>
                 <div>
@@ -243,18 +243,18 @@ export default function AgentProfilePage() {
               <form className="space-y-3">
                 <input
                   placeholder="სახელი გვარი"
-                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:border-blue-500 focus:outline-none placeholder-slate-400"
+                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:border-blue-600 focus:outline-none placeholder-slate-400"
                 />
                 <input
                   placeholder="ტელეფონი"
-                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:border-blue-500 focus:outline-none placeholder-slate-400"
+                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:border-blue-600 focus:outline-none placeholder-slate-400"
                 />
                 <textarea
                   placeholder="შეტყობინება..."
                   rows={4}
-                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:border-blue-500 focus:outline-none placeholder-slate-400 resize-none"
+                  className="w-full border border-slate-200 dark:border-slate-600 rounded-xl px-4 py-3 text-sm bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:border-blue-600 focus:outline-none placeholder-slate-400 resize-none"
                 />
-                <button className="w-full bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-blue-500/30">
+                <button className="w-full bg-blue-600 hover:bg-blue-600 text-white py-3.5 rounded-xl font-semibold transition-all hover:shadow-lg hover:shadow-blue-600/30">
                   შეტყობინების გაგზავნა
                 </button>
               </form>

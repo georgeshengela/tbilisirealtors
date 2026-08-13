@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Building2, Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle, ArrowRight } from 'lucide-react';
+import { Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle, ArrowRight } from 'lucide-react';
+import { useTranslation } from '../i18n/LocaleContext';
+import BrandLogo from '../components/BrandLogo';
 
 type AuthMode = 'login' | 'register' | 'forgot';
 
@@ -10,6 +12,7 @@ interface AuthPageProps {
 }
 
 export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState({
@@ -17,11 +20,11 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
   });
 
   const benefits = [
-    'განცხადების შენახვა ფავორიტებში',
-    'პირდაპირი კომუნიკაცია აგენტებთან',
-    'ბაზრის ანალიტიკაზე წვდომა',
-    'განახლებები ახალ განცხადებებზე',
-    'პირადი განცხადების პანელი',
+    t('auth.benefit1'),
+    t('auth.benefit2'),
+    t('auth.benefit3'),
+    t('favorites.title'),
+    t('nav.listings'),
   ];
 
   return (
@@ -33,22 +36,15 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
           animate={{ opacity: 1, x: 0 }}
           className="w-full max-w-md"
         >
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-3 mb-10">
-            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center">
-              <Building2 size={22} className="text-white" />
-            </div>
-            <div>
-              <span className="font-bold text-xl text-slate-900 dark:text-white">TbilisiRealtors</span>
-              <span className="text-blue-600 font-bold text-xl">.ge</span>
-            </div>
+          <Link to="/" className="inline-flex mb-10">
+            <BrandLogo size="lg" href={null} />
           </Link>
 
           {/* Mode tabs */}
           <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl mb-8">
             {[
-              { value: 'login' as AuthMode, label: 'შესვლა' },
-              { value: 'register' as AuthMode, label: 'რეგისტრაცია' },
+              { value: 'login' as AuthMode, label: t('auth.login') },
+              { value: 'register' as AuthMode, label: t('auth.register') },
             ].map(tab => (
               <button
                 key={tab.value}
@@ -75,14 +71,14 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
               {/* Header */}
               <div className="mb-8">
                 <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                  {mode === 'login' && 'მოგესალმებით!'}
-                  {mode === 'register' && 'ანგარიშის შექმნა'}
-                  {mode === 'forgot' && 'პაროლის აღდგენა'}
+                  {mode === 'login' && t('auth.loginTitle')}
+                  {mode === 'register' && t('auth.registerTitle')}
+                  {mode === 'forgot' && t('auth.forgotTitle')}
                 </h1>
                 <p className="text-slate-500 dark:text-slate-400 mt-2">
-                  {mode === 'login' && 'შედით თქვენს ანგარიშზე'}
-                  {mode === 'register' && 'შეუერთდით TbilisiRealtors.ge-ს'}
-                  {mode === 'forgot' && 'გამოგვიგზავნეთ ელ-ფოსტა'}
+                  {mode === 'login' && t('auth.loginSubtitle')}
+                  {mode === 'register' && t('auth.registerSubtitle')}
+                  {mode === 'forgot' && t('auth.forgotSubtitle')}
                 </p>
               </div>
 
@@ -94,8 +90,8 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
                     <input
                       value={form.name}
                       onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                      placeholder="სახელი და გვარი"
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
+                      placeholder={t('contact.name')}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
                     />
                   </div>
                 )}
@@ -106,8 +102,8 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
                     value={form.email}
                     onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                     type="email"
-                    placeholder="ელ-ფოსტა"
-                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
+                    placeholder={t('auth.email')}
+                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
                   />
                 </div>
 
@@ -117,8 +113,8 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
                     <input
                       value={form.phone}
                       onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                      placeholder="ტელეფონი"
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
+                      placeholder={t('common.phone')}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
                     />
                   </div>
                 )}
@@ -130,8 +126,8 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
                       value={form.password}
                       onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="პაროლი"
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-12 py-4 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
+                      placeholder={t('auth.password')}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-12 py-4 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
                     />
                     <button
                       type="button"
@@ -150,8 +146,8 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
                       value={form.confirmPassword}
                       onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))}
                       type="password"
-                      placeholder="პაროლის დადასტურება"
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-500 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
+                      placeholder={t('auth.confirmPassword')}
+                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
                     />
                   </div>
                 )}
@@ -162,15 +158,15 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
                       onClick={() => setMode('forgot')}
                       className="text-sm text-blue-600 hover:underline font-medium"
                     >
-                      პაროლი დაგავიწყდათ?
+                      {t('auth.forgot')}
                     </button>
                   </div>
                 )}
 
-                <button className="w-full bg-blue-600 hover:bg-blue-500 text-white py-4 rounded-xl font-semibold text-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-500/30 flex items-center justify-center gap-2">
-                  {mode === 'login' && 'შესვლა'}
-                  {mode === 'register' && 'ანგარიშის შექმნა'}
-                  {mode === 'forgot' && 'გაგზავნა'}
+                <button className="w-full bg-blue-600 hover:bg-blue-600 text-white py-4 rounded-xl font-semibold text-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2">
+                  {mode === 'login' && t('auth.submitLogin')}
+                  {mode === 'register' && t('auth.submitRegister')}
+                  {mode === 'forgot' && t('auth.submitForgot')}
                   <ArrowRight size={20} />
                 </button>
 
@@ -179,7 +175,7 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
                   <>
                     <div className="flex items-center gap-4 my-2">
                       <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
-                      <span className="text-sm text-slate-400">ან</span>
+                      <span className="text-sm text-slate-400">{t('auth.or')}</span>
                       <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
                     </div>
 
@@ -209,7 +205,7 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
                     onClick={() => setMode('login')}
                     className="w-full text-center text-sm text-blue-600 font-medium hover:underline"
                   >
-                    შესვლაზე დაბრუნება
+                    {t('auth.login')}
                   </button>
                 )}
               </div>
@@ -229,9 +225,9 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
         </div>
         <div className="relative z-10 max-w-md">
           <div className="mb-8">
-            <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">TbilisiRealtors.ge</span>
+            <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">TbilisiRealtor.GE</span>
             <h2 className="text-3xl lg:text-4xl font-bold text-white mt-2 mb-4">
-              პრემიუმ სერვისი<br />ყველასთვის
+              {t('auth.benefitsTitle')}
             </h2>
             <p className="text-slate-400 text-lg">
               შეუერთდით 8,200+ კლიენტს, ვინც ჩვენი პლატფორმა ირჩევს ყოველდღე.
@@ -258,7 +254,7 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
           {/* Testimonial */}
           <div className="glass rounded-2xl p-5">
             <p className="text-white/90 italic mb-4">
-              "TbilisiRealtors.ge-ს დახმარებით ვიპოვე ჩემი სოციუმი ვაკეში. სერვისი ძალიან მარტივი და სწრაფია."
+              "{t('auth.testimonial')}"
             </p>
             <div className="flex items-center gap-3">
               <img

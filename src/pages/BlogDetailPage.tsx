@@ -42,7 +42,7 @@ export default function BlogDetailPage() {
   `.trim();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[102px]">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px]">
       {/* Hero */}
       <div className="relative h-80 lg:h-96">
         <img src={post.image} alt={post.title} className="w-full h-full object-cover" />
@@ -73,7 +73,7 @@ export default function BlogDetailPage() {
             <img src={post.author.photo} alt={post.author.name} className="w-11 h-11 rounded-full object-cover" />
             <div>
               <p className="font-semibold text-slate-800 dark:text-white text-sm">{post.author.name}</p>
-              <p className="text-xs text-slate-500">TbilisiRealtors.ge</p>
+              <p className="text-xs text-slate-500">TbilisiRealtor.GE</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-slate-500">

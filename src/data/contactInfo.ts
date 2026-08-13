@@ -1,3 +1,5 @@
+const MAPS_QUERY = 'ეროსი მანჯგალაძის 81, თბილისი, საქართველო';
+
 export const CONTACT = {
   mobile: {
     label: 'მობ',
@@ -11,8 +13,13 @@ export const CONTACT = {
     tel: '+995323333377',
     whatsapp: 'https://wa.me/995323333377',
   },
-  email: 'info@tbilisirealtors.ge',
-  address: 'ჭავჭავაძის გამზ. 14, თბილისი',
+  email: 'info@tbilisirealtor.ge',
+  city: 'თბილისი',
+  street: 'ეროსი მანჯგალაძის 81',
+  /** Full single-line address (legacy) */
+  address: 'ეროსი მანჯგალაძის 81',
+  googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(MAPS_QUERY)}`,
+  coordinates: { lat: 41.7336823, lng: 44.7974868 },
   hoursShort: 'ორშ–პარ 10:00–18:00 · შაბ 10:00–16:00',
 } as const;
 

@@ -267,7 +267,7 @@ router.post('/agents', async (req: AuthRequest, res: Response): Promise<void> =>
         yearsExperience: data.yearsExperience || 0,
         specialization: data.specialization || [],
         bio: data.bio,
-        company: data.company || 'TbilisiRealtors.ge',
+        company: data.company || 'TbilisiRealtor.GE',
         verified: data.verified ?? false,
         languages: data.languages || ['ქართული'],
         isActive: true,

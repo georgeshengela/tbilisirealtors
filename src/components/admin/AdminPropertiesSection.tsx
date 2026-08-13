@@ -46,7 +46,7 @@ const TYPE_LABELS: Record<string, string> = {
   apartment: 'ბინა', house: 'სახლი', commercial: 'კომ.', land: 'მიწა', villa: 'ვილა', hotel: 'სასტუმრო',
 };
 const TYPE_COLORS: Record<string, string> = {
-  apartment: '#497cff', house: '#10B981', commercial: '#f59e0b', land: '#8b5cf6', villa: '#ec4899', hotel: '#ef4444',
+  apartment: '#2563eb', house: '#10B981', commercial: '#f59e0b', land: '#2563eb', villa: '#ec4899', hotel: '#ef4444',
 };
 const STATUS_LABEL: Record<string, string> = { sale: 'იყიდება', rent: 'ქირავდება' };
 const STATUS_COLOR: Record<string, string> = { sale: '#f59e0b', rent: '#10B981' };
@@ -142,7 +142,7 @@ function FilterDropdown<T extends string>({
   value,
   options,
   onChange,
-  accent = '#497cff',
+  accent = '#2563eb',
 }: {
   label: string;
   icon?: LucideIcon;
@@ -177,7 +177,7 @@ function FilterDropdown<T extends string>({
                 background: `${accent}10`,
                 borderColor: `${accent}35`,
                 color: accent,
-                boxShadow: `0 2px 8px ${accent}18`,
+                boxShadow: 'none',
               }
             : {
                 background: '#fff',
@@ -290,20 +290,20 @@ function SortDropdown({
         onClick={() => setOpen(o => !o)}
         className="inline-flex items-center gap-2 pl-3 pr-2.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200"
         style={{
-          background: 'linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%)',
-          borderColor: '#c7d2fe',
-          color: '#4338ca',
-          boxShadow: '0 2px 8px rgba(79,70,229,0.12)',
+          background: 'linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)',
+          borderColor: '#bfdbfe',
+          color: '#2563eb',
+          boxShadow: 'none',
         }}
       >
-        <span className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 bg-indigo-100">
-          <ArrowUpDown size={12} className="text-indigo-600" />
+        <span className="w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 bg-blue-100">
+          <ArrowUpDown size={12} className="text-blue-600" />
         </span>
         <span className="hidden sm:inline max-w-[140px] truncate">
           {current?.label ?? 'დალაგება'}
         </span>
         <span className="sm:hidden">დალაგ.</span>
-        <ChevronDown size={14} className={`text-indigo-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`text-blue-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
       </button>
 
       {open && (
@@ -321,7 +321,7 @@ function SortDropdown({
                 type="button"
                 onClick={() => { onSelect(preset.key, preset.dir); setOpen(false); }}
                 className="w-full flex items-center justify-between gap-2 px-3.5 py-2.5 text-xs font-semibold text-left transition-colors"
-                style={isSelected ? { background: '#eef2ff', color: '#4338ca' } : { color: '#475569' }}
+                style={isSelected ? { background: '#eff6ff', color: '#2563eb' } : { color: '#475569' }}
                 onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = '#f8fafc'; }}
                 onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
               >
@@ -332,10 +332,10 @@ function SortDropdown({
                   <span className="truncate">{preset.label}</span>
                 </span>
                 <span className="flex items-center gap-1 flex-shrink-0">
-                  <DirIcon size={11} className={isSelected ? 'text-indigo-500' : 'text-slate-300'} />
+                  <DirIcon size={11} className={isSelected ? 'text-blue-600' : 'text-slate-300'} />
                   {isSelected && (
-                    <span className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center">
-                      <Check size={11} strokeWidth={3} className="text-indigo-600" />
+                    <span className="w-5 h-5 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Check size={11} strokeWidth={3} className="text-blue-600" />
                     </span>
                   )}
                 </span>
@@ -366,7 +366,7 @@ function SortHeader({
       className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all duration-150 ${className}`}
       style={
         active
-          ? { background: '#dbeafe', color: '#2563eb', boxShadow: 'inset 0 0 0 1px #bfdbfe' }
+          ? { background: '#dbeafe', color: '#2563eb', border: '1px solid #bfdbfe' }
           : { background: 'transparent', color: '#64748b' }
       }
       onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.background = '#f1f5f9'; }}
@@ -443,7 +443,7 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
     () => [
       { value: 'all' as const, label: 'ყველა სტიკერი' },
       { value: 'premium' as const, label: 'VIP / პრემიუმი', dot: '#f59e0b' },
-      { value: 'featured' as const, label: 'გამორჩეული', dot: '#497cff' },
+      { value: 'featured' as const, label: 'გამორჩეული', dot: '#2563eb' },
       { value: 'new' as const, label: 'ახალი', dot: '#10b981' },
     ],
     [],
@@ -492,11 +492,11 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { label: 'სულ', value: stats.total, color: '#4f46e5', bg: '#eef2ff', icon: Building2 },
+          { label: 'სულ', value: stats.total, color: '#2563eb', bg: '#eff6ff', icon: Building2 },
           { label: 'იყიდება', value: stats.sale, color: '#f59e0b', bg: '#fffbeb', icon: TrendingUp },
           { label: 'ქირავდება', value: stats.rent, color: '#10b981', bg: '#ecfdf5', icon: Home },
           { label: 'VIP', value: stats.premium, color: '#f59e0b', bg: '#fef9c3', icon: Zap },
-          { label: 'გამორჩეული', value: stats.featured, color: '#497cff', bg: '#eff6ff', icon: Star },
+          { label: 'გამორჩეული', value: stats.featured, color: '#2563eb', bg: '#eff6ff', icon: Star },
           { label: 'ნახვები', value: stats.views.toLocaleString('ka-GE'), color: '#64748b', bg: '#f8fafc', icon: Eye },
         ].map(({ label, value, color, bg, icon: Icon }) => (
           <div
@@ -524,7 +524,7 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="ძიება: სათაური, ქალაქი, რაიონი, აგენტი, ID..."
-              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50/50"
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none bg-slate-50/50"
             />
             {search && (
               <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
@@ -536,7 +536,7 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
             type="button"
             onClick={() => navigate('/admin/listings/new')}
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #059669, #10b981)', boxShadow: '0 4px 14px rgba(16,185,129,0.3)' }}
+            style={{ background: 'linear-gradient(135deg, #059669, #10b981)' }}
           >
             <Plus size={16} strokeWidth={2.5} />
             ახალი განცხადება
@@ -563,7 +563,7 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
             value={typeFilter}
             options={typeOptions}
             onChange={setTypeFilter}
-            accent="#497cff"
+            accent="#2563eb"
           />
 
           {cities.length > 1 && (
@@ -746,7 +746,7 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
                     <Toggle on={p.isPremium} onToggle={() => onPatch(p.id, 'isPremium', !p.isPremium)} label="VIP" color="#f59e0b" />
                   </td>
                   <td className="py-3 px-1 text-center">
-                    <Toggle on={p.isFeatured} onToggle={() => onPatch(p.id, 'isFeatured', !p.isFeatured)} label="გამორჩეული" color="#497cff" />
+                    <Toggle on={p.isFeatured} onToggle={() => onPatch(p.id, 'isFeatured', !p.isFeatured)} label="გამორჩეული" color="#2563eb" />
                   </td>
                   <td className="py-3 px-1 text-center">
                     <Toggle on={p.isNew} onToggle={() => onPatch(p.id, 'isNew', !p.isNew)} label="ახალი" color="#10B981" />

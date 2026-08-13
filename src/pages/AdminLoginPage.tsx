@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../contexts/AdminAuthContext';
-import { Building2, Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Lock, Mail, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import BrandLogo from '../components/BrandLogo';
 
 export default function AdminLoginPage() {
   const navigate = useNavigate();
@@ -43,11 +44,10 @@ export default function AdminLoginPage() {
       <div className="relative w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-700 shadow-2xl mb-4">
-            <Building2 size={32} color="white" />
+          <div className="flex justify-center mb-4">
+            <BrandLogo variant="dark" size="lg" href={null} />
           </div>
-          <h1 className="text-2xl font-extrabold text-white tracking-tight">TbilisiRealtors</h1>
-          <p className="text-slate-400 text-sm mt-1">ადმინ პანელი</p>
+          <p className="text-slate-400 text-sm mt-1 font-semibold">ადმინ პანელი</p>
         </div>
 
         {/* Card */}
@@ -77,9 +77,9 @@ export default function AdminLoginPage() {
                   type="email"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
-                  placeholder="admin@tbilisirealtors.ge"
+                  placeholder="admin@tbilisirealtor.ge"
                   required
-                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:outline-none transition-all"
                 />
               </div>
             </div>
@@ -100,7 +100,7 @@ export default function AdminLoginPage() {
                   onChange={e => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
-                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  className="w-full pl-10 pr-10 py-3 rounded-xl border border-slate-200 text-slate-800 placeholder-slate-400 text-sm focus:outline-none transition-all"
                 />
                 <button
                   type="button"
@@ -116,7 +116,7 @@ export default function AdminLoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-blue-700 text-white font-bold text-sm shadow-lg hover:shadow-blue-500/30 hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-blue-600 text-white font-bold text-sm shadow-lg hover:shadow-blue-600/30 hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -134,7 +134,7 @@ export default function AdminLoginPage() {
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-6">
-          © 2024 TbilisiRealtors.ge · ადმინ სისტემა
+          © 2024 TbilisiRealtor.GE · ადმინ სისტემა
         </p>
       </div>
     </div>

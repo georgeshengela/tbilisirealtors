@@ -24,10 +24,10 @@ const SECTION_NAV = [
 
 /* ─── Constants ──────────────────────────────────────────── */
 const PROPERTY_TYPES = [
-  { id: 'apartment',  label: 'ბინა',            icon: Building2, color: '#497cff' },
+  { id: 'apartment',  label: 'ბინა',            icon: Building2, color: '#2563eb' },
   { id: 'house',      label: 'კერძო სახლი',     icon: Home,      color: '#10B981' },
   { id: 'villa',      label: 'აგარაკი',         icon: Home,      color: '#ec4899' },
-  { id: 'land',       label: 'მიწის ნაკვეთი',   icon: TreePine,  color: '#8b5cf6' },
+  { id: 'land',       label: 'მიწის ნაკვეთი',   icon: TreePine,  color: '#2563eb' },
   { id: 'commercial', label: 'კომ. ფართი',      icon: Store,     color: '#f59e0b' },
   { id: 'hotel',      label: 'სასტუმრო',        icon: Hotel,     color: '#ef4444' },
 ];
@@ -110,7 +110,7 @@ function TrendingUp({ size = 16, className = '' }: { size?: number; className?: 
 }
 
 /* ─── Styles ─────────────────────────────────────────────── */
-const inputCls = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all bg-white';
+const inputCls = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-slate-800 text-sm placeholder-slate-400 focus:outline-none transition-all bg-white';
 const cardCls  = 'bg-white rounded-2xl border border-slate-100 shadow-sm';
 const labelCls = 'flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide';
 const sectionTitle = 'text-sm font-bold text-slate-700 mb-3';
@@ -129,7 +129,7 @@ function FormSection({
       <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-4 border-b border-slate-100 bg-slate-50/60">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-            style={{ background: 'rgba(73,124,255,0.1)', border: '1px solid rgba(73,124,255,0.15)' }}>
+            style={{ background: 'rgba(37, 99, 235,0.1)', border: '1px solid rgba(37, 99, 235,0.15)' }}>
             <Icon size={18} className="text-blue-600" />
           </div>
           <div>
@@ -456,7 +456,7 @@ export default function AdminAddListingPage() {
   );
 
   /* ── Chip button helper ── */
-  const chip = (label: string, active: boolean, onClick: () => void, color = '#497cff') => (
+  const chip = (label: string, active: boolean, onClick: () => void, color = '#2563eb') => (
     <button key={label} type="button" onClick={onClick}
       className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all ${
         active ? 'text-white shadow-sm' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
@@ -481,7 +481,7 @@ export default function AdminAddListingPage() {
         onClick={() => handleSubmit(true)}
         disabled={saving || !form.price}
         className="flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-colors disabled:opacity-40"
-        style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)', boxShadow: '0 4px 14px rgba(79,70,229,0.3)' }}
+        style={{ background: 'linear-gradient(135deg, #2563eb 0%, #2563eb 100%)' }}
       >
         {saving ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
         გამოქვეყნება
@@ -530,7 +530,7 @@ export default function AdminAddListingPage() {
             {/* ── Import from MyHome / SS.ge ── */}
             {!isEdit && (
               <div className="mb-6 rounded-2xl overflow-hidden border border-slate-200 shadow-sm"
-                style={{ background: 'linear-gradient(135deg, #f8faff 0%, #f0fdf4 100%)' }}>
+                style={{ background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)' }}>
                 <div className="p-5 sm:p-6">
                   <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
                     <div>
@@ -551,7 +551,7 @@ export default function AdminAddListingPage() {
                         <Globe2 size={12} /> MyHome.ge
                       </span>
                       <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold"
-                        style={{ background: '#eef2ff', color: '#4f46e5', border: '1px solid #c7d2fe' }}>
+                        style={{ background: '#eff6ff', color: '#2563eb', border: '1px solid #bfdbfe' }}>
                         <Globe2 size={12} /> SS.ge
                       </span>
                     </div>
@@ -576,7 +576,7 @@ export default function AdminAddListingPage() {
                       className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white transition-all disabled:opacity-50"
                       style={{
                         background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                        boxShadow: '0 3px 12px rgba(5,150,105,0.30)',
+                        boxShadow: 'none',
                         minWidth: 140,
                       }}
                     >
@@ -600,8 +600,8 @@ export default function AdminAddListingPage() {
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                               style={{
-                                background: importPreview.source === 'myhome.ge' ? '#ecfdf5' : '#eef2ff',
-                                color: importPreview.source === 'myhome.ge' ? '#059669' : '#4f46e5',
+                                background: importPreview.source === 'myhome.ge' ? '#ecfdf5' : '#eff6ff',
+                                color: importPreview.source === 'myhome.ge' ? '#059669' : '#2563eb',
                               }}>
                               {importPreview.source}
                             </span>
@@ -666,7 +666,7 @@ export default function AdminAddListingPage() {
                           type="button"
                           onClick={() => applyImportedData(importPreview)}
                           className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white"
-                          style={{ background: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)', boxShadow: '0 3px 12px rgba(79,70,229,0.28)' }}
+                          style={{ background: 'linear-gradient(135deg, #2563eb 0%, #2563eb 100%)' }}
                         >
                           <CheckCircle size={16} />
                           ფორმის ავტომატური შევსება
@@ -745,7 +745,7 @@ export default function AdminAddListingPage() {
                 <div>
                   <h3 className="font-bold text-slate-800 text-sm mb-4">მდგომარეობა</h3>
                   <div className="flex flex-wrap gap-2">
-                    {CONDITIONS.map(c => chip(c, form.condition === c, () => toggleSingle('condition', c), '#8b5cf6'))}
+                    {CONDITIONS.map(c => chip(c, form.condition === c, () => toggleSingle('condition', c), '#2563eb'))}
                   </div>
                 </div>
               </div>
@@ -852,7 +852,7 @@ export default function AdminAddListingPage() {
                         <label className={labelCls}><Droplets size={13} /> სველი წერტილი</label>
                         <div className="flex gap-2">
                           {['1','2','3+','საერთო'].map(w =>
-                            chip(w, form.wetPoint === w, () => toggleSingle('wetPoint', w), '#0ea5e9')
+                            chip(w, form.wetPoint === w, () => toggleSingle('wetPoint', w), '#2563eb')
                           )}
                         </div>
                       </div>
@@ -1030,11 +1030,11 @@ export default function AdminAddListingPage() {
 
                 <div className="pt-2 border-t border-slate-100">
                   <div className="flex items-center gap-2 mb-3">
-                    <Droplets size={16} className="text-blue-500" />
+                    <Droplets size={16} className="text-blue-600" />
                     <h3 className="font-bold text-slate-800 text-sm">ცხელი წყალი</h3>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {HOT_WATER_OPTIONS.map(h => chip(h, form.hotWater.includes(h), () => toggleArr('hotWater', h), '#0ea5e9'))}
+                    {HOT_WATER_OPTIONS.map(h => chip(h, form.hotWater.includes(h), () => toggleArr('hotWater', h), '#2563eb'))}
                   </div>
                 </div>
 
@@ -1070,11 +1070,11 @@ export default function AdminAddListingPage() {
 
                 <div className="pt-2 border-t border-slate-100">
                   <div className="flex items-center gap-2 mb-3">
-                    <Wrench size={16} className="text-indigo-500" />
+                    <Wrench size={16} className="text-blue-600" />
                     <h3 className="font-bold text-slate-800 text-sm">ავეჯი და ტექნიკა</h3>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {FURNITURE_ITEMS.map(f => chip(f, form.furniture.includes(f), () => toggleArr('furniture', f), '#6366f1'))}
+                    {FURNITURE_ITEMS.map(f => chip(f, form.furniture.includes(f), () => toggleArr('furniture', f), '#2563eb'))}
                   </div>
                 </div>
 
@@ -1118,7 +1118,7 @@ export default function AdminAddListingPage() {
 
                 <div>
                   <div className="flex items-center gap-2 mb-2">
-                    <ImageIcon size={16} className="text-blue-500" />
+                    <ImageIcon size={16} className="text-blue-600" />
                     <h3 className="font-bold text-slate-800 text-sm">ფოტოგალერეა</h3>
                   </div>
                   <p className="text-slate-400 text-xs mb-4">სურათების URL — თითო ხაზზე (მაქს. 16)</p>
@@ -1172,7 +1172,7 @@ export default function AdminAddListingPage() {
                   <div className="grid sm:grid-cols-3 gap-3">
                     {([
                       { key: 'isPremium'  as const, label: 'VIP / პრემიუმი', icon: Crown,  color: '#f59e0b', desc: 'ოქროს ბეიჯი'     },
-                      { key: 'isFeatured' as const, label: 'გამორჩეული',     icon: Star,   color: '#497cff', desc: 'მთ. გვ. ბანერი'  },
+                      { key: 'isFeatured' as const, label: 'გამორჩეული',     icon: Star,   color: '#2563eb', desc: 'მთ. გვ. ბანერი'  },
                       { key: 'isNew'      as const, label: 'ახალი',           icon: Zap,    color: '#10B981', desc: 'NEW ბეიჯი'       },
                     ]).map(opt => {
                       const on = form[opt.key];
@@ -1210,7 +1210,7 @@ export default function AdminAddListingPage() {
                       onClick={() => scrollToSection(s.id)}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
                     >
-                      <s.icon size={14} className="text-blue-500 flex-shrink-0" />
+                      <s.icon size={14} className="text-blue-600 flex-shrink-0" />
                       {s.label}
                     </button>
                   ))}
@@ -1242,7 +1242,7 @@ export default function AdminAddListingPage() {
                       {DEAL_TYPES.find(d => d.id === form.dealType)?.label ?? ''}
                     </span>
                     {form.isPremium  && <Crown  size={13} className="text-amber-500" />}
-                    {form.isFeatured && <Star   size={13} className="text-blue-500"  />}
+                    {form.isFeatured && <Star   size={13} className="text-blue-600"  />}
                     {form.isNew      && <Zap    size={13} className="text-emerald-500" />}
                   </div>
 
@@ -1269,13 +1269,13 @@ export default function AdminAddListingPage() {
 
                   {(form.street || form.district || form.city) && (
                     <p className="flex items-center gap-1.5 text-xs text-slate-500">
-                      <MapPin size={11} className="text-blue-500 flex-shrink-0" />
+                      <MapPin size={11} className="text-blue-600 flex-shrink-0" />
                       {[form.street, form.district, form.city].filter(Boolean).join(', ')}
                     </p>
                   )}
 
                   {form.condition && (
-                    <span className="inline-block px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 text-[10px] font-semibold">{form.condition}</span>
+                    <span className="inline-block px-2 py-0.5 rounded-md bg-blue-50 text-blue-600 text-[10px] font-semibold">{form.condition}</span>
                   )}
 
                   {(form.buildingFeatures.length + form.furniture.length + form.parking.length) > 0 && (

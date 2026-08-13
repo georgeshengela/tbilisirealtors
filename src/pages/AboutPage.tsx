@@ -27,12 +27,12 @@ export default function AboutPage() {
       icon: TrendingUp,
       title: 'ინოვაცია',
       desc: 'თანამედროვე ტექნოლოგიები, AI ანალიტიკა, ვირტუალური ტურები.',
-      color: 'bg-purple-50 dark:bg-purple-900/20 text-purple-600',
+      color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600',
     },
   ];
 
   const milestones = [
-    { year: '2018', title: 'დასაბამი', desc: 'TbilisiRealtors.ge-ის დაარსება თბილისში.' },
+    { year: '2018', title: 'დასაბამი', desc: 'TbilisiRealtor.GE-ის დაარსება თბილისში.' },
     { year: '2020', title: 'გაფართოება', desc: 'ბათუმი, ქუთაისი და სხვა ქალაქების დამატება.' },
     { year: '2022', title: 'მობაილ აპი', desc: 'iOS და Android აპლიკაციის გამოშვება.' },
     { year: '2024', title: 'AI ანალიტიკა', desc: 'ხელოვნური ინტელექტის ჩართვა ბაზრის ანალიზში.' },
@@ -81,7 +81,7 @@ export default function AboutPage() {
                 ჩვენი მისიაა<br />სახლის პოვნის<br />გამარტივება
               </h2>
               <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed mb-6">
-                TbilisiRealtors.ge შექმნილია იმისთვის, რომ ყველა ადამიანს ჰქონდეს 
+                TbilisiRealtor.GE შექმნილია იმისთვის, რომ ყველა ადამიანს ჰქონდეს 
                 თანაბარი წვდომა განცხადების ბაზარზე. ჩვენ ვაერთიანებთ ტექნოლოგიებს, 
                 გამოცდილ პროფესიონალებს და გამჭვირვალე პროცესებს.
               </p>
@@ -205,7 +205,7 @@ export default function AboutPage() {
                   className="flex gap-6"
                 >
                   <div className="relative flex-shrink-0">
-                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 z-10 relative">
+                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20 z-10 relative">
                       <span className="text-white font-bold text-sm">{m.year}</span>
                     </div>
                   </div>
@@ -253,7 +253,7 @@ export default function AboutPage() {
             ))}
           </div>
           <div className="text-center mt-10">
-            <Link to="/agents" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-8 py-4 rounded-xl font-semibold transition-all">
+            <Link to="/agents" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold transition-all">
               ყველა სპეციალისტი
               <ArrowRight size={18} />
             </Link>
