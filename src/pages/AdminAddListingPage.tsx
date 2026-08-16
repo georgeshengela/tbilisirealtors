@@ -14,6 +14,7 @@ import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import { useFileUpload } from '../hooks/useFileUpload';
 import LocationPickerMap, { type LocationValue } from '../components/LocationPickerMap';
 import AdminLayout from '../components/admin/AdminLayout';
+import { importFieldLabel } from '../lib/permissions';
 import type { ImportedListingData } from '../types/importListing';
 
 const SECTION_NAV = [
@@ -814,6 +815,11 @@ export default function AdminAddListingPage() {
                                 ✓ შევსებულია
                               </span>
                             )}
+                            {importPreview.meta.quality === 'partial' && (
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                                ნაწილობრივი
+                              </span>
+                            )}
                           </div>
                           <h3 className="font-bold text-slate-800 text-sm sm:text-base leading-snug">{importPreview.title}</h3>
                           <p className="text-xs text-slate-500 mt-1">
@@ -859,6 +865,25 @@ export default function AdminAddListingPage() {
                           </div>
                         ))}
                       </div>
+
+                      {/*
+                        A parse that "worked" can still be half empty. Saying so here
+                        is what stops half-filled listings reaching the site.
+                      */}
+                      {(importPreview.meta.missingFields?.length || importPreview.meta.warnings?.length) ? (
+                        <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                          {importPreview.meta.missingFields?.length ? (
+                            <p className="text-xs font-bold text-amber-800">
+                              ხელით შესავსებია: {importPreview.meta.missingFields.map(importFieldLabel).join(', ')}
+                            </p>
+                          ) : null}
+                          {importPreview.meta.warnings?.length ? (
+                            <p className="mt-1 text-[11px] font-semibold text-amber-700">
+                              {importPreview.meta.warnings.map(importFieldLabel).join(' · ')}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
 
                       <div className="flex flex-wrap gap-2">
                         <button

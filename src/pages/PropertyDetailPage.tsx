@@ -12,6 +12,8 @@ import { formatShortDate } from '../lib/dateFormat';
 import { useIsFavorite } from '../lib/favorites';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useLocale, useTranslation } from '../i18n/LocaleContext';
+import BookViewingModal from '../components/BookViewingModal';
+import { submitLead } from '../lib/leads';
 
 /** Long descriptions collapse to a few lines until the reader asks for more. */
 const CLAMP_AT_CHARS = 460;
@@ -74,6 +76,9 @@ export default function PropertyDetailPage() {
   const [downPayment, setDownPayment] = useState(20);
   const [contactForm, setContactForm] = useState({ name: '', phone: '', message: '' });
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+  const [showBooking, setShowBooking] = useState(false);
 
   const images = property?.images?.length ? property.images : [];
   const imageCount = images.length;
@@ -105,7 +110,41 @@ export default function PropertyDetailPage() {
     setActiveImage(0);
     setExpanded(false);
     setSent(false);
+    setFormError(null);
+    setShowBooking(false);
   }, [id]);
+
+  const handleEnquiry = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (sending || !property) return;
+
+    if (!contactForm.phone.trim()) {
+      setFormError(t('property.phoneRequired'));
+      return;
+    }
+
+    setSending(true);
+    setFormError(null);
+
+    const result = await submitLead({
+      kind: 'property',
+      propertyId: property.id,
+      name: contactForm.name,
+      phone: contactForm.phone,
+      message: contactForm.message,
+      subject: property.title,
+    });
+
+    setSending(false);
+
+    if (!result.ok) {
+      setFormError(result.error ?? null);
+      return;
+    }
+
+    setContactForm({ name: '', phone: '', message: '' });
+    setSent(true);
+  };
 
   useEffect(() => {
     if (!property) return;
@@ -654,15 +693,12 @@ export default function PropertyDetailPage() {
                 <a className="pdp-cta is-mail" href={`mailto:${property.agent.email}`}>
                   <Mail size={15} strokeWidth={2.2} />{t('common.email')}
                 </a>
-                <button type="button" className="pdp-cta is-book">
+                <button type="button" className="pdp-cta is-book" onClick={() => setShowBooking(true)}>
                   <Calendar size={15} strokeWidth={2.2} />{t('property.bookViewing')}
                 </button>
               </div>
 
-              <form
-                className="pdp-form"
-                onSubmit={event => { event.preventDefault(); setSent(true); }}
-              >
+              <form className="pdp-form" onSubmit={handleEnquiry}>
                 <p className="pdp-form__title">{t('property.sendInquiry')}</p>
 
                 {sent ? (
@@ -679,7 +715,7 @@ export default function PropertyDetailPage() {
                     />
                     <input
                       className="pdp-input"
-                      placeholder={t('property.phone')}
+                      placeholder={`${t('property.phone')} *`}
                       value={contactForm.phone}
                       onChange={event => setContactForm(f => ({ ...f, phone: event.target.value }))}
                     />
@@ -690,8 +726,10 @@ export default function PropertyDetailPage() {
                       value={contactForm.message}
                       onChange={event => setContactForm(f => ({ ...f, message: event.target.value }))}
                     />
-                    <button type="submit" className="pdp-submit">
-                      {t('property.send')}<ArrowRight size={15} strokeWidth={2.6} />
+                    {formError && <p className="pdp-form__error">{formError}</p>}
+                    <button type="submit" className="pdp-submit" disabled={sending}>
+                      {sending ? t('property.sending') : t('property.send')}
+                      <ArrowRight size={15} strokeWidth={2.6} />
                     </button>
                   </>
                 )}
@@ -714,6 +752,13 @@ export default function PropertyDetailPage() {
 
       {copied && <div className="pdp-toast">{t('property.linkCopied')}</div>}
       {idCopied && <div className="pdp-toast">{t('property.idCopied')}</div>}
+
+      <BookViewingModal
+        open={showBooking}
+        onClose={() => setShowBooking(false)}
+        propertyId={property.id}
+        propertyTitle={property.title}
+      />
 
       {/* ── Lightbox ── */}
       <AnimatePresence>

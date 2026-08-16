@@ -58,8 +58,74 @@ export interface ImportedListingData {
     viewCount?: number;
     vipLabel?: string;
     importedFields?: number;
+    /** True when the source carried no usable coordinates and Tbilisi centre was used. */
+    coordsFallback?: boolean;
+    /** 'ok' when everything important came through, 'partial' otherwise. */
+    quality?: ImportQuality;
+    /** Important fields the parser could not fill. */
+    missingFields?: ImportMissingField[];
+    /** Softer quality flags worth a second look before saving. */
+    warnings?: ImportWarning[];
   };
 }
+
+export type ImportQuality = 'ok' | 'partial';
+
+/** Fields whose absence means a human has to finish the job by hand. */
+export const IMPORT_TRACKED_FIELDS = [
+  'title', 'description', 'price', 'area', 'rooms',
+  'city', 'district', 'address', 'floor', 'images', 'coordinates', 'agentPhone',
+] as const;
+export type ImportMissingField = (typeof IMPORT_TRACKED_FIELDS)[number];
+
+export const IMPORT_WARNINGS = [
+  'coords_defaulted',
+  'few_photos',
+  'short_description',
+  'enum_room_ids',
+  'no_cadastral_code',
+  'no_agent_name',
+  'price_without_area',
+] as const;
+export type ImportWarning = (typeof IMPORT_WARNINGS)[number];
+
+/** Stable failure codes so the quality report can group without matching Georgian text. */
+export const IMPORT_ERROR_CODES = [
+  'bad_url',
+  'bad_protocol',
+  'unsupported_host',
+  'id_not_found',
+  'upstream_status',
+  'upstream_empty',
+  'page_fetch_failed',
+  'payload_not_found',
+  'parse_failed',
+  'unknown',
+] as const;
+export type ImportErrorCode = (typeof IMPORT_ERROR_CODES)[number];
+
+/** An import failure that already knows how it should be counted in the report. */
+export class ImportError extends Error {
+  constructor(
+    readonly code: ImportErrorCode,
+    message: string,
+    /** Which source we had identified before failing, if any. */
+    readonly source: 'ss.ge' | 'myhome.ge' | 'unknown' = 'unknown',
+  ) {
+    super(message);
+    this.name = 'ImportError';
+  }
+}
+
+/** Anything can be thrown from fetch/JSON.parse — normalise it for the report. */
+export function classifyImportError(err: unknown): { code: ImportErrorCode; message: string } {
+  if (err instanceof ImportError) return { code: err.code, message: err.message };
+  const message = err instanceof Error ? err.message : 'იმპორტი ვერ მოხერხდა';
+  return { code: 'unknown', message };
+}
+
+/** Used when the source has no coordinates, so the flag can say the pin is a guess. */
+const TBILISI_CENTER = { lat: 41.7151, lng: 44.8271 } as const;
 
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
@@ -136,9 +202,15 @@ async function fetchPageHtml(url: string, source: 'ss.ge' | 'myhome.ge'): Promis
   try {
     const res = await fetch(url, { headers, redirect: 'follow' });
     if (res.ok) return res.text();
-    if (res.status !== 403) throw new Error(`გვერდის ჩატვირთვა ვერ მოხერხდა (${res.status})`);
+    if (res.status !== 403) {
+      throw new ImportError('upstream_status', `გვერდის ჩატვირთვა ვერ მოხერხდა (${res.status})`, source);
+    }
   } catch (err) {
-    if (source !== 'myhome.ge') throw err instanceof Error ? err : new Error('გვერდის ჩატვირთვა ვერ მოხერხდა');
+    if (source !== 'myhome.ge') {
+      throw err instanceof ImportError
+        ? err
+        : new ImportError('page_fetch_failed', 'გვერდის ჩატვირთვა ვერ მოხერხდა', source);
+    }
   }
 
   return fetchWithCurl(url, source === 'myhome.ge' ? 'https://www.myhome.ge/' : 'https://home.ss.ge/');
@@ -146,20 +218,24 @@ async function fetchPageHtml(url: string, source: 'ss.ge' | 'myhome.ge'): Promis
 
 function extractNextData(html: string): Record<string, unknown> {
   const m = html.match(/<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/);
-  if (!m) throw new Error('გვერდზე მონაცემები ვერ მოიძებნა');
-  return JSON.parse(m[1]) as Record<string, unknown>;
+  if (!m) throw new ImportError('payload_not_found', 'გვერდზე მონაცემები ვერ მოიძებნა', 'ss.ge');
+  try {
+    return JSON.parse(m[1]) as Record<string, unknown>;
+  } catch {
+    throw new ImportError('parse_failed', 'გვერდის მონაცემები ვერ წაიკითხა', 'ss.ge');
+  }
 }
 
 function detectSource(url: string): 'ss.ge' | 'myhome.ge' {
   const host = new URL(url).hostname.toLowerCase();
   if (host.includes('ss.ge')) return 'ss.ge';
   if (host.includes('myhome.ge')) return 'myhome.ge';
-  throw new Error('მხოლოდ myhome.ge ან ss.ge ბმულებია დაშვებული');
+  throw new ImportError('unsupported_host', 'მხოლოდ myhome.ge ან ss.ge ბმულებია დაშვებული');
 }
 
 function extractMyHomeId(url: string): string {
   const match = url.match(/myhome\.ge\/(?:[^/?#]+\/)*(\d{5,})(?:\/|$|\?)/i);
-  if (!match) throw new Error('myhome.ge ბმულიდან ID ვერ მოიძებნა');
+  if (!match) throw new ImportError('id_not_found', 'myhome.ge ბმულიდან ID ვერ მოიძებნა', 'myhome.ge');
   return match[1];
 }
 
@@ -174,7 +250,7 @@ async function fetchMyHomeStatement(id: string): Promise<Record<string, unknown>
     },
   });
   if (!res.ok) {
-    throw new Error(`myhome.ge API ვერ მოიძებნა (${res.status})`);
+    throw new ImportError('upstream_status', `myhome.ge API ვერ მოიძებნა (${res.status})`, 'myhome.ge');
   }
   const payload = (await res.json()) as {
     result?: boolean;
@@ -184,7 +260,11 @@ async function fetchMyHomeStatement(id: string): Promise<Record<string, unknown>
   const statement = payload.data?.statement;
   if (!payload.result || !statement) {
     const msg = payload.errors?.message?.[0];
-    throw new Error(msg || 'myhome.ge განცხადების მონაცემები ვერ მოიძებნა');
+    throw new ImportError(
+      'upstream_empty',
+      msg || 'myhome.ge განცხადების მონაცემები ვერ მოიძებნა',
+      'myhome.ge',
+    );
   }
   return statement;
 }
@@ -332,8 +412,8 @@ function parseSsGe(html: string, sourceUrl: string): ImportedListingData {
     street,
     streetNumber,
     cadastralCode: String(app.cadastralCode ?? ''),
-    lat: Number(app.locationLatitude) || 41.7151,
-    lng: Number(app.locationLongitude) || 44.8271,
+    lat: Number(app.locationLatitude) || TBILISI_CENTER.lat,
+    lng: Number(app.locationLongitude) || TBILISI_CENTER.lng,
     images,
     youtubeUrl: String(app.applicationVideoLink ?? app.uploadVideoLink ?? ''),
     matterportUrl: '',
@@ -424,8 +504,8 @@ function parseMyHomeStatement(statement: Record<string, unknown>, sourceUrl: str
     street: String(statement.address ?? ''),
     streetNumber: '',
     cadastralCode: String(statement.rs_code ?? ''),
-    lat: Number(statement.lat) || 41.7151,
-    lng: Number(statement.lng) || 44.8271,
+    lat: Number(statement.lat) || TBILISI_CENTER.lat,
+    lng: Number(statement.lng) || TBILISI_CENTER.lng,
     images,
     youtubeUrl: String(statement.youtube_link ?? ''),
     matterportUrl: String(statement['3d_url'] ?? ''),
@@ -463,16 +543,65 @@ function parseMyHomeStatement(statement: Record<string, unknown>, sourceUrl: str
   };
 }
 
-function countImportedFields(data: ImportedListingData): number {
-  let n = 0;
+/**
+ * Grades a parse so the admin sees what still needs typing in, and so the quality
+ * report can tell a clean import from one that only looked like it worked. The
+ * old field count is kept as a rough completeness score.
+ */
+export function auditImport(data: ImportedListingData): {
+  quality: ImportQuality;
+  missingFields: ImportMissingField[];
+  warnings: ImportWarning[];
+  importedFields: number;
+} {
+  const missing: ImportMissingField[] = [];
+  const warnings: ImportWarning[] = [];
+
+  if (!data.title.trim()) missing.push('title');
+  if (!data.description.trim()) missing.push('description');
+  if (!Number(data.price)) missing.push('price');
+  if (!Number(data.area)) missing.push('area');
+  if (!data.rooms.trim()) missing.push('rooms');
+  if (!data.city.trim()) missing.push('city');
+  if (!data.district.trim()) missing.push('district');
+  if (!data.address.trim()) missing.push('address');
+  if (!data.floor.trim()) missing.push('floor');
+  if (!data.images.length) missing.push('images');
+  if (!data.agentPhone.trim()) missing.push('agentPhone');
+
+  const coordsFallback =
+    Math.abs(data.lat - TBILISI_CENTER.lat) < 1e-6 && Math.abs(data.lng - TBILISI_CENTER.lng) < 1e-6;
+  if (coordsFallback) {
+    missing.push('coordinates');
+    warnings.push('coords_defaulted');
+  }
+
+  if (data.images.length > 0 && data.images.length < 5) warnings.push('few_photos');
+  if (data.description.trim().length > 0 && data.description.trim().length < 120) {
+    warnings.push('short_description');
+  }
+  // myhome hands back room *type* ids rather than counts, so anything above a
+  // plausible room count is an unmapped enum the admin has to correct.
+  if (data.source === 'myhome.ge' && Number(data.rooms) > 20) warnings.push('enum_room_ids');
+  if (!data.cadastralCode.trim()) warnings.push('no_cadastral_code');
+  if (!data.agentName.trim()) warnings.push('no_agent_name');
+  if (Number(data.price) > 0 && !Number(data.area)) warnings.push('price_without_area');
+
+  let importedFields = 0;
   const scalarKeys: (keyof ImportedListingData)[] = [
     'title', 'description', 'price', 'pricePerSqm', 'area', 'rooms', 'city', 'district', 'address',
     'floor', 'totalFloors', 'cadastralCode', 'agentName', 'agentPhone',
   ];
-  for (const k of scalarKeys) if (data[k]) n++;
-  if (data.images.length) n += 2;
-  if (data.lat && data.lng) n++;
-  return n;
+  for (const key of scalarKeys) if (data[key]) importedFields++;
+  if (data.images.length) importedFields += 2;
+  if (!coordsFallback) importedFields++;
+
+  return {
+    quality: missing.length ? 'partial' : 'ok',
+    missingFields: missing,
+    warnings,
+    importedFields,
+  };
 }
 
 export async function importListingFromUrl(rawUrl: string): Promise<ImportedListingData> {
@@ -480,9 +609,11 @@ export async function importListingFromUrl(rawUrl: string): Promise<ImportedList
   try {
     url = new URL(rawUrl.trim());
   } catch {
-    throw new Error('არასწორი URL');
+    throw new ImportError('bad_url', 'არასწორი URL');
   }
-  if (!/^https?:$/i.test(url.protocol)) throw new Error('URL უნდა იწყებოდეს http:// ან https://');
+  if (!/^https?:$/i.test(url.protocol)) {
+    throw new ImportError('bad_protocol', 'URL უნდა იწყებოდეს http:// ან https://');
+  }
 
   const source = detectSource(url.href);
   let data: ImportedListingData;
@@ -493,6 +624,12 @@ export async function importListingFromUrl(rawUrl: string): Promise<ImportedList
     const html = await fetchPageHtml(url.href, source);
     data = parseSsGe(html, url.href);
   }
-  data.meta.importedFields = countImportedFields(data);
+
+  const audit = auditImport(data);
+  data.meta.importedFields = audit.importedFields;
+  data.meta.quality = audit.quality;
+  data.meta.missingFields = audit.missingFields;
+  data.meta.warnings = audit.warnings;
+  data.meta.coordsFallback = audit.warnings.includes('coords_defaulted');
   return data;
 }

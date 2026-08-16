@@ -10,7 +10,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, X, Building2, TrendingUp, Home,
   Image as ImageIcon, Calendar, ChevronDown, Check, Copy, History,
   PhoneCall, CalendarClock, Loader2, Mail, FileText, MessageSquare,
-  CreditCard as IdCard, Upload, ClipboardList,
+  CreditCard as IdCard, Upload, ClipboardList, Lock,
   type LucideIcon,
 } from 'lucide-react';
 import { listingIdMatches } from '../../lib/listingId';
@@ -93,6 +93,11 @@ export interface AdminPropertyRow {
   owner?: PropertyOwnerInfo | null;
   contracts?: PropertyContractDoc[] | null;
   internalNotes?: InternalNoteRow[] | null;
+  /**
+   * False on listings a manager handed to this broker: they can open and work the
+   * listing, but only the author may change it. Absent means editable.
+   */
+  canEdit?: boolean;
 }
 
 /** Patch payload sent to PATCH /admin/properties/:id */
@@ -2046,7 +2051,14 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
                             <ClipboardList size={14} />
                           </button>
                         )}
-                        {canEdit && (
+                        {canEdit && (p.canEdit === false ? (
+                          <span
+                            className="p-1.5 rounded-lg text-slate-300"
+                            title="გადმოცემული განცხადება — რედაქტირება მხოლოდ ავტორს შეუძლია"
+                          >
+                            <Lock size={14} />
+                          </span>
+                        ) : (
                           <button
                             type="button"
                             onClick={() => navigate(`/admin/listings/${p.id}/edit`)}
@@ -2055,8 +2067,8 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
                           >
                             <Pencil size={14} />
                           </button>
-                        )}
-                        {canDelete && (
+                        ))}
+                        {canDelete && p.canEdit !== false && (
                           <button
                             type="button"
                             onClick={() => onDelete(p.id)}

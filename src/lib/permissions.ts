@@ -43,6 +43,7 @@ export const ROLE_COLOR: Record<Role, { bg: string; text: string; border: string
 
 export const PERMISSION_GROUP_LABEL: Record<string, string> = {
   listings: 'განცხადებები',
+  leads: 'ლიდები',
   agents: 'ბროკერები',
   blog: 'ბლოგი',
   staff: 'თანამშრომლები',
@@ -55,6 +56,13 @@ export interface PermissionDef {
   group: string;
   label: string;
   sensitive?: boolean;
+  /** Ticking this for a manager or broker has no effect — the server keeps refusing. */
+  adminOnly?: boolean;
+}
+
+/** Roles the admin-only floor lets through. */
+export function meetsAdminFloor(role: string): boolean {
+  return rankOf(role) >= ROLE_RANK.admin;
 }
 
 export function isRole(value: string): value is Role {
@@ -160,3 +168,97 @@ export const LIFECYCLE_LABEL: Record<string, string> = {
   old: 'გაქირავებული',
   new_r: 'დასარეკია',
 };
+
+/* ── Analytics vocabulary ────────────────────────────────────────────────── */
+
+export const DEAL_STATUS_LABEL: Record<string, string> = {
+  sale: 'იყიდება',
+  rent: 'ქირავდება',
+  both: 'იყიდება და ქირავდება',
+  daily_rent: 'დღიურად',
+  pledge: 'გირავნობა',
+  unknown: 'მიუთითებელი',
+};
+
+export const PROPERTY_TYPE_LABEL: Record<string, string> = {
+  apartment: 'ბინა',
+  house: 'სახლი',
+  villa: 'აგარაკი',
+  commercial: 'კომერციული',
+  land: 'მიწა',
+  hotel: 'სასტუმრო',
+  unknown: 'მიუთითებელი',
+};
+
+/** Funnel stages, in order, with the question each one answers. */
+export const FUNNEL_STAGE: { id: string; label: string; hint: string }[] = [
+  { id: 'submitted', label: 'შემოსული', hint: 'ყველა განცხადება ფილტრში' },
+  { id: 'approved', label: 'დამტკიცებული', hint: 'მოდერაცია გავლილი' },
+  { id: 'live', label: 'ბაზარზე', hint: 'აქტიური ან ახალი' },
+  { id: 'engaged', label: 'ნანახი', hint: 'მინიმუმ ერთი ნახვა' },
+  { id: 'converted', label: 'ჩაბარებული', hint: 'გაქირავებული ან დასარეკი' },
+];
+
+export const AGE_BUCKET_LABEL: Record<string, string> = {
+  '0-7': '0–7 დღე',
+  '8-30': '8–30 დღე',
+  '31-90': '31–90 დღე',
+  '91-180': '91–180 დღე',
+  '180+': '180+ დღე',
+};
+
+export const IMPORT_STATUS_LABEL: Record<string, string> = {
+  ok: 'სრული',
+  partial: 'ნაწილობრივი',
+  failed: 'წარუმატებელი',
+};
+
+export const IMPORT_STATUS_COLOR: Record<string, { bg: string; text: string }> = {
+  ok: { bg: '#dcfce7', text: '#166534' },
+  partial: { bg: '#fef3c7', text: '#92400e' },
+  failed: { bg: '#fee2e2', text: '#991b1b' },
+};
+
+/** Why an import failed, in words a manager can act on. */
+export const IMPORT_ERROR_LABEL: Record<string, string> = {
+  bad_url: 'ბმული არასწორია',
+  bad_protocol: 'ბმული http/https არ არის',
+  unsupported_host: 'საიტი მხარდაუჭერელია',
+  id_not_found: 'ბმულში ID ვერ მოიძებნა',
+  upstream_status: 'წყარო შეცდომას აბრუნებს',
+  upstream_empty: 'წყარომ ცარიელი პასუხი დააბრუნა',
+  page_fetch_failed: 'გვერდი ვერ ჩამოიტვირთა',
+  payload_not_found: 'გვერდზე მონაცემები ვერ მოიძებნა',
+  parse_failed: 'მონაცემები ვერ წაიკითხა',
+  unknown: 'დაუზუსტებელი შეცდომა',
+};
+
+/** Fields the parser tracks — used for the "what is usually missing" table. */
+export const IMPORT_FIELD_LABEL: Record<string, string> = {
+  title: 'სათაური',
+  description: 'აღწერა',
+  price: 'ფასი',
+  area: 'ფართი',
+  rooms: 'ოთახები',
+  city: 'ქალაქი',
+  district: 'რაიონი',
+  address: 'მისამართი',
+  floor: 'სართული',
+  images: 'ფოტოები',
+  coordinates: 'კოორდინატები',
+  agentPhone: 'ტელეფონი',
+};
+
+export const IMPORT_WARNING_LABEL: Record<string, string> = {
+  coords_defaulted: 'რუკის პინი თბილისის ცენტრზეა',
+  few_photos: '5-ზე ნაკლები ფოტო',
+  short_description: 'აღწერა მოკლეა',
+  enum_room_ids: 'ოთახების რიცხვი გადასამოწმებელია',
+  no_cadastral_code: 'საკადასტრო კოდი არ არის',
+  no_agent_name: 'საკონტაქტო პირი არ არის',
+  price_without_area: 'ფასი არის, ფართი არა',
+};
+
+export function importFieldLabel(field: string): string {
+  return IMPORT_FIELD_LABEL[field] ?? IMPORT_WARNING_LABEL[field] ?? field;
+}

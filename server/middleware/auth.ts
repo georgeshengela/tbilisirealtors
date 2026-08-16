@@ -9,6 +9,8 @@ import {
   effectivePermissions,
   isStaffRole,
   can,
+  isAdminOnlyPermission,
+  isAdminOrAbove,
 } from '../permissions.js';
 
 dotenv.config();
@@ -148,13 +150,41 @@ export function requirePermission(...keys: string[]) {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
+
     const missing = keys.filter(key => !can(actor, key));
     if (missing.length) {
       res.status(403).json({ error: 'უფლება არ გაქვთ', missing });
       return;
     }
+
+    // Held the key but sits below admin — the floor applies even to explicit grants.
+    const blocked = keys.filter(key => isAdminOnlyPermission(key) && !isAdminOrAbove(actor));
+    if (blocked.length) {
+      res.status(403).json({ error: ADMIN_ONLY_MESSAGE, adminOnly: blocked });
+      return;
+    }
+
     next();
   };
+}
+
+/** Shown whenever the admin floor, rather than a missing permission, is the blocker. */
+export const ADMIN_ONLY_MESSAGE = 'ამ მოქმედებას მხოლოდ ადმინი ან სუპერ ადმინი ასრულებს';
+
+/**
+ * Hard role floor for actions that are not expressible as a permission key —
+ * currently the irreversible deletes that carry financial records with them.
+ */
+export function requireAdminRole(req: AuthRequest, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ error: 'Unauthorized' });
+    return;
+  }
+  if (!isAdminOrAbove(req.user)) {
+    res.status(403).json({ error: ADMIN_ONLY_MESSAGE });
+    return;
+  }
+  next();
 }
 
 export function requireSuperAdmin(req: AuthRequest, res: Response, next: NextFunction): void {

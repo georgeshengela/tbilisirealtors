@@ -12,6 +12,7 @@ import BusinessHours from './BusinessHours';
 import ContactAddress from './ContactAddress';
 import BrandLogo from './BrandLogo';
 import { useTranslation } from '../i18n/LocaleContext';
+import { submitLead } from '../lib/leads';
 
 const SocialIcon = ({ label }: { label: string }) => {
   if (label === 'Facebook') return (
@@ -64,6 +65,7 @@ export default function Footer() {
   const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
 
   const PROPERTY_LINKS = useMemo(() => [
     { label: t('footer.apartments'), href: '/listings?type=apartment', icon: Building, color: '#2563eb' },
@@ -91,8 +93,19 @@ export default function Footer() {
     { label: t('listings.cities.gori'), href: '/listings?city=გორი', count: '143' },
   ], [t]);
 
-  const handleSubscribe = () => {
-    if (email) { setSent(true); setEmail(''); }
+  const handleSubscribe = async () => {
+    if (!email || sending) return;
+
+    setSending(true);
+    const result = await submitLead({ kind: 'newsletter', email });
+    setSending(false);
+
+    // A failed subscribe is not worth an error banner in the footer; keep the
+    // address in the box so the visitor can try again.
+    if (!result.ok) return;
+
+    setSent(true);
+    setEmail('');
   };
 
   const SOCIAL = [
@@ -185,13 +198,14 @@ export default function Footer() {
                     </div>
                     <button
                       onClick={handleSubscribe}
-                      className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-white flex-shrink-0 transition-all"
+                      disabled={sending}
+                      className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl text-sm font-bold text-white flex-shrink-0 transition-all disabled:opacity-60"
                       style={{
                         background: 'linear-gradient(135deg, #2563eb 0%, #2563eb 100%)',
                       }}
                     >
                       <Send size={15} strokeWidth={2} />
-                      გამოწერა
+                      {sending ? 'იგზავნება…' : 'გამოწერა'}
                     </button>
                   </>
                 )}

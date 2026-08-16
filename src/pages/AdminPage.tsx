@@ -6,7 +6,7 @@ import {
   BookOpen, Search, CheckCircle, XCircle, Shield, Home,
   Star, Zap, Sparkles, Image as ImageIcon,
   Phone, Globe, RefreshCw, ArrowUpRight, MapPin, Clock,
-  ExternalLink, Headphones, UserCog, Ban, Lock, type LucideIcon,
+  ExternalLink, Headphones, UserCog, Ban, Lock, BarChart3, LineChart, type LucideIcon,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import AdminPropertiesSection, {
@@ -14,13 +14,17 @@ import AdminPropertiesSection, {
 } from '../components/admin/AdminPropertiesSection';
 import AdminBrokersSection, { type BrokerRow } from '../components/admin/AdminBrokersSection';
 import AdminDeskSection, { type DeskTab } from '../components/admin/desk/AdminDeskSection';
+import AdminAnalyticsSection, {
+  type AnalyticsTab,
+} from '../components/admin/analytics/AdminAnalyticsSection';
+import AdminPricesSection from '../components/admin/prices/AdminPricesSection';
 import StaffPermissionEditor from '../components/admin/StaffPermissionEditor';
 import BrandLogo from '../components/BrandLogo';
 import AdminFooter from '../components/admin/AdminFooter';
 import { formatGeorgianLongDate, formatGeorgianShortDate } from '../lib/dateFormat';
 import {
   ROLE_DESCRIPTION, STAFF_ROLES,
-  canManageRole, roleColor, roleLabel, type Role,
+  canManageRole, meetsAdminFloor, roleColor, roleLabel, type Role,
 } from '../lib/permissions';
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
@@ -88,18 +92,20 @@ interface MemberRow {
 interface Setting { key: string; value: string; label: string; }
 
 type Section =
-  | 'dashboard' | 'properties' | 'desk' | 'agents'
+  | 'dashboard' | 'properties' | 'desk' | 'analytics' | 'prices' | 'agents'
   | 'blog' | 'staff' | 'members' | 'settings';
 
 const SECTIONS: Section[] = [
-  'dashboard', 'properties', 'desk', 'agents', 'blog', 'staff', 'members', 'settings',
+  'dashboard', 'properties', 'desk', 'analytics', 'prices', 'agents', 'blog', 'staff', 'members', 'settings',
 ];
 
 /** A section unlocks as soon as the actor holds any one of these permissions. */
 const SECTION_PERMISSIONS: Record<Section, string[]> = {
   dashboard: ['dashboard.view'],
   properties: ['listings.view'],
-  desk: ['listings.tasks', 'listings.moderate', 'listings.assign', 'analytics.full'],
+  desk: ['listings.tasks', 'listings.moderate', 'listings.assign', 'analytics.full', 'leads.view'],
+  analytics: ['analytics.full', 'analytics.imports'],
+  prices: ['analytics.full'],
   agents: ['agents.view'],
   blog: ['blog.view'],
   staff: ['staff.view'],
@@ -361,7 +367,10 @@ export default function AdminPage() {
       : 'dashboard';
 
   const [section, setSection] = useState<Section>(initialSection);
-  const deskTab = (searchParams.get('tab') ?? undefined) as DeskTab | undefined;
+  // Both sections read ?tab= so a dashboard shortcut can land on an exact board.
+  const tabParam = searchParams.get('tab') ?? undefined;
+  const deskTab = tabParam as DeskTab | undefined;
+  const analyticsTab = tabParam as AnalyticsTab | undefined;
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [stats, setStats] = useState<Stats | null>(null);
@@ -531,6 +540,8 @@ export default function AdminPage() {
     { id: 'dashboard', label: 'მთავარი', icon: LayoutDashboard },
     { id: 'properties', label: 'განცხადებები', icon: Building2 },
     { id: 'desk', label: 'დესკი', icon: Headphones, badge: stats?.pendingModeration ?? 0 },
+    { id: 'analytics', label: 'ანალიტიკა', icon: BarChart3 },
+    { id: 'prices', label: 'ფასები', icon: LineChart },
     { id: 'agents', label: 'ბროკერები', icon: Users },
     { id: 'blog', label: 'ბლოგი', icon: BookOpen },
     { id: 'staff', label: 'თანამშრომლები', icon: Shield },
@@ -540,6 +551,9 @@ export default function AdminPage() {
 
   // The server enforces the same rules; this only keeps unreachable tabs hidden.
   const navItems = allNavItems.filter(item => canSection(item.id));
+
+  // Settings edits carry a hard admin floor server-side, so mirror it in the form.
+  const canEditSettings = can('settings.edit') && meetsAdminFloor(user?.role ?? '');
 
   const filteredBlog = blogList.filter(b =>
     !search || b.title?.toLowerCase().includes(search.toLowerCase()) || b.category?.toLowerCase().includes(search.toLowerCase())
@@ -1239,6 +1253,15 @@ export default function AdminPage() {
             <AdminDeskSection api={api} showToast={showToast} initialTab={deskTab} />
           )}
 
+          {/* ── ANALYTICS ── */}
+          {section === 'analytics' && (
+            <AdminAnalyticsSection api={api} showToast={showToast} initialTab={analyticsTab} />
+          )}
+
+          {section === 'prices' && (
+            <AdminPricesSection api={api} showToast={showToast} />
+          )}
+
           {/* ── STAFF ── */}
           {section === 'staff' && (
             <div className="space-y-4">
@@ -1389,18 +1412,23 @@ export default function AdminPage() {
                 </div>
                 {settingList.map((s, i) => (
                   <Field key={s.key} label={s.label || s.key}>
-                    <input type="text" value={s.value || ''} onChange={e => {
+                    <input type="text" value={s.value || ''} readOnly={!canEditSettings} onChange={e => {
                       const u = [...settingList]; u[i] = { ...u[i], value: e.target.value }; setSettingList(u);
-                    }} className={inputCls} />
+                    }} className={`${inputCls} ${canEditSettings ? '' : 'bg-slate-50 text-slate-500'}`} />
                   </Field>
                 ))}
                 {settingList.length === 0 && <p className="text-slate-400 text-sm text-center py-4">იტვირთება...</p>}
-                {settingList.length > 0 && (
+                {settingList.length > 0 && (canEditSettings ? (
                   <button onClick={saveSettings}
                     className="mt-2 px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 transition-colors">
                     შენახვა
                   </button>
-                )}
+                ) : (
+                  <p className="mt-2 flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500">
+                    <Lock size={13} />
+                    პარამეტრებს მხოლოდ ადმინი ან სუპერ ადმინი ცვლის
+                  </p>
+                ))}
               </div>
             </div>
           )}

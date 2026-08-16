@@ -120,6 +120,94 @@ async function migrate() {
         ON properties (lifecycle_state, rent_expires_at)
     `;
 
+    // Daily aggregate benchmarks scraped from external market portals (MyGE et al).
+    // One row per source/day/city builds the history the portals do not publish.
+    await client`
+      CREATE TABLE IF NOT EXISTS external_market_snapshots (
+        id SERIAL PRIMARY KEY,
+        source VARCHAR(50) NOT NULL,
+        snapshot_date DATE NOT NULL,
+        city_slug VARCHAR(120) NOT NULL,
+        city VARCHAR(255) NOT NULL,
+        total_listings INTEGER DEFAULT 0,
+        sale_listings INTEGER DEFAULT 0,
+        rent_listings INTEGER DEFAULT 0,
+        sale_sample INTEGER DEFAULT 0,
+        sale_median_price NUMERIC,
+        sale_median_per_sqm NUMERIC,
+        sale_avg_per_sqm NUMERIC,
+        sale_p25_per_sqm NUMERIC,
+        sale_p75_per_sqm NUMERIC,
+        rent_sample INTEGER DEFAULT 0,
+        rent_median_price NUMERIC,
+        rent_avg_price NUMERIC,
+        rent_median_per_sqm NUMERIC,
+        source_updated DATE,
+        payload JSONB,
+        fetched_at TIMESTAMP DEFAULT NOW(),
+        CONSTRAINT external_market_snapshots_unique UNIQUE (source, snapshot_date, city_slug)
+      )
+    `;
+
+    await client`
+      CREATE INDEX IF NOT EXISTS external_market_snapshots_lookup_idx
+        ON external_market_snapshots (source, city_slug, snapshot_date DESC)
+    `;
+
+    // Public enquiries: contact form, property questions, viewing requests, newsletter.
+    await client`
+      CREATE TABLE IF NOT EXISTS leads (
+        id SERIAL PRIMARY KEY,
+        kind VARCHAR(20) NOT NULL DEFAULT 'contact',
+        name VARCHAR(200),
+        phone VARCHAR(50),
+        email VARCHAR(255),
+        subject VARCHAR(300),
+        message TEXT,
+        property_id VARCHAR(50) REFERENCES properties(id) ON DELETE SET NULL,
+        preferred_at TIMESTAMP,
+        source_url VARCHAR(600),
+        locale VARCHAR(10),
+        stage VARCHAR(20) NOT NULL DEFAULT 'new',
+        lost_reason VARCHAR(300),
+        assigned_to_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        assigned_by_user_id INTEGER,
+        assigned_at TIMESTAMP,
+        first_response_at TIMESTAMP,
+        next_follow_up_at DATE,
+        closed_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+
+    await client`
+      CREATE INDEX IF NOT EXISTS leads_queue_idx
+        ON leads (stage, assigned_to_user_id, created_at DESC)
+    `;
+
+    await client`
+      CREATE INDEX IF NOT EXISTS leads_property_idx ON leads (property_id)
+    `;
+
+    await client`
+      CREATE TABLE IF NOT EXISTS lead_events (
+        id SERIAL PRIMARY KEY,
+        lead_id INTEGER NOT NULL REFERENCES leads(id) ON DELETE CASCADE,
+        kind VARCHAR(20) NOT NULL DEFAULT 'note',
+        body VARCHAR(1000),
+        meta JSONB DEFAULT '{}',
+        actor_user_id INTEGER,
+        actor_name VARCHAR(255),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+
+    await client`
+      CREATE INDEX IF NOT EXISTS lead_events_lead_idx
+        ON lead_events (lead_id, created_at DESC)
+    `;
+
     await client`
       CREATE TABLE IF NOT EXISTS agents (
         id VARCHAR(50) PRIMARY KEY,
@@ -407,16 +495,54 @@ async function migrate() {
       )
     `;
 
+    await client`
+      CREATE TABLE IF NOT EXISTS listing_imports (
+        id SERIAL PRIMARY KEY,
+        source VARCHAR(30) NOT NULL DEFAULT 'unknown',
+        source_url VARCHAR(600),
+        source_id VARCHAR(100),
+        status VARCHAR(10) NOT NULL,
+        missing_fields JSONB DEFAULT '[]'::jsonb,
+        warnings JSONB DEFAULT '[]'::jsonb,
+        error_code VARCHAR(40),
+        error_message VARCHAR(300),
+        field_count INTEGER NOT NULL DEFAULT 0,
+        photo_count INTEGER NOT NULL DEFAULT 0,
+        duration_ms INTEGER NOT NULL DEFAULT 0,
+        retry_of_id INTEGER,
+        actor_user_id INTEGER,
+        actor_name VARCHAR(255),
+        property_id VARCHAR(50),
+        created_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS listing_imports_recent_idx
+        ON listing_imports (created_at DESC)
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS listing_imports_quality_idx
+        ON listing_imports (source, status, created_at DESC)
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS listing_imports_source_id_idx
+        ON listing_imports (source, source_id)
+    `;
+
     /**
      * Role templates are seeded once and then owned by the panel, so newly shipped
      * permissions have to be added to the stored templates explicitly. Only keys
      * introduced by this release are listed, and only missing ones are appended —
      * a permission an admin deliberately removed earlier stays removed.
      */
+    const LEAD_DESK = ['leads.view', 'leads.manage', 'leads.assign', 'leads.viewAll', 'leads.contact'];
+
     const NEW_ROLE_PERMISSIONS: Record<string, string[]> = {
-      admin: ['listings.tasks', 'listings.tasksAll'],
-      manager: ['listings.tasks', 'listings.tasksAll'],
-      broker: ['listings.tasks'],
+      super_admin: LEAD_DESK,
+      admin: ['listings.tasks', 'listings.tasksAll', 'analytics.imports', ...LEAD_DESK],
+      manager: ['listings.tasks', 'listings.tasksAll', 'analytics.imports', ...LEAD_DESK],
+      // A broker works the leads handed to them; distribution stays with managers.
+      broker: ['listings.tasks', 'leads.view', 'leads.manage', 'leads.contact'],
     };
 
     for (const [role, keys] of Object.entries(NEW_ROLE_PERMISSIONS)) {

@@ -40,6 +40,11 @@ export interface PermissionDef {
   label: string;
   /** Extra warning for permissions that expose private data. */
   sensitive?: boolean;
+  /**
+   * Holding the key is not enough — the account also has to be an admin or super
+   * admin. Granting one of these to a manager has no effect, and the editor says so.
+   */
+  adminOnly?: boolean;
 }
 
 export const PERMISSIONS: PermissionDef[] = [
@@ -62,6 +67,13 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: 'listings.tasks', group: 'listings', label: 'დავალებები და ზარების ჟურნალი' },
   { key: 'listings.tasksAll', group: 'listings', label: 'გუნდის ყველა დავალების ნახვა' },
 
+  // Leads (public enquiries)
+  { key: 'leads.view', group: 'leads', label: 'ლიდების ნახვა' },
+  { key: 'leads.manage', group: 'leads', label: 'ლიდის დამუშავება — სტატუსი, კომენტარი, ზარი' },
+  { key: 'leads.assign', group: 'leads', label: 'ლიდის განაწილება ბროკერებზე' },
+  { key: 'leads.viewAll', group: 'leads', label: 'გუნდის ყველა ლიდის ნახვა' },
+  { key: 'leads.contact', group: 'leads', label: 'ლიდის საკონტაქტო მონაცემები', sensitive: true },
+
   // Agents
   { key: 'agents.view', group: 'agents', label: 'ბროკერების ნახვა' },
   { key: 'agents.create', group: 'agents', label: 'ბროკერის დამატება' },
@@ -80,18 +92,31 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: 'staff.create', group: 'staff', label: 'თანამშრომლის შექმნა' },
   { key: 'staff.edit', group: 'staff', label: 'თანამშრომლის რედაქტირება' },
   { key: 'staff.delete', group: 'staff', label: 'თანამშრომლის წაშლა' },
-  { key: 'staff.permissions', group: 'staff', label: 'უფლებების მართვა', sensitive: true },
+  {
+    key: 'staff.permissions',
+    group: 'staff',
+    label: 'უფლებებისა და როლის შაბლონების მართვა',
+    sensitive: true,
+    adminOnly: true,
+  },
 
   // Members (public users)
   { key: 'members.view', group: 'members', label: 'მომხმარებლების ნახვა' },
   { key: 'members.block', group: 'members', label: 'მომხმარებლის დაბლოკვა' },
-  { key: 'members.delete', group: 'members', label: 'მომხმარებლის წაშლა' },
+  {
+    key: 'members.delete',
+    group: 'members',
+    label: 'მომხმარებლის სამუდამო წაშლა',
+    sensitive: true,
+    adminOnly: true,
+  },
 
   // Everything else
   { key: 'settings.view', group: 'system', label: 'პარამეტრების ნახვა' },
-  { key: 'settings.edit', group: 'system', label: 'პარამეტრების შეცვლა' },
+  { key: 'settings.edit', group: 'system', label: 'პარამეტრების შეცვლა', adminOnly: true },
   { key: 'dashboard.view', group: 'system', label: 'დაფის ნახვა' },
   { key: 'analytics.full', group: 'system', label: 'სრული სტატისტიკა' },
+  { key: 'analytics.imports', group: 'system', label: 'იმპორტის ხარისხის ანგარიში' },
   { key: 'uploads.images', group: 'system', label: 'ფოტოს ატვირთვა' },
   { key: 'uploads.documents', group: 'system', label: 'დოკუმენტის ატვირთვა' },
 ];
@@ -109,10 +134,11 @@ const MANAGER_PERMISSIONS = [
   'listings.contracts', 'listings.notes', 'listings.billing', 'listings.import',
   'listings.translate', 'listings.moderate', 'listings.assign',
   'listings.tasks', 'listings.tasksAll',
+  'leads.view', 'leads.manage', 'leads.assign', 'leads.viewAll', 'leads.contact',
   'agents.view', 'agents.create', 'agents.edit', 'agents.delete',
   'blog.view', 'blog.create', 'blog.edit', 'blog.delete', 'blog.publish',
   'members.view',
-  'settings.view', 'dashboard.view', 'analytics.full',
+  'settings.view', 'dashboard.view', 'analytics.full', 'analytics.imports',
   'uploads.images', 'uploads.documents',
 ];
 
@@ -120,6 +146,8 @@ const BROKER_PERMISSIONS = [
   'listings.view', 'listings.create', 'listings.edit', 'listings.price',
   'listings.lifecycle', 'listings.owner', 'listings.contracts', 'listings.notes',
   'listings.translate', 'listings.tasks',
+  // Brokers work the leads handed to them, and need the phone number to do it.
+  'leads.view', 'leads.manage', 'leads.contact',
   'dashboard.view',
   'uploads.images', 'uploads.documents',
 ];
@@ -188,6 +216,44 @@ export function can(actor: Pick<PermissionActor, 'role' | 'permissions'> | undef
 
 export function canAny(actor: PermissionActor | undefined, keys: string[]): boolean {
   return keys.some(key => can(actor, key));
+}
+
+/* ── Admin-only floor ────────────────────────────────────────────────────── */
+
+/**
+ * Some actions stay with admins and super admins whatever the role template says:
+ * handing out permissions, editing role templates, changing site settings and
+ * permanently destroying member accounts or financial records. A super admin can
+ * still tick these boxes for a manager, but the server refuses to act on them.
+ */
+export const ADMIN_ONLY_PERMISSIONS: string[] = PERMISSIONS
+  .filter(permission => permission.adminOnly)
+  .map(permission => permission.key);
+
+const ADMIN_ONLY_SET = new Set(ADMIN_ONLY_PERMISSIONS);
+
+export function isAdminOnlyPermission(key: string): boolean {
+  return ADMIN_ONLY_SET.has(key);
+}
+
+/** True when the role sits at or above the given rank. */
+export function isAtLeastRole(role: string, minimum: Role): boolean {
+  return rankOf(role) >= ROLE_RANK[minimum];
+}
+
+/** Admin-and-above check used by the irreversible endpoints. */
+export function isAdminOrAbove(actor: Pick<PermissionActor, 'role'> | undefined): boolean {
+  return Boolean(actor && isAtLeastRole(actor.role, 'admin'));
+}
+
+/**
+ * Permission check plus the admin floor. Use this instead of `can()` for the keys
+ * in ADMIN_ONLY_PERMISSIONS so a stray grant cannot widen a manager's reach.
+ */
+export function canWithRoleFloor(actor: PermissionActor | undefined, key: string): boolean {
+  if (!can(actor, key)) return false;
+  if (isAdminOnlyPermission(key) && !isAdminOrAbove(actor)) return false;
+  return true;
 }
 
 /** True when the actor is allowed to create / edit / delete the target user. */

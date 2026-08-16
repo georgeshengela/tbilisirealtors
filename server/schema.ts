@@ -220,6 +220,39 @@ export const moderationTemplates = pgTable('moderation_templates', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+/**
+ * One row per myhome.ge / ss.ge import attempt, written whether the parse
+ * succeeded or blew up. Without this the import quality report has nothing to
+ * measure: a failed scrape leaves no other trace anywhere in the database.
+ */
+export const listingImports = pgTable('listing_imports', {
+  id: serial('id').primaryKey(),
+  /** myhome.ge | ss.ge | unknown — 'unknown' when the URL was rejected outright. */
+  source: varchar('source', { length: 30 }).notNull().default('unknown'),
+  sourceUrl: varchar('source_url', { length: 600 }),
+  sourceId: varchar('source_id', { length: 100 }),
+  /** ok | partial | failed */
+  status: varchar('status', { length: 10 }).notNull(),
+  /** Important fields the parser could not fill, e.g. ['price', 'district']. */
+  missingFields: jsonb('missing_fields').$type<string[]>().default([]),
+  /** Softer quality flags, e.g. ['coords_defaulted', 'few_photos']. */
+  warnings: jsonb('warnings').$type<string[]>().default([]),
+  /** Stable code so the report can group failures without matching Georgian text. */
+  errorCode: varchar('error_code', { length: 40 }),
+  errorMessage: varchar('error_message', { length: 300 }),
+  /** Completeness score from the parser — how many tracked fields came back filled. */
+  fieldCount: integer('field_count').notNull().default(0),
+  photoCount: integer('photo_count').notNull().default(0),
+  durationMs: integer('duration_ms').notNull().default(0),
+  /** True once a retry produced a better result, so the report can hide noise. */
+  retryOfId: integer('retry_of_id'),
+  actorUserId: integer('actor_user_id'),
+  actorName: varchar('actor_name', { length: 255 }),
+  /** Filled in when the imported data was actually saved as a listing. */
+  propertyId: varchar('property_id', { length: 50 }),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 /** Every price edit, so the table can show what the price was before and who moved it. */
 export const propertyPriceHistory = pgTable('property_price_history', {
   id: serial('id').primaryKey(),
@@ -326,6 +359,54 @@ export const passwordResetTokens = pgTable('password_reset_tokens', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+/**
+ * Every enquiry that arrives from the public site: contact form, property question,
+ * viewing request or newsletter signup. This is the top of the sales funnel — before
+ * this table existed the forms discarded whatever the visitor typed.
+ */
+export const leads = pgTable('leads', {
+  id: serial('id').primaryKey(),
+  /** contact | property | viewing | newsletter */
+  kind: varchar('kind', { length: 20 }).notNull().default('contact'),
+  name: varchar('name', { length: 200 }),
+  phone: varchar('phone', { length: 50 }),
+  email: varchar('email', { length: 255 }),
+  subject: varchar('subject', { length: 300 }),
+  message: text('message'),
+  /** Listing the visitor was looking at, when the enquiry came from a property page. */
+  propertyId: varchar('property_id', { length: 50 }),
+  /** Requested viewing slot for kind='viewing'. */
+  preferredAt: timestamp('preferred_at'),
+  /** Page the enquiry was sent from, for attribution. */
+  sourceUrl: varchar('source_url', { length: 600 }),
+  locale: varchar('locale', { length: 10 }),
+  /** new | contacted | viewing | offer | won | lost */
+  stage: varchar('stage', { length: 20 }).notNull().default('new'),
+  lostReason: varchar('lost_reason', { length: 300 }),
+  assignedToUserId: integer('assigned_to_user_id'),
+  assignedByUserId: integer('assigned_by_user_id'),
+  assignedAt: timestamp('assigned_at'),
+  /** First time a staff member actually recorded contact — drives the response SLA. */
+  firstResponseAt: timestamp('first_response_at'),
+  nextFollowUpAt: date('next_follow_up_at'),
+  closedAt: timestamp('closed_at'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+/** Timeline entry on a lead: note, call, email, stage change or assignment. */
+export const leadEvents = pgTable('lead_events', {
+  id: serial('id').primaryKey(),
+  leadId: integer('lead_id').notNull(),
+  /** created | note | call | email | meeting | stage | assign */
+  kind: varchar('kind', { length: 20 }).notNull().default('note'),
+  body: varchar('body', { length: 1000 }),
+  meta: jsonb('meta').$type<Record<string, unknown>>().default({}),
+  actorUserId: integer('actor_user_id'),
+  actorName: varchar('actor_name', { length: 255 }),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export type User = typeof users.$inferSelect;
 export type AdminUser = typeof users.$inferSelect;
 export type RolePermissionRow = typeof rolePermissions.$inferSelect;
@@ -341,3 +422,6 @@ export type ActivityLogEntry = typeof activityLog.$inferSelect;
 export type ListingTask = typeof listingTasks.$inferSelect;
 export type ListingCallLog = typeof listingCallLogs.$inferSelect;
 export type ModerationTemplate = typeof moderationTemplates.$inferSelect;
+export type ListingImportAttempt = typeof listingImports.$inferSelect;
+export type Lead = typeof leads.$inferSelect;
+export type LeadEvent = typeof leadEvents.$inferSelect;

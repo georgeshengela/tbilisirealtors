@@ -17,6 +17,91 @@ export interface DeskSummary {
   callbacksDue: number;
   overdueTasks: number;
   myOpenTasks: number;
+  openLeads: number;
+  unassignedLeads: number;
+  leadsBreached: number;
+}
+
+export type LeadKind = 'contact' | 'property' | 'viewing' | 'newsletter';
+export type LeadStage = 'new' | 'contacted' | 'viewing' | 'offer' | 'won' | 'lost';
+export type LeadEventKind = 'created' | 'note' | 'call' | 'email' | 'meeting' | 'stage' | 'assign';
+
+export interface Lead {
+  id: number;
+  kind: LeadKind;
+  name: string | null;
+  phone: string | null;
+  email: string | null;
+  subject: string | null;
+  message: string | null;
+  propertyId: string | null;
+  propertyTitle: string | null;
+  propertyPrice: number | null;
+  preferredAt: string | null;
+  sourceUrl: string | null;
+  locale: string | null;
+  stage: LeadStage;
+  lostReason: string | null;
+  assignedToUserId: number | null;
+  assignedToName: string | null;
+  assignedAt: string | null;
+  firstResponseAt: string | null;
+  nextFollowUpAt: string | null;
+  closedAt: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  responseMinutes: number;
+  slaBreached: boolean;
+  eventCount: number;
+}
+
+export interface LeadEvent {
+  id: number;
+  leadId: number;
+  kind: LeadEventKind;
+  body: string | null;
+  meta: Record<string, unknown>;
+  actorUserId: number | null;
+  actorName: string | null;
+  createdAt: string | null;
+}
+
+export interface LeadStats {
+  total: number;
+  open: number;
+  unassigned: number;
+  newToday: number;
+  new7d: number;
+  breached: number;
+  dueFollowUp: number;
+  won30d: number;
+  lost30d: number;
+  conversionRate: number;
+  medianResponseMinutes: number;
+  slaMinutes: number;
+  byStage: { stage: LeadStage; label: string; count: number }[];
+  byKind: { kind: LeadKind; label: string; count: number }[];
+}
+
+export interface LeadBrokerLoad {
+  userId: number;
+  name: string;
+  email: string;
+  role: string;
+  openLeads: number;
+  breached: number;
+  won30d: number;
+  lost30d: number;
+  conversionRate: number;
+  medianResponseMinutes: number;
+}
+
+export interface LeadListResponse {
+  data: Lead[];
+  stats: LeadStats;
+  brokers: LeadBrokerLoad[];
+  can: { assign: boolean; manage: boolean; contact: boolean; viewAll: boolean };
+  generatedAt: string;
 }
 
 export interface AssignStaff extends StaffOption {

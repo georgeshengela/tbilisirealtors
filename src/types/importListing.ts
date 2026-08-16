@@ -58,5 +58,11 @@ export interface ImportedListingData {
     viewCount?: number;
     vipLabel?: string;
     importedFields?: number;
+    /** True when the source had no coordinates and the pin fell back to Tbilisi centre. */
+    coordsFallback?: boolean;
+    /** 'partial' means something important is missing and needs typing in by hand. */
+    quality?: 'ok' | 'partial';
+    missingFields?: string[];
+    warnings?: string[];
   };
 }

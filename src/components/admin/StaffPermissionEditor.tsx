@@ -14,7 +14,7 @@ import { X, Lock, ShieldCheck, RotateCcw, AlertTriangle } from 'lucide-react';
 import { useApiRequest } from '../../contexts/AdminAuthContext';
 import {
   PERMISSION_GROUP_LABEL, ROLE_DESCRIPTION, STAFF_ROLES,
-  groupPermissions, roleColor, roleLabel,
+  groupPermissions, meetsAdminFloor, roleColor, roleLabel,
   type PermissionDef, type Role,
 } from '../../lib/permissions';
 
@@ -137,8 +137,14 @@ export default function StaffPermissionEditor({ target, onClose, onSaveUser, onS
   }
 
   const groups = groupPermissions(catalog?.catalog ?? []);
-  const color = roleColor(isRoleMode ? templateRole : (target?.role ?? 'user'));
+  const subjectRole = isRoleMode ? templateRole : (target?.role ?? 'user');
+  const color = roleColor(subjectRole);
   const superAdminLocked = isRoleMode && templateRole === 'super_admin';
+  /**
+   * Some keys carry a hard role floor on the server. They can still be ticked — the
+   * template may outlive a promotion — but the toggle has to say it does nothing yet.
+   */
+  const belowAdminFloor = !meetsAdminFloor(subjectRole);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
@@ -269,8 +275,21 @@ export default function StaffPermissionEditor({ target, onClose, onSaveUser, onS
                               პირადი
                             </span>
                           )}
+                          {item.adminOnly && (
+                            <span
+                              className="ml-2 text-[10px] font-bold text-slate-700 bg-slate-200 px-1.5 py-0.5 rounded"
+                              title="სერვერი ამ მოქმედებას მხოლოდ ადმინს ან სუპერ ადმინს აძლევს"
+                            >
+                              მხოლოდ ადმინი
+                            </span>
+                          )}
                         </span>
                         <span className="block text-[11px] text-slate-400 font-mono">{item.key}</span>
+                        {item.adminOnly && belowAdminFloor && (
+                          <span className="mt-0.5 block text-[10px] font-semibold text-amber-700">
+                            ამ როლზე არ იმუშავებს — საჭიროა ადმინის როლი
+                          </span>
+                        )}
                       </span>
 
                       {!isRoleMode && state !== 'inherit' && (

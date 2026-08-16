@@ -7,8 +7,10 @@ import authRoutes from './routes/auth.js';
 import accountRoutes from './routes/account.js';
 import adminRoutes from './routes/admin.js';
 import deskRoutes from './routes/desk.js';
+import analyticsRoutes from './routes/analytics.js';
 import ratesRoutes from './routes/rates.js';
 import publicRoutes from './routes/public.js';
+import leadRoutes from './routes/leads.js';
 import geoRoutes from './routes/geo.js';
 import uploadRoutes from './routes/uploads.js';
 import { refreshExpiredRentals } from './services/listingLifecycle.js';
@@ -46,11 +48,14 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/account', accountRoutes);
 // Manager desk sits ahead of the generic admin router so its paths win.
+// Both sit under /api/admin, so they have to be mounted before the catch-all router.
 app.use('/api/admin/desk', deskRoutes);
+app.use('/api/admin/analytics', analyticsRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/rates', ratesRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/api/uploads', uploadRoutes);
+app.use('/api', leadRoutes);
 app.use('/api', publicRoutes);
 
 // Legacy local uploads (pre-Cloudinary). New files go to Cloudinary CDN.

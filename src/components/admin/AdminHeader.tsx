@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, Users, Settings, LogOut, Plus,
-  BookOpen, Shield, Sparkles, ExternalLink, Headphones, UserCog,
+  BookOpen, Shield, Sparkles, ExternalLink, Headphones, UserCog, BarChart3, LineChart,
   type LucideIcon,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../../contexts/AdminAuthContext';
@@ -10,7 +10,7 @@ import { roleLabel } from '../../lib/permissions';
 import BrandLogo from '../BrandLogo';
 
 export type AdminNavSection =
-  | 'dashboard' | 'properties' | 'desk' | 'agents'
+  | 'dashboard' | 'properties' | 'desk' | 'analytics' | 'prices' | 'agents'
   | 'blog' | 'staff' | 'members' | 'settings';
 
 /** A section unlocks as soon as the actor holds any one of its permissions. */
@@ -21,7 +21,19 @@ const NAV_ITEMS: { id: AdminNavSection; label: string; icon: LucideIcon; permiss
     id: 'desk',
     label: 'დესკი',
     icon: Headphones,
-    permissions: ['listings.tasks', 'listings.moderate', 'listings.assign', 'analytics.full'],
+    permissions: ['listings.tasks', 'listings.moderate', 'listings.assign', 'analytics.full', 'leads.view'],
+  },
+  {
+    id: 'analytics',
+    label: 'ანალიტიკა',
+    icon: BarChart3,
+    permissions: ['analytics.full', 'analytics.imports'],
+  },
+  {
+    id: 'prices',
+    label: 'ფასები',
+    icon: LineChart,
+    permissions: ['analytics.full'],
   },
   { id: 'agents', label: 'ბროკერები', icon: Users, permissions: ['agents.view'] },
   { id: 'blog', label: 'ბლოგი', icon: BookOpen, permissions: ['blog.view'] },
@@ -42,16 +54,24 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
   const api = useApiRequest();
   const [deskAlerts, setDeskAlerts] = useState(0);
 
-  const watchesDesk = Boolean(user) && can('listings.tasks');
+  const watchesDesk = Boolean(user) && (can('listings.tasks') || can('leads.view'));
 
   // A single count of "somebody is waiting on us", so the desk tab nags visibly.
   useEffect(() => {
     if (!watchesDesk) return;
     let cancelled = false;
     api('/desk/summary')
-      .then((data: { overdueTasks?: number; slaBreached?: number; callbacksDue?: number }) => {
+      .then((data: {
+        overdueTasks?: number;
+        slaBreached?: number;
+        callbacksDue?: number;
+        leadsBreached?: number;
+      }) => {
         if (cancelled) return;
-        setDeskAlerts((data.overdueTasks ?? 0) + (data.slaBreached ?? 0) + (data.callbacksDue ?? 0));
+        setDeskAlerts(
+          (data.overdueTasks ?? 0) + (data.slaBreached ?? 0)
+          + (data.callbacksDue ?? 0) + (data.leadsBreached ?? 0),
+        );
       })
       .catch(() => { /* the badge is optional */ });
     return () => { cancelled = true; };

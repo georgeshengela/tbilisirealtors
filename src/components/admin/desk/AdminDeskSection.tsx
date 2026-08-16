@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ClipboardList,
+  Inbox,
   LayoutGrid,
   PhoneCall,
   ShieldCheck,
@@ -14,12 +15,13 @@ import {
 import { useAdminAuth } from '../../../contexts/AdminAuthContext';
 import AssignBoard from './AssignBoard';
 import CallbackBoard from './CallbackBoard';
+import LeadsBoard from './LeadsBoard';
 import ModerationInbox from './ModerationInbox';
 import PerformanceBoard from './PerformanceBoard';
 import TasksBoard from './TasksBoard';
 import type { DeskSummary } from './types';
 
-export type DeskTab = 'assign' | 'callback' | 'moderation' | 'tasks' | 'performance';
+export type DeskTab = 'leads' | 'assign' | 'callback' | 'moderation' | 'tasks' | 'performance';
 
 interface TabDef {
   id: DeskTab;
@@ -33,6 +35,15 @@ interface TabDef {
 }
 
 const TABS: TabDef[] = [
+  {
+    id: 'leads',
+    label: 'ლიდები',
+    hint: 'საიტიდან მოსული მოთხოვნები — ვის რა ევალება და ვინ დააგვიანა',
+    icon: Inbox,
+    permission: 'leads.view',
+    badge: 'openLeads',
+    urgent: 'leadsBreached',
+  },
   {
     id: 'tasks',
     label: 'დავალებები',
@@ -83,6 +94,9 @@ const EMPTY_SUMMARY: DeskSummary = {
   callbacksDue: 0,
   overdueTasks: 0,
   myOpenTasks: 0,
+  openLeads: 0,
+  unassignedLeads: 0,
+  leadsBreached: 0,
 };
 
 export default function AdminDeskSection({
@@ -98,7 +112,7 @@ export default function AdminDeskSection({
   const [summary, setSummary] = useState<DeskSummary>(EMPTY_SUMMARY);
 
   const tabs = useMemo(() => TABS.filter(tab => can(tab.permission)), [can]);
-  const [tab, setTab] = useState<DeskTab>(initialTab ?? 'tasks');
+  const [tab, setTab] = useState<DeskTab>(initialTab ?? 'leads');
 
   useEffect(() => {
     if (tabs.length > 0 && !tabs.some(item => item.id === tab)) {
@@ -173,6 +187,7 @@ export default function AdminDeskSection({
         })}
       </div>
 
+      {tab === 'leads' && <LeadsBoard {...boardProps} currentUserId={user?.id ?? 0} />}
       {tab === 'tasks' && (
         <TasksBoard
           {...boardProps}

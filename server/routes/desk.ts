@@ -43,6 +43,24 @@ import {
   isTaskPriority,
   taskFeed,
 } from '../services/managerDesk.js';
+import {
+  addLeadEvent,
+  assignLead,
+  autoAssignLeads,
+  getLead,
+  isLeadEventKind,
+  isLeadKind,
+  isLeadStage,
+  leadBrokerLoad,
+  leadEvents,
+  leadStats,
+  listLeads,
+  markFirstResponse,
+  sanitizeLead,
+  setLeadFollowUp,
+  setLeadStage,
+  type LeadStage,
+} from '../services/leads.js';
 
 const router = Router();
 
@@ -157,6 +175,10 @@ router.get('/summary', async (req: AuthRequest, res: Response): Promise<void> =>
       .from(listingTasks)
       .where(and(eq(listingTasks.status, 'open'), eq(listingTasks.assignedToUserId, actor.id)));
 
+    const leads = can(actor, 'leads.view')
+      ? await leadStats(leadScopeUserId(actor))
+      : null;
+
     res.json({
       unassigned: Number(unassigned.count),
       pendingModeration: Number(pending.count),
@@ -164,6 +186,9 @@ router.get('/summary', async (req: AuthRequest, res: Response): Promise<void> =>
       callbacksDue: Number(callbacks.count),
       overdueTasks: Number(overdueTasks.count),
       myOpenTasks: Number(myTasks.count),
+      openLeads: leads?.open ?? 0,
+      unassignedLeads: leads?.unassigned ?? 0,
+      leadsBreached: leads?.breached ?? 0,
     });
   } catch (err) {
     console.error('Desk summary error:', err);
@@ -941,6 +966,263 @@ router.get('/performance', requirePermission('analytics.full'), async (req: Auth
     res.json({ data: rows, totals, generatedAt: new Date().toISOString(), actorRole: req.user!.role });
   } catch (err) {
     console.error('Performance board error:', err);
+    fail(res, 500, 'Server error');
+  }
+});
+
+/* ── Leads ───────────────────────────────────────────────────────────────── */
+
+/**
+ * A broker sees only the leads assigned to them. `leads.viewAll` lifts that, and
+ * so does an 'all' scope — a manager should not have to hold both.
+ */
+function leadScopeUserId(actor: PermissionActor): number | null {
+  if (can(actor, 'leads.viewAll') || actor.scope !== 'own') return null;
+  return actor.id;
+}
+
+/** Loads a lead the actor is allowed to touch, or answers 404 and returns null. */
+async function leadForActor(req: AuthRequest, res: Response, id: number) {
+  const actor = actorOf(req);
+  const lead = await getLead(id, leadScopeUserId(actor));
+  if (!lead) {
+    fail(res, 404, 'ლიდი ვერ მოიძებნა');
+    return null;
+  }
+  return lead;
+}
+
+router.get('/leads', requirePermission('leads.view'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const actor = actorOf(req);
+    const scoped = leadScopeUserId(actor);
+    const showContact = can(actor, 'leads.contact');
+
+    const assignedParam = req.query.assignedTo;
+    let assignedTo: number | 'unassigned' | 'any' | undefined;
+    if (assignedParam === 'unassigned') assignedTo = 'unassigned';
+    else if (assignedParam === 'me') assignedTo = actor.id;
+    else if (typeof assignedParam === 'string' && /^\d+$/.test(assignedParam)) {
+      assignedTo = Number(assignedParam);
+    }
+
+    const stageParam = req.query.stage;
+    const stage = isLeadStage(stageParam) || stageParam === 'open' || stageParam === 'all'
+      ? (stageParam as LeadStage | 'open' | 'all')
+      : 'all';
+
+    const rows = await listLeads({
+      scopedToUserId: scoped,
+      stage,
+      kind: isLeadKind(req.query.kind) ? req.query.kind : undefined,
+      assignedTo,
+      search: typeof req.query.q === 'string' ? req.query.q : undefined,
+      breachedOnly: req.query.breached === '1',
+      limit: Number(req.query.limit) || 200,
+    });
+
+    const [stats, brokers] = await Promise.all([
+      leadStats(scoped),
+      can(actor, 'leads.assign') ? leadBrokerLoad() : Promise.resolve([]),
+    ]);
+
+    res.json({
+      data: rows.map(row => sanitizeLead(row, showContact)),
+      stats,
+      brokers,
+      can: {
+        assign: can(actor, 'leads.assign'),
+        manage: can(actor, 'leads.manage'),
+        contact: showContact,
+        viewAll: scoped === null,
+      },
+      generatedAt: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.error('Lead list error:', err);
+    fail(res, 500, 'Server error');
+  }
+});
+
+router.get('/leads/:id', requirePermission('leads.view'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return fail(res, 400, 'არასწორი ID');
+
+    const lead = await leadForActor(req, res, id);
+    if (!lead) return;
+
+    res.json({
+      data: sanitizeLead(lead, can(actorOf(req), 'leads.contact')),
+      events: await leadEvents(id),
+    });
+  } catch (err) {
+    console.error('Lead detail error:', err);
+    fail(res, 500, 'Server error');
+  }
+});
+
+/** Assign to someone else, or hand the lead back to the pool. */
+router.post('/leads/:id/assign', requirePermission('leads.assign'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return fail(res, 400, 'არასწორი ID');
+
+    const raw = req.body?.userId;
+    const targetId = raw === null || raw === '' ? null : Number(raw);
+    if (targetId !== null && !Number.isInteger(targetId)) return fail(res, 400, 'არასწორი თანამშრომელი');
+
+    if (targetId !== null) {
+      const [target] = await db
+        .select({ id: users.id, isActive: users.isActive, role: users.role })
+        .from(users)
+        .where(eq(users.id, targetId));
+      if (!target || !target.isActive || !STAFF_ROLES.includes(target.role as never)) {
+        return fail(res, 400, 'თანამშრომელი მიუწვდომელია');
+      }
+    }
+
+    const lead = await getLead(id, null);
+    if (!lead) return fail(res, 404, 'ლიდი ვერ მოიძებნა');
+
+    const actor = actorOf(req);
+    await assignLead(id, targetId, { id: actor.id, name: actor.name });
+    await logActivity(req, targetId ? 'lead.assign' : 'lead.unassign', 'lead', id, { toUserId: targetId });
+
+    res.json({ data: sanitizeLead((await getLead(id, null))!, can(actor, 'leads.contact')) });
+  } catch (err) {
+    console.error('Lead assign error:', err);
+    fail(res, 500, 'Server error');
+  }
+});
+
+/** Grab an unclaimed lead. Any staffer who can work leads may do this. */
+router.post('/leads/:id/claim', requirePermission('leads.manage'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return fail(res, 400, 'არასწორი ID');
+
+    const lead = await getLead(id, null);
+    if (!lead) return fail(res, 404, 'ლიდი ვერ მოიძებნა');
+
+    const actor = actorOf(req);
+    // Taking a lead off a colleague is an assignment decision, not a claim.
+    if (lead.assignedToUserId && lead.assignedToUserId !== actor.id && !can(actor, 'leads.assign')) {
+      return fail(res, 403, 'ლიდი უკვე დაკავებულია');
+    }
+
+    await assignLead(id, actor.id, { id: actor.id, name: actor.name });
+    await logActivity(req, 'lead.claim', 'lead', id, {});
+
+    res.json({ data: sanitizeLead((await getLead(id, null))!, can(actor, 'leads.contact')) });
+  } catch (err) {
+    console.error('Lead claim error:', err);
+    fail(res, 500, 'Server error');
+  }
+});
+
+/** Stage moves and follow-up dates. */
+router.patch('/leads/:id', requirePermission('leads.manage'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return fail(res, 400, 'არასწორი ID');
+
+    const lead = await leadForActor(req, res, id);
+    if (!lead) return;
+
+    const actor = actorOf(req);
+    let touched = false;
+
+    if (req.body?.stage !== undefined) {
+      if (!isLeadStage(req.body.stage)) return fail(res, 400, 'არასწორი სტატუსი');
+      const reason = typeof req.body.lostReason === 'string' ? req.body.lostReason.slice(0, 300) : null;
+      if (req.body.stage === 'lost' && !reason) return fail(res, 400, 'მიუთითეთ დაკარგვის მიზეზი');
+      await setLeadStage(id, req.body.stage, { id: actor.id, name: actor.name }, reason);
+      await logActivity(req, 'lead.stage', 'lead', id, { stage: req.body.stage });
+      touched = true;
+    }
+
+    if (req.body?.nextFollowUpAt !== undefined) {
+      const date = asDateOnly(req.body.nextFollowUpAt);
+      await setLeadFollowUp(id, date);
+      touched = true;
+    }
+
+    if (!touched) return fail(res, 400, 'ცვლილება არ მოთხოვნილა');
+
+    res.json({
+      data: sanitizeLead((await getLead(id, null))!, can(actor, 'leads.contact')),
+      events: await leadEvents(id),
+    });
+  } catch (err) {
+    console.error('Lead update error:', err);
+    fail(res, 500, 'Server error');
+  }
+});
+
+/** Log a call, note, email or meeting. The first one stops the response clock. */
+router.post('/leads/:id/events', requirePermission('leads.manage'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id)) return fail(res, 400, 'არასწორი ID');
+
+    const lead = await leadForActor(req, res, id);
+    if (!lead) return;
+
+    const kind = isLeadEventKind(req.body?.kind) ? req.body.kind : 'note';
+    if (kind === 'created' || kind === 'stage' || kind === 'assign') {
+      return fail(res, 400, 'ეს ტიპი სისტემურია');
+    }
+
+    const body = typeof req.body?.body === 'string' ? req.body.body.trim().slice(0, 1000) : '';
+    if (!body) return fail(res, 400, 'ტექსტი სავალდებულოა');
+
+    const actor = actorOf(req);
+    await addLeadEvent({ leadId: id, kind, body, actorUserId: actor.id, actorName: actor.name });
+
+    // A note is bookkeeping; reaching out is what the SLA measures.
+    if (kind === 'call' || kind === 'email' || kind === 'meeting') {
+      await markFirstResponse(id);
+      // A lead you have spoken to is no longer new.
+      if (lead.stage === 'new') {
+        await setLeadStage(id, 'contacted', { id: actor.id, name: actor.name });
+      }
+    }
+
+    await logActivity(req, 'lead.event', 'lead', id, { kind });
+
+    res.status(201).json({
+      data: sanitizeLead((await getLead(id, null))!, can(actor, 'leads.contact')),
+      events: await leadEvents(id),
+    });
+  } catch (err) {
+    console.error('Lead event error:', err);
+    fail(res, 500, 'Server error');
+  }
+});
+
+/** Spread the unassigned pool over the chosen brokers, lightest load first. */
+router.post('/leads/auto-assign', requirePermission('leads.assign'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const ids = Array.isArray(req.body?.brokerIds)
+      ? req.body.brokerIds.map(Number).filter(Number.isInteger).slice(0, 50)
+      : [];
+    if (ids.length === 0) return fail(res, 400, 'აირჩიეთ ბროკერები');
+
+    const active = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(and(inArray(users.id, ids), eq(users.isActive, true), inArray(users.role, STAFF_ROLES)));
+
+    if (active.length === 0) return fail(res, 400, 'აქტიური ბროკერი ვერ მოიძებნა');
+
+    const actor = actorOf(req);
+    const assigned = await autoAssignLeads(active.map(u => u.id), { id: actor.id, name: actor.name });
+    await logActivity(req, 'lead.autoAssign', 'lead', null, { assigned, brokers: active.length });
+
+    res.json({ assigned });
+  } catch (err) {
+    console.error('Lead auto-assign error:', err);
     fail(res, 500, 'Server error');
   }
 });

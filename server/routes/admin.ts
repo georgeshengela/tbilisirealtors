@@ -7,11 +7,12 @@ import {
   type PropertyOwner, type PropertyContract, type InternalNote,
 } from '../schema.js';
 import { activeProvider, translateFromGeorgian, type TargetLang } from '../services/translate.js';
-import { eq, desc, count, sql, inArray, and, ne } from 'drizzle-orm';
+import { eq, desc, count, sql, inArray, and, ne, or } from 'drizzle-orm';
 import {
   requireStaff,
   requirePermission,
   invalidateRoleTemplates,
+  ADMIN_ONLY_MESSAGE,
   AuthRequest,
 } from '../middleware/auth.js';
 import {
@@ -28,6 +29,7 @@ import {
   effectivePermissions,
   filterGrantablePermissions,
   forbiddenListingFields,
+  isAdminOrAbove,
   isPermissionKey,
   isRole,
   isStaffRole,
@@ -36,7 +38,17 @@ import {
 import { nanoid } from '../utils.js';
 import { allocateListingId } from '../services/listingId.js';
 import { monthlyActivitySeries } from '../services/propertyViews.js';
-import { importListingFromUrl } from '../services/listingImport.js';
+import {
+  ImportError,
+  auditImport,
+  classifyImportError,
+  importListingFromUrl,
+} from '../services/listingImport.js';
+import {
+  linkImportToListing,
+  recordImportFailure,
+  recordImportSuccess,
+} from '../services/importQuality.js';
 import {
   buildLifecycleFields,
   recordPriceChange,
@@ -122,14 +134,29 @@ async function withPriceHistory<T extends { id: string }>(rows: T[]) {
 
 /* ── Scope, sanitization and audit ───────────────────────────────────────── */
 
-/** Brokers ('own' scope) only ever see listings they created. */
+/**
+ * Reading and writing are scoped differently on purpose.
+ *
+ * A broker ('own' scope) reads everything they created *plus* anything a manager
+ * handed them — otherwise assignment would put a listing on their desk that they
+ * cannot open. Editing stays with the creator, so a handover is a reading right,
+ * not a licence to rewrite someone else's listing.
+ */
 function scopeCondition(actor: PermissionActor) {
   return actor.scope === 'own'
-    ? eq(properties.createdByUserId, actor.id)
+    ? or(eq(properties.createdByUserId, actor.id), eq(properties.assignedToUserId, actor.id))
     : undefined;
 }
 
-function withinScope(actor: PermissionActor, listing: { createdByUserId: number | null }): boolean {
+type ScopedListing = { createdByUserId: number | null; assignedToUserId?: number | null };
+
+function withinScope(actor: PermissionActor, listing: ScopedListing): boolean {
+  if (actor.scope !== 'own') return true;
+  return listing.createdByUserId === actor.id || listing.assignedToUserId === actor.id;
+}
+
+/** Write access: the creator, or anyone whose scope is not restricted. */
+function canEditListing(actor: PermissionActor, listing: ScopedListing): boolean {
   return actor.scope !== 'own' || listing.createdByUserId === actor.id;
 }
 
@@ -180,18 +207,63 @@ router.use(requireStaff);
 
 // ─── IMPORT LISTING FROM EXTERNAL URL ───────────────────────────────────────────
 
-router.post('/import-listing', requirePermission('listings.import'), async (req: AuthRequest, res: Response): Promise<void> => {
+/**
+ * Parses an external ad and records the attempt either way. `retryOf` links a
+ * re-run back to the attempt it came from so the report can tell a flapping source
+ * from a permanently broken one.
+ */
+export async function runImport(
+  req: AuthRequest,
+  res: Response,
+  url: string,
+  retryOfId: number | null,
+): Promise<void> {
+  const actor = { id: req.user?.id ?? null, name: req.user?.name ?? null };
+  const startedAt = Date.now();
+
   try {
-    const { url } = req.body as { url?: string };
-    if (!url?.trim()) {
-      res.status(400).json({ error: 'URL სავალდებულოა' });
-      return;
-    }
-    const data = await importListingFromUrl(url.trim());
-    res.json(data);
+    const data = await importListingFromUrl(url);
+    const audit = auditImport(data);
+    const attemptId = await recordImportSuccess({
+      url,
+      actor,
+      durationMs: Date.now() - startedAt,
+      retryOfId,
+      data,
+      quality: audit.quality,
+      missingFields: audit.missingFields,
+      warnings: audit.warnings,
+    });
+    await logActivity(req, 'listing.import', 'import', attemptId, {
+      source: data.source,
+      status: audit.quality,
+      missing: audit.missingFields,
+    });
+    res.json({ ...data, attemptId });
   } catch (err) {
-    res.status(400).json({ error: err instanceof Error ? err.message : 'იმპორტი ვერ მოხერხდა' });
+    const { code, message } = classifyImportError(err);
+    const source = err instanceof ImportError ? err.source : 'unknown';
+    const attemptId = await recordImportFailure({
+      url,
+      actor,
+      durationMs: Date.now() - startedAt,
+      retryOfId,
+      source,
+      code,
+      message,
+    });
+    await logActivity(req, 'listing.import.fail', 'import', attemptId, { source, code });
+    res.status(400).json({ error: message, code, attemptId });
   }
+}
+
+router.post('/import-listing', requirePermission('listings.import'), async (req: AuthRequest, res: Response): Promise<void> => {
+  const { url } = req.body as { url?: string };
+  if (!url?.trim()) {
+    res.status(400).json({ error: 'URL სავალდებულოა' });
+    return;
+  }
+  await runImport(req, res, url.trim(), null);
 });
 
 // ─── DASHBOARD STATS ───────────────────────────────────────────────────────────
@@ -297,8 +369,14 @@ router.get('/properties', requirePermission('listings.view'), async (req: AuthRe
 
     const [total] = await db.select({ count: count() }).from(properties).where(mine);
 
+    // Handed-over listings come back read-only, so the table can grey out its controls.
+    const editable = new Map(all.map(row => [row.id, canEditListing(req.user!, row)]));
+
     res.json({
-      data: cleanAll(req, await withPriceHistory(all)),
+      data: cleanAll(req, await withPriceHistory(all)).map(row => ({
+        ...row,
+        canEdit: editable.get(row.id as string) ?? true,
+      })),
       total: Number(total.count),
       page,
       limit,
@@ -457,6 +535,9 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
       source: priceSource(data.priceSource ?? (data.sourceUrl ? 'import' : 'admin')),
     });
 
+    // Turns the import attempt into a conversion in the quality report.
+    if (created.sourceUrl) await linkImportToListing(created.sourceUrl, created.id);
+
     await logActivity(req, 'listing.create', 'property', created.id, { title: created.title });
 
     res.status(201).json(clean(req, created));
@@ -479,6 +560,11 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
 
     if (!existing || !withinScope(req.user!, existing)) {
       res.status(404).json({ error: 'Property not found' });
+      return;
+    }
+
+    if (!canEditListing(req.user!, existing)) {
+      res.status(403).json({ error: 'ეს განცხადება თქვენზეა გადმოცემული, მაგრამ რედაქტირება მხოლოდ ავტორს შეუძლია' });
       return;
     }
 
@@ -557,17 +643,43 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
 router.delete('/properties/:id', requirePermission('listings.delete'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const [existing] = await db
-      .select({ id: properties.id, title: properties.title, createdByUserId: properties.createdByUserId })
+      .select({
+        id: properties.id,
+        title: properties.title,
+        createdByUserId: properties.createdByUserId,
+        contracts: properties.contracts,
+        invoiceRef: properties.invoiceRef,
+        agentTaxId: properties.agentTaxId,
+      })
       .from(properties)
       .where(eq(properties.id, String(req.params.id)));
 
-    if (!existing || !withinScope(req.user!, existing)) {
+    if (!existing || !canEditListing(req.user!, existing)) {
       res.status(404).json({ error: 'Property not found' });
       return;
     }
 
+    /**
+     * Deleting the row takes the signed contracts and the invoice reference with
+     * it, and there is no undo. Managers and brokers may clear ordinary listings;
+     * anything with paperwork attached needs an admin.
+     */
+    const carriesFinancials = Boolean(
+      (existing.contracts?.length ?? 0) > 0 || existing.invoiceRef || existing.agentTaxId,
+    );
+    if (carriesFinancials && !isAdminOrAbove(req.user)) {
+      res.status(403).json({
+        error: 'ხელშეკრულებით ან ინვოისით დაკავშირებულ განცხადებას მხოლოდ ადმინი შლის',
+        adminOnly: ['listings.financialDelete'],
+      });
+      return;
+    }
+
     await db.delete(properties).where(eq(properties.id, String(req.params.id)));
-    await logActivity(req, 'listing.delete', 'property', existing.id, { title: existing.title });
+    await logActivity(req, 'listing.delete', 'property', existing.id, {
+      title: existing.title,
+      carriedFinancials: carriesFinancials,
+    });
     res.json({ success: true });
   } catch (err) {
     console.error('Property delete error:', err);
@@ -636,6 +748,11 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
 
     if (!existing || !withinScope(req.user!, existing)) {
       res.status(404).json({ error: 'Property not found' });
+      return;
+    }
+
+    if (!canEditListing(req.user!, existing)) {
+      res.status(403).json({ error: 'ეს განცხადება თქვენზეა გადმოცემული, მაგრამ რედაქტირება მხოლოდ ავტორს შეუძლია' });
       return;
     }
 
@@ -1429,6 +1546,10 @@ router.put('/staff/:id', requirePermission('staff.edit'), async (req: AuthReques
     if ('permissions' in req.body) {
       if (!can(actor, 'staff.permissions')) {
         res.status(403).json({ error: 'უფლებების მართვის უფლება არ გაქვთ' });
+        return;
+      }
+      if (!isAdminOrAbove(actor)) {
+        res.status(403).json({ error: ADMIN_ONLY_MESSAGE });
         return;
       }
       if (existing.id === actor.id) {
