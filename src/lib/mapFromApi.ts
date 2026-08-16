@@ -64,6 +64,7 @@ export function mapPropertyFromApi(row: ApiPropertyRow): Property {
     title: row.title,
     description: row.description || '',
     price: num(row.price),
+    rentPrice: row.rentPrice == null ? null : num(row.rentPrice),
     pricePerSqm: num(row.pricePerSqm),
     address: row.address || '',
     city: row.city || '',

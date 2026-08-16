@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowUpRight, Bed, Heart, Maximize2, MapPin, Sparkles } from 'lucide-react';
 import type { Property } from '../types/listing';
+import { formatListedDate } from '../lib/dateFormat';
 import { useLocale, useTranslation } from '../i18n/LocaleContext';
 
 interface ListingMapRowProps {
@@ -10,33 +11,6 @@ interface ListingMapRowProps {
   onHover?: (id: string | null) => void;
   formatPrice: (property: Property) => string;
   formatPricePerSqm: (property: Property) => string;
-}
-
-/** Abbreviated Georgian months — ICU short names vary by browser build. */
-const KA_MONTHS = ['იან', 'თებ', 'მარ', 'აპრ', 'მაი', 'ივნ', 'ივლ', 'აგვ', 'სექ', 'ოქტ', 'ნოე', 'დეკ'];
-
-function formatListedDate(dateStr: string, locale: string, t: (key: string) => string): string {
-  const date = new Date(dateStr);
-  if (Number.isNaN(date.getTime())) return '';
-
-  const days = Math.floor((Date.now() - date.getTime()) / (1000 * 60 * 60 * 24));
-  if (days <= 0) return t('listings.today');
-  if (days === 1) return t('listings.yesterday');
-  if (days < 7) return t('listings.daysAgo').replace('{n}', String(days));
-  if (days < 30) return t('listings.weeksAgo').replace('{n}', String(Math.floor(days / 7)));
-
-  const thisYear = date.getFullYear() === new Date().getFullYear();
-
-  if (locale === 'ka') {
-    const stamp = `${date.getDate()} ${KA_MONTHS[date.getMonth()]}.`;
-    return thisYear ? stamp : `${stamp} ${date.getFullYear()}`;
-  }
-
-  return new Intl.DateTimeFormat('en-US', {
-    day: 'numeric',
-    month: 'short',
-    year: thisYear ? undefined : 'numeric',
-  }).format(date);
 }
 
 export default function ListingMapRow({
@@ -143,6 +117,9 @@ export default function ListingMapRow({
           </p>
 
           <div className="listing-map-row__footer">
+            <span className="listing-map-row__id" title={`ID ${property.id}`}>
+              #{property.id}
+            </span>
             <span className="listing-map-row__date">
               {formatListedDate(property.listedDate, locale, t)}
             </span>

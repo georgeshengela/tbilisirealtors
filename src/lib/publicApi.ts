@@ -1,5 +1,5 @@
 import { mapAgentFromApi, mapBlogFromApi, mapPropertyFromApi } from './mapFromApi';
-import type { Agent, ApiAgentRow, ApiBlogRow, ApiPropertyRow, BlogPost, Property } from '../types/listing';
+import type { Agent, ApiAgentRow, ApiBlogRow, ApiPropertyRow, BlogPost, Property, TeamMember } from '../types/listing';
 
 type ListResponse<T> = { data: T[]; total: number };
 
@@ -7,6 +7,8 @@ let propertiesCache: Property[] | null = null;
 let propertiesPromise: Promise<Property[]> | null = null;
 let agentsCache: Agent[] | null = null;
 let agentsPromise: Promise<Agent[]> | null = null;
+let teamCache: TeamMember[] | null = null;
+let teamPromise: Promise<TeamMember[]> | null = null;
 let blogCache: BlogPost[] | null = null;
 let blogPromise: Promise<BlogPost[]> | null = null;
 
@@ -23,6 +25,8 @@ export function invalidatePublicCache() {
   propertiesPromise = null;
   agentsCache = null;
   agentsPromise = null;
+  teamCache = null;
+  teamPromise = null;
   blogCache = null;
   blogPromise = null;
 }
@@ -46,11 +50,11 @@ export async function fetchProperties(force = false): Promise<Property[]> {
 }
 
 export async function fetchPropertyById(id: string): Promise<Property | null> {
-  const cached = propertiesCache?.find(p => p.id === id);
-  if (cached) return cached;
-
   try {
-    const row = await fetch(`/api/properties/${id}`).then(res => parseJson<ApiPropertyRow>(res));
+    const session = getViewSessionKey();
+    const row = await fetch(`/api/properties/${id}`, {
+      headers: { 'X-View-Session': session },
+    }).then(res => parseJson<ApiPropertyRow>(res));
     const mapped = mapPropertyFromApi(row);
     if (propertiesCache) {
       const idx = propertiesCache.findIndex(p => p.id === id);
@@ -60,6 +64,19 @@ export async function fetchPropertyById(id: string): Promise<Property | null> {
     return mapped;
   } catch {
     return null;
+  }
+}
+
+function getViewSessionKey(): string {
+  const storageKey = 'tr_view_sid';
+  try {
+    const existing = sessionStorage.getItem(storageKey);
+    if (existing && /^[a-zA-Z0-9_-]{8,64}$/.test(existing)) return existing;
+    const next = `v_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+    sessionStorage.setItem(storageKey, next);
+    return next;
+  } catch {
+    return `v_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
   }
 }
 
@@ -99,6 +116,28 @@ export async function fetchAgentById(id: string): Promise<Agent | null> {
   } catch {
     return null;
   }
+}
+
+/** Admins who enabled "show on frontend" — names hidden by default. */
+export async function fetchTeam(force = false): Promise<TeamMember[]> {
+  if (force) {
+    teamCache = null;
+    teamPromise = null;
+  }
+  if (teamCache) return teamCache;
+  if (!teamPromise) {
+    teamPromise = fetch('/api/team')
+      .then(res => parseJson<ListResponse<TeamMember>>(res))
+      .then(json => {
+        teamCache = json.data;
+        return teamCache;
+      })
+      .catch(err => {
+        teamPromise = null;
+        throw err;
+      });
+  }
+  return teamPromise;
 }
 
 export async function fetchBlogPosts(force = false): Promise<BlogPost[]> {

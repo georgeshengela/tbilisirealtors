@@ -8,7 +8,10 @@ export interface Property {
   city: string;
   district: string;
   type: 'apartment' | 'house' | 'commercial' | 'land' | 'villa' | 'hotel';
-  status: 'sale' | 'rent' | 'pledge' | 'daily_rent';
+  /** "both" means the same property is offered for sale and for rent. */
+  status: 'sale' | 'rent' | 'both' | 'pledge' | 'daily_rent';
+  /** Monthly rent, only set alongside a sale price when status is "both". */
+  rentPrice?: number | null;
   dealType?: string;
   buildingStatus?: 'old' | 'new' | 'under';
   condition?: string;
@@ -63,6 +66,19 @@ export interface Agent {
   languages: string[];
 }
 
+/** Admin who opted into public "Our Team" visibility. */
+export interface TeamMember {
+  id: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  photo: string | null;
+  phone: string | null;
+  jobTitle: string;
+  bio: string | null;
+  source: 'admin';
+}
+
 export interface BlogPost {
   id: string;
   title: string;
@@ -82,6 +98,7 @@ export type ApiPropertyRow = {
   title: string;
   description: string | null;
   price: string | number;
+  rentPrice?: string | number | null;
   pricePerSqm: string | number | null;
   address: string | null;
   city: string | null;

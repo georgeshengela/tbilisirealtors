@@ -1,20 +1,182 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
-  MapPin, Bed, Bath, Square, Heart, Share2, Phone, Mail,
-  ChevronLeft, ChevronRight, X, CheckCircle, Calendar,
-  Building2, Star, Eye, Home, ArrowRight, Maximize2, Sparkles, Layers
+  ArrowRight, ArrowUpRight, Bath, Bed, Building2, Calendar, CheckCircle2, ChevronLeft, ChevronRight,
+  Copy, Eye, Hash, Heart, Home, Layers, Mail, MapPin, Maximize2, Phone, Ruler, Share2, Sparkles, Square, Star, X,
 } from 'lucide-react';
 import { useProperty, useProperties } from '../hooks/usePublicData';
 import PropertyMap from '../components/PropertyMap';
 import PropertyCard from '../components/PropertyCard';
+import { formatShortDate } from '../lib/dateFormat';
+import { useIsFavorite } from '../lib/favorites';
 import { useCurrency } from '../contexts/CurrencyContext';
-import { useTranslation } from '../i18n/LocaleContext';
+import { useLocale, useTranslation } from '../i18n/LocaleContext';
+
+/** Long descriptions collapse to a few lines until the reader asks for more. */
+const CLAMP_AT_CHARS = 460;
+
+interface NavItem {
+  id: string;
+  label: string;
+}
+
+/** Highlights the section the reader is currently looking at. */
+function useActiveSection(ids: string[]) {
+  const [active, setActive] = useState(ids[0] ?? '');
+
+  useEffect(() => {
+    const targets = ids
+      .map(id => document.getElementById(id))
+      .filter((el): el is HTMLElement => el !== null);
+    if (targets.length === 0) return;
+
+    setActive(current => (ids.includes(current) ? current : ids[0]));
+
+    const visible = new Set<string>();
+    const observer = new IntersectionObserver(
+      entries => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) visible.add(entry.target.id);
+          else visible.delete(entry.target.id);
+        });
+        // ids are in document order, so the first visible one is the topmost.
+        const topmost = ids.find(id => visible.has(id));
+        if (topmost) setActive(topmost);
+      },
+      { rootMargin: '-180px 0px -55% 0px' },
+    );
+
+    targets.forEach(el => observer.observe(el));
+    return () => observer.disconnect();
+  }, [ids]);
+
+  return active;
+}
 
 export default function PropertyDetailPage() {
   const { t } = useTranslation();
+  const { locale } = useLocale();
   const { formatMoney } = useCurrency();
+  const { id } = useParams();
+  const { data: property, loading } = useProperty(id);
+  const { data: allProperties } = useProperties();
+
+  const [isFavorited, toggleFavorite] = useIsFavorite(id ?? '');
+
+  const [activeImage, setActiveImage] = useState(0);
+  const [showGallery, setShowGallery] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [idCopied, setIdCopied] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [mortgageYears, setMortgageYears] = useState(20);
+  const [mortgageRate, setMortgageRate] = useState(8);
+  const [downPayment, setDownPayment] = useState(20);
+  const [contactForm, setContactForm] = useState({ name: '', phone: '', message: '' });
+  const [sent, setSent] = useState(false);
+
+  const images = property?.images?.length ? property.images : [];
+  const imageCount = images.length;
+
+  const step = useCallback(
+    (delta: number) => {
+      if (imageCount === 0) return;
+      setActiveImage(i => (i + delta + imageCount) % imageCount);
+    },
+    [imageCount],
+  );
+
+  const navItems = useMemo<NavItem[]>(() => {
+    if (!property) return [];
+    return [
+      { id: 'overview', label: t('property.overview') },
+      { id: 'specs', label: t('property.specs') },
+      property.amenities.length > 0 ? { id: 'amenities', label: t('property.amenities') } : null,
+      { id: 'location', label: t('property.location') },
+      property.status === 'sale' ? { id: 'payment', label: t('property.payment') } : null,
+      { id: 'similar', label: t('property.similarShort') },
+    ].filter((item): item is NavItem => item !== null);
+  }, [property, t]);
+
+  const navIds = useMemo(() => navItems.map(item => item.id), [navItems]);
+  const activeSection = useActiveSection(navIds);
+
+  useEffect(() => {
+    setActiveImage(0);
+    setExpanded(false);
+    setSent(false);
+  }, [id]);
+
+  useEffect(() => {
+    if (!property) return;
+    const previous = document.title;
+    document.title = `${property.title} — TBILISIREALTOR.GE`;
+    return () => { document.title = previous; };
+  }, [property]);
+
+  /* Lightbox: arrow keys, Escape, and no page scrolling behind it. */
+  useEffect(() => {
+    if (!showGallery) return;
+
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowGallery(false);
+      if (event.key === 'ArrowRight') step(1);
+      if (event.key === 'ArrowLeft') step(-1);
+    };
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', onKey);
+
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showGallery, step]);
+
+  const share = useCallback(async () => {
+    const url = window.location.href;
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: property?.title ?? document.title, url });
+        return;
+      }
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2200);
+    } catch {
+      /* the reader dismissed the sheet, or the clipboard is unavailable */
+    }
+  }, [property?.title]);
+
+  const copyListingId = useCallback(async () => {
+    if (!property?.id) return;
+    try {
+      await navigator.clipboard.writeText(property.id);
+      setIdCopied(true);
+      window.setTimeout(() => setIdCopied(false), 1800);
+    } catch {
+      /* clipboard blocked */
+    }
+  }, [property?.id]);
+
+  const goTo = (sectionId: string) => {
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  if (loading) {
+    return (
+      <div className="pdp-page">
+        <div className="container-xl">
+          <div className="pdp-skeleton pdp-skeleton--hero" />
+          <div className="pdp-skeleton pdp-skeleton--line" />
+          <div className="pdp-skeleton pdp-skeleton--line is-short" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!property) return <Navigate to="/listings" replace />;
 
   const typeLabels: Record<string, string> = {
     apartment: t('propertyTypes.apartment'),
@@ -24,670 +186,600 @@ export default function PropertyDetailPage() {
     land: t('propertyTypes.land'),
   };
 
-  const formatPrice = (price: number, status: string) =>
-    formatMoney(price, { perMonth: status === 'rent' });
-  const { id } = useParams();
-  const { data: property, loading } = useProperty(id);
-  const { data: allProperties } = useProperties();
-  const [activeImage, setActiveImage] = useState(0);
-  const [showGallery, setShowGallery] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
-  const [mortgageYears, setMortgageYears] = useState(20);
-  const [mortgageRate, setMortgageRate] = useState(8);
-  const [downPayment, setDownPayment] = useState(20);
-  const [contactForm, setContactForm] = useState({ name: '', phone: '', message: '' });
-  const [activeTab, setActiveTab] = useState<'description' | 'details' | 'amenities'>('description');
-
-  if (loading) {
-    return (
-      <div className="min-h-screen pt-[56px] lg:pt-[106px] flex items-center justify-center" style={{ background: '#f7f9fb' }}>
-        <p className="text-[#76777d]">{t('common.loading')}</p>
-      </div>
-    );
-  }
-
-  if (!property) {
-    return <Navigate to="/listings" replace />;
-  }
-
-  const similar = allProperties
-    .filter(p => p.id !== property.id && (p.city === property.city || p.type === property.type))
-    .slice(0, 3);
-
-  const monthlyPayment = () => {
-    const principal = property.price * (1 - downPayment / 100);
-    const r = mortgageRate / 100 / 12;
-    const n = mortgageYears * 12;
-    return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
+  const buildingStatusLabels: Record<string, string> = {
+    new: t('property.buildingNew'),
+    old: t('property.buildingOld'),
+    under: t('property.buildingUnder'),
   };
 
-  return (
-    <div className="min-h-screen pt-[56px] lg:pt-[106px]" style={{ background: '#f7f9fb' }}>
+  const isSale = property.status === 'sale' || property.status === 'both';
+  const price = formatMoney(property.price, { perMonth: property.status === 'rent' });
+  /* A property can be offered for sale and for rent at once. */
+  const rentPrice = property.status === 'both' && property.rentPrice
+    ? formatMoney(property.rentPrice, { perMonth: true })
+    : null;
+  /* Feeds often repeat the street inside the address field, so collapse repeats. */
+  const addressLine = [...new Set(
+    [property.address, property.district, property.city]
+      .filter(Boolean)
+      .flatMap(part => part.split(',').map(piece => piece.trim()))
+      .filter(Boolean),
+  )].join(', ');
+  const description = (property.description ?? '').trim();
+  const isLong = description.length > CLAMP_AT_CHARS;
 
-      {/* Breadcrumb */}
-      <div className="bg-white" style={{ borderBottom: '1px solid #eceef0' }}>
-        <div className="container-xl py-3.5">
-          <div className="flex items-center gap-2 text-sm" style={{ color: '#76777d' }}>
-            <Link to="/" className="flex items-center gap-1 hover:text-[#2563eb] transition-colors">
-              <Home size={14} />{t('property.home')}
+  /* Imported feeds occasionally repeat the same amenity. */
+  const features = [...new Set(property.features)];
+  const amenities = [...new Set(property.amenities)];
+
+  const similar = allProperties
+    .filter(p => p.id !== property.id && (p.district === property.district || p.city === property.city || p.type === property.type))
+    .slice(0, 3);
+
+  const facts = [
+    { icon: Square, value: `${property.area} მ²`, label: t('property.areaFull') },
+    property.rooms ? { icon: Layers, value: String(property.rooms), label: t('property.rooms') } : null,
+    property.bedrooms > 0 ? { icon: Bed, value: String(property.bedrooms), label: t('property.bedroomsFull') } : null,
+    property.bathrooms > 0 ? { icon: Bath, value: String(property.bathrooms), label: t('property.bathroomFull') } : null,
+    property.floor != null ? { icon: Building2, value: `${property.floor}${property.totalFloors ? `/${property.totalFloors}` : ''}`, label: t('property.floorFull') } : null,
+    property.ceilingHeight ? { icon: Ruler, value: `${property.ceilingHeight} მ`, label: t('property.ceilingHeight') } : null,
+  ].filter(Boolean) as { icon: typeof Square; value: string; label: string }[];
+
+  const list = (values?: string[]) => (values && values.length > 0 ? values.join(', ') : null);
+
+  const specGroups = [
+    {
+      legend: t('property.groupBuilding'),
+      rows: [
+        { label: t('property.listingType'), value: typeLabels[property.type] },
+        { label: t('property.status'), value: isSale ? t('property.saleStatus') : t('property.rentStatus') },
+        property.buildingStatus ? { label: t('property.buildingStatus'), value: buildingStatusLabels[property.buildingStatus] } : null,
+        property.yearBuilt ? { label: t('property.yearBuiltFull'), value: String(property.yearBuilt) } : null,
+        property.projectType ? { label: t('property.projectType'), value: property.projectType } : null,
+        { label: t('property.materials'), value: list(property.buildingMaterials) },
+        { label: t('property.buildingFeatures'), value: list(property.buildingFeatures) },
+      ],
+    },
+    {
+      legend: t('property.groupInterior'),
+      rows: [
+        { label: t('property.areaFull'), value: `${property.area} მ²` },
+        property.floor != null ? { label: t('property.floorFull'), value: `${property.floor}${property.totalFloors ? `/${property.totalFloors}` : ''}` } : null,
+        property.condition ? { label: t('property.condition'), value: property.condition } : null,
+        property.balconyCount ? { label: t('property.balcony'), value: `${property.balconyCount}${property.balconyArea ? ` · ${property.balconyArea} მ²` : ''}` } : null,
+        { label: t('property.furniture'), value: list(property.furniture) },
+        { label: t('property.windows'), value: list(property.windowsMaterials) },
+      ],
+    },
+    {
+      legend: t('property.groupUtilities'),
+      rows: [
+        { label: t('property.heating'), value: list(property.heating) },
+        { label: t('property.hotWater'), value: list(property.hotWater) },
+        { label: t('property.parking'), value: list(property.parking) },
+        { label: t('property.cityLabel'), value: property.city },
+        { label: t('property.districtLabel'), value: property.district },
+      ],
+    },
+  ]
+    .map(group => ({
+      legend: group.legend,
+      rows: group.rows.filter((row): row is { label: string; value: string } => Boolean(row?.value)),
+    }))
+    .filter(group => group.rows.length > 0);
+
+  const loanPrincipal = property.price * (1 - downPayment / 100);
+  const monthlyRate = mortgageRate / 100 / 12;
+  const months = mortgageYears * 12;
+  const monthlyPayment = monthlyRate === 0
+    ? loanPrincipal / months
+    : (loanPrincipal * monthlyRate * (1 + monthlyRate) ** months) / ((1 + monthlyRate) ** months - 1);
+
+  const sliders = [
+    { label: t('property.downPaymentLabel', { pct: downPayment }), min: 5, max: 70, stepSize: 5, value: downPayment, set: setDownPayment, lo: '5%', hi: '70%' },
+    { label: t('property.interestRate', { rate: mortgageRate }), min: 4, max: 20, stepSize: 0.5, value: mortgageRate, set: setMortgageRate, lo: '4%', hi: '20%' },
+    { label: t('property.termYears', { years: mortgageYears }), min: 5, max: 30, stepSize: 1, value: mortgageYears, set: setMortgageYears, lo: `5 ${t('property.yearsShort')}`, hi: `30 ${t('property.yearsShort')}` },
+  ];
+
+  return (
+    <div className="pdp-page">
+      <div className="pdp-crumbs">
+        <div className="container-xl">
+          <nav className="pdp-crumbs__inner">
+            <Link to="/"><Home size={13} strokeWidth={2.2} />{t('property.home')}</Link>
+            <span>/</span>
+            <Link to="/listings">{t('property.listing')}</Link>
+            <span>/</span>
+            <Link to={`/listings?city=${encodeURIComponent(property.city)}&district=${encodeURIComponent(property.district)}`}>
+              {property.district}
             </Link>
-            <span style={{ color: '#c6c6cd' }}>/</span>
-            <Link to="/listings" className="hover:text-[#2563eb] transition-colors">{t('property.listing')}</Link>
-            <span style={{ color: '#c6c6cd' }}>/</span>
-            <span className="font-semibold truncate" style={{ color: '#191c1e' }}>{property.title}</span>
-          </div>
+            <span>/</span>
+            <strong>{property.title}</strong>
+          </nav>
         </div>
       </div>
 
-      <div className="container-xl py-8">
-        <div className="grid lg:grid-cols-3 gap-6">
-
-          {/* ── Main column ── */}
-          <div className="lg:col-span-2 space-y-5">
-
-            {/* Gallery */}
-            <div
-              className="bg-white rounded-[20px] overflow-hidden p-3"
-              style={{ boxShadow: '0 2px 12px rgba(15,23,42,0.06)', border: '1px solid #eceef0' }}
-            >
-              <div
-                className="relative rounded-2xl overflow-hidden cursor-pointer group"
-                style={{ aspectRatio: '16/10' }}
+      <div className="container-xl">
+        {/* ── Gallery ── */}
+        {imageCount > 0 && (
+          <section className={`pdp-gallery ${imageCount < 3 ? 'is-single' : ''}`}>
+            <div className="pdp-gallery__stage">
+              <button
+                type="button"
+                className="pdp-gallery__main"
                 onClick={() => setShowGallery(true)}
+                aria-label={t('property.showAllPhotos')}
               >
-                <img
-                  src={property.images[activeImage]}
-                  alt={property.title}
-                  className="w-full h-full object-cover"
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+                <img src={images[activeImage]} alt={property.title} />
+                <span className="pdp-gallery__shade" aria-hidden="true" />
+              </button>
 
-                {/* Nav arrows */}
-                <div className="absolute inset-0 flex items-center justify-between px-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={e => { e.stopPropagation(); setActiveImage(i => (i - 1 + property.images.length) % property.images.length); }}
-                    className="w-9 h-9 rounded-xl flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.92)', boxShadow: '0 2px 10px rgba(0,0,0,0.12)' }}
-                  >
-                    <ChevronLeft size={18} style={{ color: '#191c1e' }} />
-                  </button>
-                  <button
-                    onClick={e => { e.stopPropagation(); setActiveImage(i => (i + 1) % property.images.length); }}
-                    className="w-9 h-9 rounded-xl flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.92)', boxShadow: '0 2px 10px rgba(0,0,0,0.12)' }}
-                  >
-                    <ChevronRight size={18} style={{ color: '#191c1e' }} />
-                  </button>
-                </div>
-
-                {/* Badges */}
-                <div className="absolute top-3 left-3 flex gap-2">
-                  {property.isPremium && (
-                    <span
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
-                      style={{ background: 'rgba(15,13,10,0.80)', color: '#f5c542', backdropFilter: 'blur(8px)' }}
-                    >
-                      <Sparkles size={9} fill="currentColor" /> {t('common.premium')}
-                    </span>
-                  )}
-                  {property.isNew && (
-                    <span
-                      className="px-2.5 py-1 rounded-full text-[11px] font-bold"
-                      style={{ background: 'rgba(16,185,129,0.88)', color: '#fff', backdropFilter: 'blur(8px)' }}
-                    >
-                      {t('common.new')}
-                    </span>
-                  )}
-                </div>
-
-                {/* Expand + counter */}
-                <div className="absolute top-3 right-3">
-                  <div
-                    className="w-8 h-8 rounded-xl flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.90)', boxShadow: '0 2px 8px rgba(0,0,0,0.10)' }}
-                  >
-                    <Maximize2 size={14} style={{ color: '#45464d' }} />
-                  </div>
-                </div>
-                <div
-                  className="absolute bottom-3 right-3 px-2.5 py-1 rounded-full text-[11px] font-bold text-white"
-                  style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(8px)' }}
-                >
-                  {activeImage + 1} / {property.images.length}
-                </div>
-              </div>
-
-              {/* Thumbnails */}
-              <div className="flex gap-2 mt-3 overflow-x-auto pb-0.5">
-                {property.images.map((img, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setActiveImage(i)}
-                    className="flex-shrink-0 rounded-xl overflow-hidden transition-all duration-200"
-                    style={{
-                      width: 72, height: 56,
-                      border: i === activeImage ? '2px solid #2563eb' : '2px solid transparent',
-                      opacity: i === activeImage ? 1 : 0.65,
-                    }}
-                  >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Header card */}
-            <div
-              className="bg-white rounded-[20px] p-6"
-              style={{ boxShadow: '0 2px 12px rgba(15,23,42,0.06)', border: '1px solid #eceef0' }}
-            >
-              <div className="flex flex-wrap items-start justify-between gap-4 mb-5">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-3 flex-wrap">
-                    <span
-                      className="px-2.5 py-1 rounded-full text-[11px] font-bold"
-                      style={{
-                        background: property.status === 'sale' ? '#191c1e' : 'rgba(37, 99, 235,0.10)',
-                        color: property.status === 'sale' ? '#fff' : '#2563eb',
-                        border: property.status === 'rent' ? '1px solid rgba(37, 99, 235,0.25)' : 'none',
-                      }}
-                    >
-                      {property.status === 'sale' ? t('propertyStatus.sale') : t('propertyStatus.rent')}
-                    </span>
-                    <span
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                      style={{ background: '#f0f2f5', color: '#45464d' }}
-                    >
-                      <Building2 size={11} />{typeLabels[property.type]}
-                    </span>
-                    <span
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold"
-                      style={{ background: '#f0f2f5', color: '#45464d' }}
-                    >
-                      <Eye size={11} />{property.viewCount.toLocaleString()} {t('property.views')}
-                    </span>
-                  </div>
-                  <h1 className="font-bold leading-tight mb-2" style={{ fontSize: 'clamp(20px, 2.5vw, 26px)', color: '#191c1e' }}>
-                    {property.title}
-                  </h1>
-                  <div className="flex items-center gap-1.5" style={{ color: '#76777d' }}>
-                    <MapPin size={14} style={{ color: '#2563eb', flexShrink: 0 }} />
-                    <span className="text-sm">{property.address}, {property.district}, {property.city}</span>
-                  </div>
-                </div>
-
-                <div className="flex gap-2 flex-shrink-0">
-                  <button
-                    onClick={() => setIsFavorited(!isFavorited)}
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
-                    style={{
-                      background: isFavorited ? '#fef2f2' : '#f7f9fb',
-                      border: `1.5px solid ${isFavorited ? '#fecaca' : '#eceef0'}`,
-                      color: isFavorited ? '#ef4444' : '#45464d',
-                    }}
-                  >
-                    <Heart size={15} strokeWidth={2} style={{ fill: isFavorited ? '#ef4444' : 'none' }} />
-                    <span className="hidden sm:inline">{t('property.save')}</span>
-                  </button>
-                  <button
-                    className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200"
-                    style={{ background: '#f7f9fb', border: '1.5px solid #eceef0', color: '#45464d' }}
-                  >
-                    <Share2 size={15} strokeWidth={2} />
-                    <span className="hidden sm:inline">{t('property.share')}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Price + stats strip */}
-              <div
-                className="flex flex-wrap items-center gap-6 pt-5"
-                style={{ borderTop: '1px solid #f0f2f5' }}
-              >
-                <div>
-                  <p className="font-bold tracking-tight" style={{ fontSize: 28, color: '#191c1e' }}>
-                    {formatPrice(property.price, property.status)}
-                  </p>
-                  {property.status === 'sale' && (
-                    <span
-                      className="inline-block mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-md"
-                      style={{ background: '#f0f2f5', color: '#76777d' }}
-                    >
-                      {formatMoney(property.pricePerSqm, { perSqm: true })}
-                    </span>
-                  )}
-                </div>
-
-                <div className="flex gap-4 flex-wrap">
-                  {[
-                    property.bedrooms > 0 && { icon: Bed, v: property.bedrooms, l: t('property.bedsShort') },
-                    { icon: Bath, v: property.bathrooms, l: t('property.bathsShort') },
-                    { icon: Square, v: `${property.area}m²`, l: t('property.area') },
-                    property.floor && { icon: Layers, v: `${property.floor}/${property.totalFloors}`, l: t('property.floorShort') },
-                  ].filter(Boolean).map(item => item && (
-                    <div
-                      key={item.l}
-                      className="flex items-center gap-2.5 px-3 py-2 rounded-xl"
-                      style={{ background: '#f7f9fb', border: '1px solid #eceef0' }}
-                    >
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                        style={{ background: 'rgba(37, 99, 235,0.08)' }}
-                      >
-                        <item.icon size={15} strokeWidth={2} style={{ color: '#2563eb' }} />
-                      </div>
-                      <div>
-                        <p className="font-bold text-sm leading-none" style={{ color: '#191c1e' }}>{item.v}</p>
-                        <p className="text-[10px] font-medium mt-0.5" style={{ color: '#9ea0a7' }}>{item.l}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Tabs card */}
-            <div
-              className="bg-white rounded-[20px] p-6"
-              style={{ boxShadow: '0 2px 12px rgba(15,23,42,0.06)', border: '1px solid #eceef0' }}
-            >
-              {/* Tab pills */}
-              <div
-                className="inline-flex rounded-xl p-1 gap-1 mb-6"
-                style={{ background: '#f2f4f6' }}
-              >
-                {([
-                  { id: 'description', label: t('property.description') },
-                  { id: 'details', label: t('property.details') },
-                  { id: 'amenities', label: t('property.amenities') },
-                ] as const).map(tab => (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200"
-                    style={{
-                      background: activeTab === tab.id ? '#fff' : 'transparent',
-                      color: activeTab === tab.id ? '#191c1e' : '#76777d',
-                    }}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-
-              <AnimatePresence mode="wait">
-                {activeTab === 'description' && (
-                  <motion.div key="desc" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <p className="leading-relaxed" style={{ fontSize: 15, color: '#45464d', lineHeight: 1.75 }}>
-                      {property.description}
-                    </p>
-                    <div className="mt-6">
-                      <p className="text-[11px] font-bold uppercase tracking-widest mb-3" style={{ color: '#9ea0a7' }}>
-                        {t('property.features')}
-                      </p>
-                      <div className="flex flex-wrap gap-2">
-                        {property.features.map(f => (
-                          <span
-                            key={f}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
-                            style={{ background: 'rgba(37, 99, 235,0.08)', color: '#2563eb', border: '1px solid rgba(37, 99, 235,0.15)' }}
-                          >
-                            <CheckCircle size={12} />{f}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {activeTab === 'details' && (
-                  <motion.div key="details" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <div className="grid sm:grid-cols-2 gap-0 rounded-2xl overflow-hidden" style={{ border: '1px solid #eceef0' }}>
-                      {([
-                        { label: t('property.listingType'), value: typeLabels[property.type] },
-                        { label: t('property.status'), value: property.status === 'sale' ? t('property.saleStatus') : t('property.rentStatus') },
-                        { label: t('property.cityLabel'), value: property.city },
-                        { label: t('property.districtLabel'), value: property.district },
-                        { label: t('property.areaFull'), value: `${property.area} m²` },
-                        { label: t('property.bedroomsFull'), value: property.bedrooms.toString() },
-                        { label: t('property.bathroomFull'), value: property.bathrooms.toString() },
-                        property.floor ? { label: t('property.floorFull'), value: `${property.floor}/${property.totalFloors}` } : null,
-                        property.yearBuilt ? { label: t('property.yearBuiltFull'), value: property.yearBuilt.toString() } : null,
-                        { label: t('property.layout'), value: property.listedDate },
-                      ].filter(Boolean) as { label: string; value: string }[]).map((row, i) => (
-                        <div
-                          key={row.label}
-                          className="flex items-center justify-between px-4 py-3.5"
-                          style={{
-                            background: i % 2 === 0 ? '#fafbfc' : '#fff',
-                            borderBottom: '1px solid #f0f2f5',
-                          }}
-                        >
-                          <span className="text-sm" style={{ color: '#76777d' }}>{row.label}</span>
-                          <span className="text-sm font-semibold" style={{ color: '#191c1e' }}>{row.value}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-
-                {activeTab === 'amenities' && (
-                  <motion.div key="amen" initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }}>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                      {property.amenities.map(a => (
-                        <div
-                          key={a}
-                          className="flex items-center gap-2.5 px-3 py-3 rounded-xl"
-                          style={{ background: '#f7f9fb', border: '1px solid #eceef0' }}
-                        >
-                          <CheckCircle size={15} strokeWidth={2} style={{ color: '#10B981', flexShrink: 0 }} />
-                          <span className="text-sm font-medium" style={{ color: '#45464d' }}>{a}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Map */}
-            <div
-              className="bg-white rounded-[20px] p-6"
-              style={{ boxShadow: '0 2px 12px rgba(15,23,42,0.06)', border: '1px solid #eceef0' }}
-            >
-              <p className="text-[11px] font-bold uppercase tracking-widest mb-4" style={{ color: '#9ea0a7' }}>
-                {t('property.location')}
-              </p>
-              <PropertyMap
-                lat={property.coordinates.lat}
-                lng={property.coordinates.lng}
-                address={property.address}
-                district={property.district}
-                city={property.city}
-                height={280}
-              />
-              <div className="flex items-center gap-2 mt-3">
-                <MapPin size={14} style={{ color: '#2563eb' }} />
-                <p className="text-sm font-semibold" style={{ color: '#45464d' }}>
-                  {property.address}, {property.district}, {property.city}
-                </p>
-              </div>
-            </div>
-
-            {/* Mortgage calculator */}
-            <div
-              className="bg-white rounded-[20px] p-6"
-              style={{ boxShadow: '0 2px 12px rgba(15,23,42,0.06)', border: '1px solid #eceef0' }}
-            >
-              <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: '#9ea0a7' }}>
-                {t('property.mortgageCalc')}
-              </p>
-              <h2 className="font-bold text-lg mb-6" style={{ color: '#191c1e' }}>{t('property.mortgageCalc')}</h2>
-
-              <div className="grid sm:grid-cols-3 gap-5 mb-6">
-                {[
-                  { label: t('property.downPaymentLabel', { pct: downPayment }), min: 10, max: 50, step: 5, val: downPayment, set: setDownPayment, lo: '10%', hi: '50%' },
-                  { label: t('property.interestRate', { rate: mortgageRate }), min: 5, max: 20, step: 0.5, val: mortgageRate, set: setMortgageRate, lo: '5%', hi: '20%' },
-                  { label: t('property.termYears', { years: mortgageYears }), min: 5, max: 30, step: 5, val: mortgageYears, set: setMortgageYears, lo: `5 ${t('property.yearsShort')}`, hi: `30 ${t('property.yearsShort')}` },
-                ].map(slider => (
-                  <div key={slider.label}>
-                    <label className="text-sm font-semibold mb-2 block" style={{ color: '#45464d' }}>
-                      {slider.label}
-                    </label>
-                    <input
-                      type="range"
-                      min={slider.min} max={slider.max} step={slider.step}
-                      value={slider.val}
-                      onChange={e => slider.set(slider.step < 1 ? parseFloat(e.target.value) : parseInt(e.target.value))}
-                      className="w-full"
-                      style={{ accentColor: '#2563eb' }}
-                    />
-                    <div className="flex justify-between text-[11px] mt-1" style={{ color: '#9ea0a7' }}>
-                      <span>{slider.lo}</span><span>{slider.hi}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div
-                className="rounded-2xl p-5"
-                style={{ background: 'linear-gradient(135deg, #191c1e 0%, #2d3133 100%)' }}
-              >
-                <div className="grid grid-cols-3 gap-4 text-center">
-                  {[
-                    { v: formatMoney(Math.round(monthlyPayment())), l: t('property.monthlyPayment') },
-                    { v: formatMoney(Math.round(property.price * downPayment / 100)), l: t('property.downPayment') },
-                    { v: formatMoney(Math.round(property.price * (1 - downPayment / 100))), l: t('property.loanAmount') },
-                  ].map(s => (
-                    <div key={s.l}>
-                      <p className="text-xl font-bold text-white">{s.v}</p>
-                      <p className="text-[11px] mt-1" style={{ color: 'rgba(255,255,255,0.50)' }}>{s.l}</p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Similar */}
-            <div>
-              <div className="flex items-end justify-between mb-5">
-                <div>
-                  <p className="text-[11px] font-bold uppercase tracking-widest mb-1" style={{ color: '#9ea0a7' }}>{t('property.similarShort')}</p>
-                  <h2 className="font-bold text-lg" style={{ color: '#191c1e' }}>{t('property.similarOne')}</h2>
-                </div>
-                <Link to="/listings" className="text-sm font-semibold flex items-center gap-1" style={{ color: '#2563eb' }}>
-                  {t('common.viewAll')} <ArrowRight size={14} />
-                </Link>
-              </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {similar.map(p => <PropertyCard key={p.id} property={p} />)}
-              </div>
-            </div>
-          </div>
-
-          {/* ── Sidebar ── */}
-          <div>
-            <div
-              className="bg-white rounded-[20px] p-5 sticky top-[88px]"
-              style={{ boxShadow: '0 4px 24px rgba(15,23,42,0.10)', border: '1px solid #eceef0' }}
-            >
-              {/* Price */}
-              <div className="mb-5">
-                <p className="font-bold tracking-tight" style={{ fontSize: 30, color: '#191c1e' }}>
-                  {formatPrice(property.price, property.status)}
-                </p>
-                {property.status === 'sale' && (
-                  <span
-                    className="inline-block mt-1 text-[11px] font-semibold px-2 py-0.5 rounded-md"
-                    style={{ background: '#f0f2f5', color: '#76777d' }}
-                  >
-                    ₾{property.pricePerSqm.toLocaleString()}/მ²
+              <span className="pdp-badges">
+                {property.isPremium && (
+                  <span className="pdp-badge is-vip">
+                    <Sparkles size={10} fill="currentColor" /> {t('common.premium')}
                   </span>
                 )}
+                {property.isNew && <span className="pdp-badge is-new">{t('common.new')}</span>}
+              </span>
+
+              <span className="pdp-counter">{activeImage + 1} / {imageCount}</span>
+
+              {imageCount > 1 && (
+                <>
+                  <button
+                    type="button"
+                    className="pdp-gallery__arrow is-prev"
+                    onClick={() => step(-1)}
+                    aria-label={t('property.prevPhoto')}
+                  >
+                    <ChevronLeft size={18} strokeWidth={2.4} />
+                  </button>
+                  <button
+                    type="button"
+                    className="pdp-gallery__arrow is-next"
+                    onClick={() => step(1)}
+                    aria-label={t('property.nextPhoto')}
+                  >
+                    <ChevronRight size={18} strokeWidth={2.4} />
+                  </button>
+                </>
+              )}
+
+              <button type="button" className="pdp-gallery__all" onClick={() => setShowGallery(true)}>
+                <Maximize2 size={13} strokeWidth={2.4} />
+                {t('property.showAllPhotos')} ({imageCount})
+              </button>
+            </div>
+
+            {imageCount >= 3 && (
+              <div className="pdp-gallery__side">
+                {images.slice(1, 5).map((img, i) => (
+                  <button
+                    type="button"
+                    key={img + i}
+                    className="pdp-gallery__cell"
+                    onClick={() => { setActiveImage(i + 1); setShowGallery(true); }}
+                  >
+                    <img src={img} alt="" loading="lazy" />
+                    {i === 3 && imageCount > 5 && (
+                      <span className="pdp-gallery__more">+{imageCount - 5}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {/* ── Title and price ── */}
+        <header className="pdp-head">
+          <div className="pdp-head__main">
+            <div className="pdp-chips">
+              <button type="button" className="pdp-chip is-id" onClick={copyListingId} title={t('property.copyId')}>
+                <Hash size={11} strokeWidth={2.4} />
+                <span className="pdp-chip__id">{property.id}</span>
+                {idCopied ? <CheckCircle2 size={11} strokeWidth={2.4} /> : <Copy size={10} strokeWidth={2.4} />}
+              </button>
+              <span className={`pdp-chip ${isSale ? 'is-sale' : 'is-rent'}`}>
+                {isSale ? t('propertyStatus.sale') : t('propertyStatus.rent')}
+              </span>
+              <span className="pdp-chip">
+                <Building2 size={11} strokeWidth={2.2} />{typeLabels[property.type]}
+              </span>
+              <span className="pdp-chip">
+                <Eye size={11} strokeWidth={2.2} />{property.viewCount.toLocaleString()} {t('property.views')}
+              </span>
+              <span className="pdp-chip">
+                <Calendar size={11} strokeWidth={2.2} />{t('property.postedOn')} {formatShortDate(property.listedDate, locale)}
+              </span>
+            </div>
+
+            <h1 className="pdp-title">{property.title}</h1>
+
+            <button type="button" className="pdp-address" onClick={() => goTo('location')}>
+              <MapPin size={14} strokeWidth={2.4} />
+              <span>{addressLine}</span>
+              <ArrowUpRight size={13} strokeWidth={2.6} />
+            </button>
+          </div>
+
+          <div className="pdp-head__side">
+            <div className="pdp-price">
+              <p className="pdp-price__value">{price}</p>
+              {rentPrice && <p className="pdp-price__rent">{rentPrice}</p>}
+              {isSale && (
+                <p className="pdp-price__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>
+              )}
+            </div>
+
+            <div className="pdp-actions">
+              <button
+                type="button"
+                className={`pdp-icon-btn ${isFavorited ? 'is-active' : ''}`}
+                onClick={toggleFavorite}
+              >
+                <Heart size={15} strokeWidth={2.2} style={{ fill: isFavorited ? 'currentColor' : 'none' }} />
+                {t('property.save')}
+              </button>
+              <button type="button" className="pdp-icon-btn" onClick={share}>
+                <Share2 size={15} strokeWidth={2.2} />
+                {copied ? t('property.linkCopied') : t('property.share')}
+              </button>
+            </div>
+          </div>
+        </header>
+
+        {/* ── Section nav ── */}
+        <nav className="pdp-nav">
+          <div className="pdp-nav__inner">
+            {navItems.map(item => (
+              <button
+                type="button"
+                key={item.id}
+                className={`pdp-nav__link ${activeSection === item.id ? 'is-active' : ''}`}
+                onClick={() => goTo(item.id)}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </nav>
+
+        <div className="pdp-layout">
+          <main className="pdp-main">
+            {/* Overview */}
+            <section className="pdp-section" id="overview">
+              <div className="pdp-card">
+                <div className="pdp-facts">
+                  {facts.map(fact => (
+                    <div className="pdp-fact" key={fact.label}>
+                      <span className="pdp-fact__icon"><fact.icon size={16} strokeWidth={2} /></span>
+                      <span className="pdp-fact__text">
+                        <span className="pdp-fact__value">{fact.value}</span>
+                        <span className="pdp-fact__label">{fact.label}</span>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {description && (
+                  <>
+                    <h2 className="pdp-card__title">{t('property.aboutTitle')}</h2>
+                    <p className={`pdp-prose ${isLong && !expanded ? 'is-clamped' : ''}`}>{description}</p>
+                    {isLong && (
+                      <button type="button" className="pdp-readmore" onClick={() => setExpanded(v => !v)}>
+                        {expanded ? t('property.readLess') : t('common.readMore')}
+                        <ChevronRight size={13} strokeWidth={2.6} />
+                      </button>
+                    )}
+                  </>
+                )}
+
+                {features.length > 0 && (
+                  <>
+                    <h3 className="pdp-card__subtitle">{t('property.features')}</h3>
+                    <div className="pdp-tags">
+                      {features.map(feature => (
+                        <span className="pdp-tag" key={feature}>
+                          <CheckCircle2 size={12} strokeWidth={2.4} />{feature}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            </section>
+
+            {/* Specs */}
+            <section className="pdp-section" id="specs">
+              <div className="pdp-card">
+                <h2 className="pdp-card__title">{t('property.specs')}</h2>
+                <div className="pdp-specs">
+                  {specGroups.map(group => (
+                    <div className="pdp-specs__group" key={group.legend}>
+                      <p className="pdp-specs__legend">{group.legend}</p>
+                      {group.rows.map(row => (
+                        <div className="pdp-spec" key={`${group.legend}-${row.label}`}>
+                          <span className="pdp-spec__label">{row.label}</span>
+                          <span className="pdp-spec__value">{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* Amenities */}
+            {amenities.length > 0 && (
+              <section className="pdp-section" id="amenities">
+                <div className="pdp-card">
+                  <h2 className="pdp-card__title">{t('property.amenities')}</h2>
+                  <div className="pdp-amenities">
+                    {amenities.map(amenity => (
+                      <div className="pdp-amenity" key={amenity}>
+                        <CheckCircle2 size={15} strokeWidth={2.2} />
+                        {amenity}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </section>
+            )}
+
+            {/* Location */}
+            <section className="pdp-section" id="location">
+              <div className="pdp-card">
+                <h2 className="pdp-card__title">{t('property.location')}</h2>
+                <PropertyMap
+                  lat={property.coordinates.lat}
+                  lng={property.coordinates.lng}
+                  address={property.address}
+                  district={property.district}
+                  city={property.city}
+                  height={320}
+                />
+                <div className="pdp-map-foot">
+                  <p><MapPin size={14} strokeWidth={2.4} />{addressLine}</p>
+                  <Link
+                    className="pdp-map-link"
+                    to={`/listings?city=${encodeURIComponent(property.city)}&district=${encodeURIComponent(property.district)}`}
+                  >
+                    {t('property.districtListings', { district: property.district })}
+                    <ArrowRight size={13} strokeWidth={2.6} />
+                  </Link>
+                </div>
+              </div>
+            </section>
+
+            {/* Mortgage */}
+            {isSale && (
+              <section className="pdp-section" id="payment">
+                <div className="pdp-card">
+                  <h2 className="pdp-card__title">{t('property.mortgageCalc')}</h2>
+                  <div className="pdp-calc">
+                    {sliders.map(slider => (
+                      <div className="pdp-slider" key={slider.label}>
+                        <label className="pdp-slider__head">{slider.label}</label>
+                        <input
+                          type="range"
+                          className="pdp-range"
+                          min={slider.min}
+                          max={slider.max}
+                          step={slider.stepSize}
+                          value={slider.value}
+                          onChange={event => slider.set(Number(event.target.value))}
+                          style={{
+                            '--fill': `${((slider.value - slider.min) / (slider.max - slider.min)) * 100}%`,
+                          } as CSSProperties}
+                        />
+                        <div className="pdp-slider__scale">
+                          <span>{slider.lo}</span>
+                          <span>{slider.hi}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="pdp-calc__result">
+                    <div className="pdp-calc__stat is-lead">
+                      <p className="pdp-calc__value">{formatMoney(Math.round(monthlyPayment))}</p>
+                      <p className="pdp-calc__label">{t('property.monthlyEstimate')}</p>
+                    </div>
+                    <div className="pdp-calc__stat">
+                      <p className="pdp-calc__value">{formatMoney(Math.round(property.price * downPayment / 100))}</p>
+                      <p className="pdp-calc__label">{t('property.downPayment')}</p>
+                    </div>
+                    <div className="pdp-calc__stat">
+                      <p className="pdp-calc__value">{formatMoney(Math.round(loanPrincipal))}</p>
+                      <p className="pdp-calc__label">{t('property.loanAmount')}</p>
+                    </div>
+                  </div>
+                  <p className="pdp-calc__hint">{t('property.mortgageHint')}</p>
+                </div>
+              </section>
+            )}
+
+            {/* Similar */}
+            <section className="pdp-section" id="similar">
+              <div className="pdp-similar-head">
+                <h2 className="pdp-card__title">{t('property.similar')}</h2>
+                <Link to="/listings" className="pdp-map-link">
+                  {t('common.viewAll')} <ArrowRight size={13} strokeWidth={2.6} />
+                </Link>
+              </div>
+              <div className="pdp-similar-grid">
+                {similar.map(item => <PropertyCard key={item.id} property={item} />)}
+              </div>
+            </section>
+          </main>
+
+          {/* ── Sticky contact rail ── */}
+          <aside className="pdp-aside">
+            <div className="pdp-aside__card">
+              <div className="pdp-aside__price">
+                <p className="pdp-price__value">{price}</p>
+                {rentPrice && <p className="pdp-price__rent">{rentPrice}</p>}
+                {isSale && (
+                  <p className="pdp-price__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>
+                )}
               </div>
 
-              {/* Agent */}
-              <div
-                className="flex items-center gap-3 py-4 mb-4"
-                style={{ borderTop: '1px solid #f0f2f5', borderBottom: '1px solid #f0f2f5' }}
-              >
-                <img
-                  src={property.agent.photo}
-                  alt={property.agent.name}
-                  className="w-12 h-12 rounded-xl object-cover flex-shrink-0"
-                  style={{ border: '1.5px solid #eceef0' }}
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate" style={{ color: '#191c1e' }}>{property.agent.name}</p>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <Star size={12} fill="#d97706" style={{ color: '#d97706' }} />
-                    <span className="text-xs" style={{ color: '#76777d' }}>
-                      {property.agent.rating} ({property.agent.reviewCount} {t('property.agentRating')})
-                    </span>
-                  </div>
+              <div className="pdp-agent">
+                <img className="pdp-agent__photo" src={property.agent.photo} alt={property.agent.name} />
+                <div className="pdp-agent__info">
+                  <p className="pdp-agent__name">{property.agent.name}</p>
+                  <p className="pdp-agent__meta">
+                    <Star size={11} fill="currentColor" />
+                    {property.agent.rating} · {property.agent.reviewCount} {t('property.agentRating')}
+                  </p>
                   {property.agent.verified && (
-                    <div className="flex items-center gap-1 mt-0.5">
-                      <CheckCircle size={11} style={{ color: '#10B981' }} />
-                      <span className="text-[11px] font-semibold" style={{ color: '#10B981' }}>{t('common.verified')}</span>
-                    </div>
+                    <p className="pdp-agent__verified">
+                      <CheckCircle2 size={11} strokeWidth={2.6} />{t('common.verified')}
+                    </p>
                   )}
                 </div>
-                <Link
-                  to={`/agent/${property.agent.id}`}
-                  className="text-xs font-semibold flex-shrink-0"
-                  style={{ color: '#2563eb' }}
-                >
+                <Link className="pdp-agent__link" to={`/agent/${property.agent.id}`}>
                   {t('property.profile')}
                 </Link>
               </div>
 
-              {/* Contact buttons */}
-              <div className="space-y-2.5">
-                <a
-                  href={`tel:${property.agent.phone}`}
-                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-sm text-white transition-all duration-200"
-                  style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
-                >
-                  <Phone size={16} strokeWidth={2} />
-                  {property.agent.phone}
+              <p className="pdp-reply"><span className="pdp-reply__dot" />{t('property.replyTime')}</p>
+
+              <div className="pdp-ctas">
+                <a className="pdp-cta is-call" href={`tel:${property.agent.phone}`}>
+                  <Phone size={16} strokeWidth={2.2} />{property.agent.phone}
                 </a>
-                <a
-                  href={`mailto:${property.agent.email}`}
-                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-sm transition-all duration-200"
-                  style={{ background: '#f7f9fb', border: '1.5px solid #eceef0', color: '#191c1e' }}
-                >
-                  <Mail size={16} strokeWidth={2} />
-                  {t('common.email')}
+                <a className="pdp-cta is-mail" href={`mailto:${property.agent.email}`}>
+                  <Mail size={15} strokeWidth={2.2} />{t('common.email')}
                 </a>
-                <button
-                  className="flex items-center justify-center gap-2 w-full py-3.5 rounded-xl font-bold text-sm transition-all duration-200"
-                  style={{ background: 'rgba(37, 99, 235,0.07)', border: '1.5px solid rgba(37, 99, 235,0.22)', color: '#2563eb' }}
-                >
-                  <Calendar size={16} strokeWidth={2} />
-                  {t('property.bookViewing')}
+                <button type="button" className="pdp-cta is-book">
+                  <Calendar size={15} strokeWidth={2.2} />{t('property.bookViewing')}
                 </button>
               </div>
 
-              {/* Contact form */}
-              <div className="mt-5 pt-5" style={{ borderTop: '1px solid #f0f2f5' }}>
-                <p className="text-sm font-bold mb-3" style={{ color: '#191c1e' }}>{t('property.sendInquiry')}</p>
-                <div className="space-y-2.5">
-                  {[
-                    { key: 'name', placeholder: t('property.fullName'), type: 'text' },
-                    { key: 'phone', placeholder: t('property.phone'), type: 'text' },
-                  ].map(f => (
+              <form
+                className="pdp-form"
+                onSubmit={event => { event.preventDefault(); setSent(true); }}
+              >
+                <p className="pdp-form__title">{t('property.sendInquiry')}</p>
+
+                {sent ? (
+                  <p className="pdp-sent">
+                    <CheckCircle2 size={15} strokeWidth={2.4} />{t('property.inquirySent')}
+                  </p>
+                ) : (
+                  <>
                     <input
-                      key={f.key}
-                      type={f.type}
-                      value={contactForm[f.key as keyof typeof contactForm]}
-                      onChange={e => setContactForm(prev => ({ ...prev, [f.key]: e.target.value }))}
-                      placeholder={f.placeholder}
-                      className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none transition-all duration-200"
-                      style={{
-                        background: '#fafbfc',
-                        border: '1.5px solid #eceef0',
-                        color: '#191c1e',
-                      }}
-                      onFocus={e => {
-                        e.currentTarget.style.borderColor = '#2563eb';
-                      }}
-                      onBlur={e => {
-                        e.currentTarget.style.borderColor = '#eceef0';
-                      }}
+                      className="pdp-input"
+                      placeholder={t('property.fullName')}
+                      value={contactForm.name}
+                      onChange={event => setContactForm(f => ({ ...f, name: event.target.value }))}
                     />
-                  ))}
-                  <textarea
-                    value={contactForm.message}
-                    onChange={e => setContactForm(f => ({ ...f, message: e.target.value }))}
-                    placeholder={t('property.messagePlaceholder')}
-                    rows={3}
-                    className="w-full rounded-xl px-4 py-3 text-sm font-medium outline-none resize-none transition-all duration-200"
-                    style={{ background: '#fafbfc', border: '1.5px solid #eceef0', color: '#191c1e' }}
-                    onFocus={e => {
-                      e.currentTarget.style.borderColor = '#2563eb';
-                    }}
-                    onBlur={e => {
-                      e.currentTarget.style.borderColor = '#eceef0';
-                    }}
-                  />
-                  <button
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-sm text-white transition-all duration-200"
-                    style={{ background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #047857 0%, #059669 100%)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'linear-gradient(135deg, #059669 0%, #10b981 100%)'; }}
-                  >
-                    {t('property.send')} <ArrowRight size={15} strokeWidth={2.5} />
-                  </button>
-                </div>
-              </div>
+                    <input
+                      className="pdp-input"
+                      placeholder={t('property.phone')}
+                      value={contactForm.phone}
+                      onChange={event => setContactForm(f => ({ ...f, phone: event.target.value }))}
+                    />
+                    <textarea
+                      className="pdp-input pdp-textarea"
+                      rows={3}
+                      placeholder={t('property.messagePlaceholder')}
+                      value={contactForm.message}
+                      onChange={event => setContactForm(f => ({ ...f, message: event.target.value }))}
+                    />
+                    <button type="submit" className="pdp-submit">
+                      {t('property.send')}<ArrowRight size={15} strokeWidth={2.6} />
+                    </button>
+                  </>
+                )}
+              </form>
             </div>
-          </div>
+          </aside>
         </div>
       </div>
 
-      {/* Fullscreen gallery */}
+      {/* ── Mobile action bar ── */}
+      <div className="pdp-bar">
+        <div className="pdp-bar__price">
+          <p className="pdp-bar__value">{price}</p>
+          {isSale && <p className="pdp-bar__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>}
+        </div>
+        <a className="pdp-bar__call" href={`tel:${property.agent.phone}`}>
+          <Phone size={16} strokeWidth={2.4} />{t('property.callNow')}
+        </a>
+      </div>
+
+      {copied && <div className="pdp-toast">{t('property.linkCopied')}</div>}
+      {idCopied && <div className="pdp-toast">{t('property.idCopied')}</div>}
+
+      {/* ── Lightbox ── */}
       <AnimatePresence>
-        {showGallery && (
+        {showGallery && imageCount > 0 && (
           <motion.div
+            className="pdp-lightbox"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex flex-col"
-            style={{ background: 'rgba(8,10,18,0.96)', backdropFilter: 'blur(8px)' }}
+            transition={{ duration: 0.18 }}
           >
-            <div className="flex items-center justify-between px-6 py-4">
-              <p className="font-semibold text-white text-sm truncate max-w-md">{property.title}</p>
-              <button
-                onClick={() => setShowGallery(false)}
-                className="w-9 h-9 rounded-xl flex items-center justify-center transition-colors"
-                style={{ background: 'rgba(255,255,255,0.10)' }}
-              >
-                <X size={18} color="#fff" />
+            <div className="pdp-lightbox__top">
+              <p>{property.title}</p>
+              <span className="pdp-lightbox__count">{activeImage + 1} / {imageCount}</span>
+              <button type="button" onClick={() => setShowGallery(false)} aria-label={t('property.closeGallery')}>
+                <X size={18} strokeWidth={2.4} />
               </button>
             </div>
 
-            <div className="flex-1 flex items-center justify-center px-4 gap-4">
-              <button
-                onClick={() => setActiveImage(i => (i - 1 + property.images.length) % property.images.length)}
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: 'rgba(255,255,255,0.10)' }}
-              >
-                <ChevronLeft size={20} color="#fff" />
-              </button>
+            <div className="pdp-lightbox__stage" onClick={() => setShowGallery(false)}>
+              {imageCount > 1 && (
+                <button
+                  type="button"
+                  className="pdp-lightbox__nav is-prev"
+                  onClick={event => { event.stopPropagation(); step(-1); }}
+                  aria-label={t('property.prevPhoto')}
+                >
+                  <ChevronLeft size={22} strokeWidth={2.2} />
+                </button>
+              )}
               <motion.img
                 key={activeImage}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.25 }}
-                src={property.images[activeImage]}
+                className="pdp-lightbox__img"
+                initial={{ opacity: 0, scale: 0.985 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.22 }}
+                src={images[activeImage]}
                 alt={property.title}
-                className="max-h-[75vh] max-w-[78vw] object-contain rounded-2xl"
+                onClick={event => event.stopPropagation()}
               />
-              <button
-                onClick={() => setActiveImage(i => (i + 1) % property.images.length)}
-                className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                style={{ background: 'rgba(255,255,255,0.10)' }}
-              >
-                <ChevronRight size={20} color="#fff" />
-              </button>
+              {imageCount > 1 && (
+                <button
+                  type="button"
+                  className="pdp-lightbox__nav is-next"
+                  onClick={event => { event.stopPropagation(); step(1); }}
+                  aria-label={t('property.nextPhoto')}
+                >
+                  <ChevronRight size={22} strokeWidth={2.2} />
+                </button>
+              )}
             </div>
 
-            <div className="flex gap-2 px-6 pb-6 justify-center overflow-x-auto">
-              {property.images.map((img, i) => (
-                <button
-                  key={i}
-                  onClick={() => setActiveImage(i)}
-                  className="flex-shrink-0 rounded-xl overflow-hidden transition-all"
-                  style={{
-                    width: 64, height: 48,
-                    border: i === activeImage ? '2px solid #2563eb' : '2px solid transparent',
-                    opacity: i === activeImage ? 1 : 0.5,
-                  }}
-                >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
+            {imageCount > 1 && (
+              <div className="pdp-lightbox__strip">
+                {images.map((img, i) => (
+                  <button
+                    type="button"
+                    key={img + i}
+                    className={`pdp-lightbox__thumb ${i === activeImage ? 'is-active' : ''}`}
+                    onClick={() => setActiveImage(i)}
+                  >
+                    <img src={img} alt="" />
+                  </button>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

@@ -5,22 +5,12 @@ import { Link } from 'react-router-dom';
 import PropertyCard from '../components/PropertyCard';
 import { useTranslation } from '../i18n/LocaleContext';
 import { useProperties } from '../hooks/usePublicData';
-
-const FAVORITES_KEY = 'favorite_property_ids';
-
-function readFavoriteIds(): string[] {
-  try {
-    const raw = localStorage.getItem(FAVORITES_KEY);
-    return raw ? JSON.parse(raw) as string[] : [];
-  } catch {
-    return [];
-  }
-}
+import { useFavorites } from '../lib/favorites';
 
 export default function FavoritesPage() {
   const { t } = useTranslation();
   const { data: properties, loading } = useProperties();
-  const [favoriteIds] = useState(readFavoriteIds);
+  const { ids: favoriteIds } = useFavorites();
   const [search, setSearch] = useState('');
 
   const favorites = properties.filter(p => favoriteIds.includes(p.id));

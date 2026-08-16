@@ -32,7 +32,7 @@ export default function AdminFooter() {
           </Link>
           <Link
             to="/admin/listings/new"
-            className="text-slate-400 hover:text-emerald-400 transition-colors"
+            className="text-emerald-400/90 hover:text-emerald-300 transition-colors"
             style={{ textDecoration: 'none' }}
           >
             + განცხადება

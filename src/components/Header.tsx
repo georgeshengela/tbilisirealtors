@@ -1,16 +1,17 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Menu, X, ChevronDown, Heart, User, Moon, Sun, Search,
-  Phone, ArrowRight, Star,
+  Phone, ArrowRight, Star, LayoutDashboard, LogOut, Shield, Plus,
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 import { CONTACT } from '../data/contactInfo';
 import LocaleCurrencySwitcher from './LocaleCurrencySwitcher';
 import { useLocale } from '../i18n/LocaleContext';
-import { useCurrency } from '../contexts/CurrencyContext';
 import { buildNavItems } from '../i18n/navItems';
+import { useUserAuth } from '../contexts/UserAuthContext';
+import { useFavorites } from '../lib/favorites';
 
 /* ─── design tokens — match hero / search panel ─── */
 const UI = {
@@ -27,7 +28,7 @@ const UI = {
 } as const;
 
 /* ─── height constants (exported so pages can use) ─── */
-export const HEADER_ROW1 = 56;
+export const HEADER_ROW1 = 72;
 export const HEADER_ROW2 = 50;
 export const HEADER_H    = HEADER_ROW1 + HEADER_ROW2; // 106 px
 
@@ -35,17 +36,19 @@ interface HeaderProps { darkMode: boolean; toggleDarkMode: () => void; }
 
 export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
   const { t } = useLocale();
-  const { formatMoney } = useCurrency();
-  const navItems = useMemo(
-    () => buildNavItems(t, (amount) => formatMoney(amount)),
-    [t, formatMoney],
-  );
+  const navItems = useMemo(() => buildNavItems(t), [t]);
   const [scrolled, setScrolled]             = useState(false);
   const [mobileOpen, setMobileOpen]         = useState(false);
   const [mobileExpanded, setMobileExpanded] = useState<string | null>(null);
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [dropTimeout, setDropTimeout]       = useState<ReturnType<typeof setTimeout> | null>(null);
+  const [userMenuOpen, setUserMenuOpen]     = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const { user, isStaff, logout } = useUserAuth();
+  const { count: favoriteCount } = useFavorites();
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fn = () => setScrolled(window.scrollY > 4);
@@ -58,7 +61,23 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
     setMobileOpen(false);
     setActiveDropdown(null);
     setMobileExpanded(null);
+    setUserMenuOpen(false);
   }, [location]);
+
+  useEffect(() => {
+    if (!userMenuOpen) return;
+    const close = (event: MouseEvent) => {
+      if (!userMenuRef.current?.contains(event.target as Node)) setUserMenuOpen(false);
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, [userMenuOpen]);
+
+  function signOut() {
+    logout();
+    setUserMenuOpen(false);
+    navigate('/');
+  }
 
   const openDrop  = (lbl: string) => { if (dropTimeout) clearTimeout(dropTimeout); setActiveDropdown(lbl); };
   const closeDrop = () => { const t = setTimeout(() => setActiveDropdown(null), 130); setDropTimeout(t); };
@@ -82,7 +101,8 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
         <div className="container-xl">
           <div style={{ display: 'flex', alignItems: 'center', height: HEADER_ROW1, gap: 16 }}>
 
-            <BrandLogo size="md" responsiveText className="flex-shrink-0" />
+            {/* Sits a touch lower than the utility row so the mark has room to breathe. */}
+            <BrandLogo size="lg" responsiveText className="flex-shrink-0" style={{ marginTop: 6 }} />
 
             {/* Utility toolbar */}
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -107,36 +127,143 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                 }}
               >
                 <Heart size={16} strokeWidth={2} />
-                <span style={{
-                  position: 'absolute', top: -5, right: -5,
-                  width: 17, height: 17, borderRadius: '50%',
-                  background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 800,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: '2px solid #fff',
-                }}>3</span>
+                {favoriteCount > 0 && (
+                  <span style={{
+                    position: 'absolute', top: -5, right: -5,
+                    minWidth: 17, height: 17, padding: '0 4px', borderRadius: 9,
+                    background: '#ef4444', color: '#fff', fontSize: 9, fontWeight: 800,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: '2px solid #fff',
+                  }}>{favoriteCount > 99 ? '99+' : favoriteCount}</span>
+                )}
               </Link>
 
-              <Link to="/login" className="hidden lg:flex"
-                style={{
-                  alignItems: 'center', gap: 7,
-                  height: 38, padding: '0 14px',
-                  borderRadius: UI.radius, border: `1.5px solid ${UI.border}`,
-                  fontSize: 13, fontWeight: 600, color: UI.ink,
-                  textDecoration: 'none', background: '#fff',
-                  transition: 'all 0.15s', flexShrink: 0,
-                }}
-                onMouseEnter={e => {
-                  const el = e.currentTarget as HTMLElement;
-                  el.style.borderColor = 'rgba(37,99,235,0.45)'; el.style.background = '#eff6ff'; el.style.color = UI.accent;
-                }}
-                onMouseLeave={e => {
-                  const el = e.currentTarget as HTMLElement;
-                  el.style.borderColor = UI.border; el.style.background = '#fff'; el.style.color = UI.ink;
-                }}
-              >
-                <User size={15} strokeWidth={2} />
-                {t('common.login')}
-              </Link>
+              {user ? (
+                <div ref={userMenuRef} className="hidden lg:block" style={{ position: 'relative', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => setUserMenuOpen(open => !open)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      height: 38, padding: '0 12px 0 4px',
+                      borderRadius: UI.radius,
+                      border: `1.5px solid ${userMenuOpen ? 'rgba(37,99,235,0.45)' : UI.border}`,
+                      background: userMenuOpen ? '#eff6ff' : '#fff',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{
+                      width: 28, height: 28, borderRadius: 9, flexShrink: 0, overflow: 'hidden',
+                      background: UI.accent, color: '#fff', fontSize: 12, fontWeight: 800,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {user.avatarUrl
+                        ? <img src={user.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        : (user.firstName || user.name).charAt(0).toUpperCase()}
+                    </span>
+                    <span style={{
+                      fontSize: 13, fontWeight: 600, color: UI.ink,
+                      maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>
+                      {user.firstName || user.name}
+                    </span>
+                    <ChevronDown size={12} strokeWidth={2.5} style={{
+                      color: '#b0b2ba',
+                      transform: userMenuOpen ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 0.18s',
+                    }} />
+                  </button>
+
+                  <AnimatePresence>
+                    {userMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.15 }}
+                        style={{
+                          position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 232,
+                          background: '#fff', borderRadius: UI.radiusLg, overflow: 'hidden',
+                          boxShadow: '0 18px 44px rgba(15,20,35,0.16), 0 0 0 1px rgba(228,230,234,0.9)',
+                          zIndex: 60,
+                        }}
+                      >
+                        <div style={{ padding: '12px 14px', borderBottom: `1px solid ${UI.borderLight}` }}>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: UI.ink, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {user.name}
+                          </p>
+                          <p style={{ fontSize: 11.5, color: UI.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {user.email}
+                          </p>
+                        </div>
+
+                        <div style={{ padding: 6 }}>
+                          {[
+                            { to: '/dashboard', icon: LayoutDashboard, label: t('common.dashboard') },
+                            { to: '/favorites', icon: Heart, label: t('common.favorites') },
+                            { to: '/dashboard/submit', icon: Plus, label: t('dashboard.submitListing') },
+                            ...(isStaff ? [{ to: '/admin', icon: Shield, label: t('common.adminPanel') }] : []),
+                          ].map(item => (
+                            <Link
+                              key={item.to}
+                              to={item.to}
+                              style={{
+                                display: 'flex', alignItems: 'center', gap: 10,
+                                padding: '9px 10px', borderRadius: 10,
+                                fontSize: 13, fontWeight: 600, color: UI.ink, textDecoration: 'none',
+                              }}
+                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = UI.surfaceMuted}
+                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                            >
+                              <item.icon size={15} strokeWidth={2} style={{ color: '#9ca3af' }} />
+                              {item.label}
+                            </Link>
+                          ))}
+
+                          <button
+                            type="button"
+                            onClick={signOut}
+                            style={{
+                              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                              padding: '9px 10px', borderRadius: 10, border: 'none',
+                              background: 'transparent', cursor: 'pointer',
+                              fontSize: 13, fontWeight: 600, color: '#dc2626',
+                              marginTop: 2, borderTop: `1px solid ${UI.borderLight}`,
+                            }}
+                            onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#fef2f2'}
+                            onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
+                          >
+                            <LogOut size={15} strokeWidth={2} />
+                            {t('common.logout')}
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ) : (
+                <Link to="/login" className="hidden lg:flex"
+                  style={{
+                    alignItems: 'center', gap: 7,
+                    height: 38, padding: '0 14px',
+                    borderRadius: UI.radius, border: `1.5px solid ${UI.border}`,
+                    fontSize: 13, fontWeight: 600, color: UI.ink,
+                    textDecoration: 'none', background: '#fff',
+                    transition: 'all 0.15s', flexShrink: 0,
+                  }}
+                  onMouseEnter={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = 'rgba(37,99,235,0.45)'; el.style.background = '#eff6ff'; el.style.color = UI.accent;
+                  }}
+                  onMouseLeave={e => {
+                    const el = e.currentTarget as HTMLElement;
+                    el.style.borderColor = UI.border; el.style.background = '#fff'; el.style.color = UI.ink;
+                  }}
+                >
+                  <User size={15} strokeWidth={2} />
+                  {t('common.login')}
+                </Link>
+              )}
 
               <button
                 onClick={() => setMobileOpen(!mobileOpen)}
@@ -602,14 +729,35 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
 
               {/* Footer CTA */}
               <div style={{ padding: '14px 14px 20px', borderTop: `1px solid ${UI.borderLight}`, display: 'flex', flexDirection: 'column', gap: 10, flexShrink: 0 }}>
-                <Link to="/login" onClick={() => setMobileOpen(false)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: UI.radius, fontSize: 14, fontWeight: 700, color: UI.ink, border: `1.5px solid ${UI.border}`, textDecoration: 'none', background: '#fff' }}>
-                  <User size={16} strokeWidth={2} /> {t('common.login')}
-                </Link>
-                <Link to="/register" onClick={() => setMobileOpen(false)}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: UI.radius, fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: UI.ink, border: `1.5px solid ${UI.ink}` }}>
-                  {t('common.register')}
-                </Link>
+                {user ? (
+                  <>
+                    <Link to="/dashboard" onClick={() => setMobileOpen(false)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: UI.radius, fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: UI.accent, border: `1.5px solid ${UI.accent}` }}>
+                      <LayoutDashboard size={16} strokeWidth={2} /> {t('common.dashboard')}
+                    </Link>
+                    {isStaff && (
+                      <Link to="/admin" onClick={() => setMobileOpen(false)}
+                        style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: UI.radius, fontSize: 14, fontWeight: 700, color: UI.ink, border: `1.5px solid ${UI.border}`, textDecoration: 'none', background: '#fff' }}>
+                        <Shield size={16} strokeWidth={2} /> {t('common.adminPanel')}
+                      </Link>
+                    )}
+                    <button type="button" onClick={() => { setMobileOpen(false); signOut(); }}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: UI.radius, fontSize: 14, fontWeight: 700, color: '#dc2626', border: '1.5px solid #fecaca', background: '#fff', cursor: 'pointer' }}>
+                      <LogOut size={16} strokeWidth={2} /> {t('common.logout')}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/login" onClick={() => setMobileOpen(false)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: UI.radius, fontSize: 14, fontWeight: 700, color: UI.ink, border: `1.5px solid ${UI.border}`, textDecoration: 'none', background: '#fff' }}>
+                      <User size={16} strokeWidth={2} /> {t('common.login')}
+                    </Link>
+                    <Link to="/register" onClick={() => setMobileOpen(false)}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '13px', borderRadius: UI.radius, fontSize: 14, fontWeight: 700, color: '#fff', textDecoration: 'none', background: UI.ink, border: `1.5px solid ${UI.ink}` }}>
+                      {t('common.register')}
+                    </Link>
+                  </>
+                )}
               </div>
             </motion.div>
           </>

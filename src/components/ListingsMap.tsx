@@ -732,6 +732,8 @@ function MapPopupCard({
           )}
         </p>
 
+        <p className="listing-map-popup__id">#{property.id}</p>
+
         <p className="listing-map-popup__meta">
           <Maximize2 size={10} strokeWidth={2.2} />
           <strong>{property.area}</strong> მ²

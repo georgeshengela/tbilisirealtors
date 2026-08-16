@@ -13,14 +13,19 @@ import BlogDetailPage from './pages/BlogDetailPage';
 import FavoritesPage from './pages/FavoritesPage';
 import AuthPage from './pages/AuthPage';
 import DashboardPage from './pages/DashboardPage';
+import SubmitListingPage from './pages/SubmitListingPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import ProjectsPage from './pages/ProjectsPage';
+import ServicesPage from './pages/ServicesPage';
+import InternationalPage from './pages/InternationalPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPage from './pages/AdminPage';
 import AdminAddListingPage from './pages/AdminAddListingPage';
+import AdminProfilePage from './pages/AdminProfilePage';
 import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
+import { UserAuthProvider, useUserAuth } from './contexts/UserAuthContext';
 import { LocaleProvider } from './i18n/LocaleContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 
@@ -38,6 +43,16 @@ function ProtectedAdminRoute({ children }: { children: ReactNode }) {
   return user ? <>{children}</> : <Navigate to="/admin/login" replace />;
 }
 
+/** Member-only areas. Sends visitors to /login and remembers where they wanted to go. */
+function ProtectedUserRoute({ children }: { children: ReactNode }) {
+  const { user, loading } = useUserAuth();
+  const location = useLocation();
+  if (loading) return null;
+  return user
+    ? <>{children}</>
+    : <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
+}
+
 function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMode: () => void }) {
   const location = useLocation();
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
@@ -48,6 +63,7 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
     return (
       <Routes>
         <Route path="/admin/login" element={<AdminLoginPage />} />
+        <Route path="/admin/profile" element={<ProtectedAdminRoute><AdminProfilePage /></ProtectedAdminRoute>} />
         <Route path="/admin/listings/new" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
         <Route path="/admin/listings/:id/edit" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
         <Route path="/admin/*" element={<ProtectedAdminRoute><AdminPage /></ProtectedAdminRoute>} />
@@ -80,11 +96,14 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
               <Route path="/favorites" element={<FavoritesPage />} />
               <Route path="/login" element={<AuthPage mode="login" />} />
               <Route path="/register" element={<AuthPage mode="register" />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/dashboard" element={<ProtectedUserRoute><DashboardPage /></ProtectedUserRoute>} />
+              <Route path="/dashboard/submit" element={<ProtectedUserRoute><SubmitListingPage /></ProtectedUserRoute>} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/project/:slug" element={<ProjectDetailPage />} />
               <Route path="/contact" element={<ContactPage />} />
+              <Route path="/services" element={<ServicesPage />} />
+              <Route path="/international" element={<InternationalPage />} />
             </Routes>
           </motion.div>
         </AnimatePresence>
@@ -108,7 +127,9 @@ export default function App() {
       <LocaleProvider>
         <CurrencyProvider>
           <AdminAuthProvider>
-            <AppContent darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+            <UserAuthProvider>
+              <AppContent darkMode={darkMode} toggleDarkMode={toggleDarkMode} />
+            </UserAuthProvider>
           </AdminAuthProvider>
         </CurrencyProvider>
       </LocaleProvider>

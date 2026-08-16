@@ -1,21 +1,33 @@
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, Users, Settings, LogOut, Plus,
-  BookOpen, Shield, Sparkles, ExternalLink,
+  BookOpen, Shield, Sparkles, ExternalLink, Headphones, UserCog,
   type LucideIcon,
 } from 'lucide-react';
-import { useAdminAuth } from '../../contexts/AdminAuthContext';
+import { useAdminAuth, useApiRequest } from '../../contexts/AdminAuthContext';
+import { roleLabel } from '../../lib/permissions';
 import BrandLogo from '../BrandLogo';
 
-export type AdminNavSection = 'dashboard' | 'properties' | 'agents' | 'blog' | 'users' | 'settings';
+export type AdminNavSection =
+  | 'dashboard' | 'properties' | 'desk' | 'agents'
+  | 'blog' | 'staff' | 'members' | 'settings';
 
-const NAV_ITEMS: { id: AdminNavSection; label: string; icon: LucideIcon }[] = [
-  { id: 'dashboard', label: 'მთავარი', icon: LayoutDashboard },
-  { id: 'properties', label: 'განცხადებები', icon: Building2 },
-  { id: 'agents', label: 'აგენტები', icon: Users },
-  { id: 'blog', label: 'ბლოგი', icon: BookOpen },
-  { id: 'users', label: 'ადმინ მომხ.', icon: Shield },
-  { id: 'settings', label: 'პარამეტრები', icon: Settings },
+/** A section unlocks as soon as the actor holds any one of its permissions. */
+const NAV_ITEMS: { id: AdminNavSection; label: string; icon: LucideIcon; permissions: string[] }[] = [
+  { id: 'dashboard', label: 'მთავარი', icon: LayoutDashboard, permissions: ['dashboard.view'] },
+  { id: 'properties', label: 'განცხადებები', icon: Building2, permissions: ['listings.view'] },
+  {
+    id: 'desk',
+    label: 'დესკი',
+    icon: Headphones,
+    permissions: ['listings.tasks', 'listings.moderate', 'listings.assign', 'analytics.full'],
+  },
+  { id: 'agents', label: 'ბროკერები', icon: Users, permissions: ['agents.view'] },
+  { id: 'blog', label: 'ბლოგი', icon: BookOpen, permissions: ['blog.view'] },
+  { id: 'staff', label: 'თანამშრომლები', icon: Shield, permissions: ['staff.view'] },
+  { id: 'members', label: 'მომხმარებლები', icon: UserCog, permissions: ['members.view'] },
+  { id: 'settings', label: 'პარამეტრები', icon: Settings, permissions: ['settings.view'] },
 ];
 
 interface AdminHeaderProps {
@@ -26,9 +38,28 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ subtitle, activeSection = 'dashboard', hideAddButton = false }: AdminHeaderProps) {
   const navigate = useNavigate();
-  const { user, logout } = useAdminAuth();
+  const { user, logout, can } = useAdminAuth();
+  const api = useApiRequest();
+  const [deskAlerts, setDeskAlerts] = useState(0);
+
+  const watchesDesk = Boolean(user) && can('listings.tasks');
+
+  // A single count of "somebody is waiting on us", so the desk tab nags visibly.
+  useEffect(() => {
+    if (!watchesDesk) return;
+    let cancelled = false;
+    api('/desk/summary')
+      .then((data: { overdueTasks?: number; slaBreached?: number; callbacksDue?: number }) => {
+        if (cancelled) return;
+        setDeskAlerts((data.overdueTasks ?? 0) + (data.slaBreached ?? 0) + (data.callbacksDue ?? 0));
+      })
+      .catch(() => { /* the badge is optional */ });
+    return () => { cancelled = true; };
+  }, [api, watchesDesk]);
 
   if (!user) return null;
+
+  const navItems = NAV_ITEMS.filter(item => item.permissions.some(permission => can(permission)));
 
   function goToSection(id: AdminNavSection) {
     navigate(id === 'dashboard' ? '/admin' : `/admin?section=${id}`);
@@ -40,7 +71,7 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
       style={{
         background: '#111827',
         borderBottom: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+        boxShadow: '0 1px 0 rgba(0,0,0,0.2)',
       }}
     >
       <div className="container-xl">
@@ -71,7 +102,7 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
             className="hidden lg:flex items-center p-1 rounded-2xl flex-shrink-0"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
           >
-            {NAV_ITEMS.map(item => {
+            {navItems.map(item => {
               const active = activeSection === item.id;
               return (
                 <button
@@ -95,13 +126,21 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
                   )}
                   <item.icon size={14} strokeWidth={active ? 2.3 : 2} className={active ? undefined : 'opacity-75'} />
                   {item.label}
+                  {item.id === 'desk' && deskAlerts > 0 && (
+                    <span
+                      className="inline-flex min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-extrabold text-white"
+                      style={{ background: '#ef4444' }}
+                    >
+                      {deskAlerts > 99 ? '99+' : deskAlerts}
+                    </span>
+                  )}
                 </button>
               );
             })}
           </nav>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {!hideAddButton && (
+            {!hideAddButton && can('listings.create') && (
               <button
                 type="button"
                 onClick={() => navigate('/admin/listings/new')}
@@ -115,23 +154,30 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
               </button>
             )}
 
-            <div
-              className="hidden md:flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-xl ml-1"
+            <button
+              type="button"
+              onClick={() => navigate('/admin/profile')}
+              className="hidden md:flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-xl ml-1 transition-all hover:bg-white/10"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+              title="ჩემი პროფილი"
             >
               <div
-                className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold overflow-hidden"
                 style={{ background: '#2563eb' }}
               >
-                {user.name.charAt(0)}
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  (user.firstName || user.name).charAt(0).toUpperCase()
+                )}
               </div>
-              <div className="hidden lg:block min-w-0 max-w-[110px]">
-                <p className="text-white text-xs font-bold truncate leading-tight">{user.name.split(' ')[0]}</p>
+              <div className="hidden lg:block min-w-0 max-w-[140px] text-left">
+                <p className="text-white text-xs font-bold truncate leading-tight">{user.name}</p>
                 <p className="text-slate-500 text-[10px] truncate">
-                  {user.role === 'super_admin' ? 'სუპ. ადმინი' : 'ადმინი'}
+                  {roleLabel(user.role)}
                 </p>
               </div>
-            </div>
+            </button>
 
             <button
               type="button"
@@ -167,7 +213,7 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
           className="lg:hidden flex items-center gap-1.5 pb-3.5 overflow-x-auto"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {NAV_ITEMS.map(item => {
+          {navItems.map(item => {
             const active = activeSection === item.id;
             return (
               <button
@@ -191,6 +237,14 @@ export default function AdminHeader({ subtitle, activeSection = 'dashboard', hid
               >
                 <item.icon size={13} strokeWidth={active ? 2.2 : 2} />
                 {item.label}
+                {item.id === 'desk' && deskAlerts > 0 && (
+                  <span
+                    className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-extrabold text-white"
+                    style={{ background: '#ef4444' }}
+                  >
+                    {deskAlerts > 99 ? '99+' : deskAlerts}
+                  </span>
+                )}
               </button>
             );
           })}

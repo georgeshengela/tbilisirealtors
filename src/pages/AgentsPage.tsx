@@ -3,11 +3,12 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Search, Star, CheckCircle, Phone, Mail, Filter } from 'lucide-react';
 import { useTranslation } from '../i18n/LocaleContext';
-import { useAgents } from '../hooks/usePublicData';
+import { useAgents, useTeam } from '../hooks/usePublicData';
 
 export default function AgentsPage() {
   const { t } = useTranslation();
   const { data: agents, loading } = useAgents();
+  const { data: team } = useTeam();
   const [search, setSearch] = useState('');
   const [specialization, setSpecialization] = useState('');
 
@@ -17,7 +18,12 @@ export default function AgentsPage() {
     return matchSearch && matchSpec;
   });
 
+  const filteredTeam = team.filter(member =>
+    !search || member.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
   const allSpecializations = [...new Set(agents.flatMap(a => a.specialization))];
+  const totalShown = filtered.length + filteredTeam.length;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px]">
@@ -55,11 +61,52 @@ export default function AgentsPage() {
           </div>
         </div>
 
-        <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{t('agents.results', { count: filtered.length })}</p>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mb-6">{t('agents.results', { count: totalShown })}</p>
 
         {loading ? (
           <p className="text-center py-16 text-slate-500">{t('common.loading')}</p>
         ) : (
+        <>
+        {filteredTeam.length > 0 && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+            {filteredTeam.map((member, index) => (
+              <motion.div
+                key={member.id}
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm hover:shadow-lg hover:border-blue-200 transition-all duration-300 h-full">
+                  <div className="h-24 bg-gradient-to-br from-blue-600 via-blue-600 to-indigo-700 relative" />
+                  <div className="px-6 pb-6">
+                    <div className="flex items-end -mt-10 mb-4">
+                      <div className="w-20 h-20 rounded-2xl overflow-hidden border-4 border-white dark:border-slate-800 shadow-lg bg-slate-200 flex items-center justify-center text-2xl font-extrabold text-blue-700">
+                        {member.photo
+                          ? <img src={member.photo} alt={member.name} className="w-full h-full object-cover" />
+                          : member.name.charAt(0)}
+                      </div>
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-1">{member.name}</h3>
+                    <p className="text-blue-600 text-sm font-medium mb-3">{member.jobTitle}</p>
+                    {member.bio && (
+                      <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-4 line-clamp-3">{member.bio}</p>
+                    )}
+                    {member.phone && (
+                      <a
+                        href={`tel:${member.phone}`}
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-600 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:border-blue-300 transition-colors"
+                      >
+                        <Phone size={15} />
+                        {member.phone}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filtered.map((agent, index) => (
             <motion.div
@@ -149,6 +196,7 @@ export default function AgentsPage() {
             </motion.div>
           ))}
         </div>
+        </>
         )}
       </div>
     </div>

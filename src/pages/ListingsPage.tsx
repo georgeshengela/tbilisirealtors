@@ -1,9 +1,9 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import type L from 'leaflet';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Search, SlidersHorizontal, X, ArrowUpDown, Map, List, Building2, MapPin, ChevronDown,
+  Search, SlidersHorizontal, X, ArrowUpDown, Map, List, Building2, MapPin, ChevronDown, Hash,
 } from 'lucide-react';
 import ListingMapRow from '../components/ListingMapRow';
 import ListingsMap from '../components/ListingsMap';
@@ -12,6 +12,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useProperties } from '../hooks/usePublicData';
 import { fetchAreaBoundary, type AreaBoundary, type Ring } from '../lib/geoApi';
 import { pointInRing, pointInRings, ringsBbox } from '../lib/geoMath';
+import { isExactListingId, listingIdMatches } from '../lib/listingId';
 import {
   CITY_AREAS,
   districtLabel,
@@ -27,6 +28,7 @@ const PAGE_SIZE = 24;
 export default function ListingsPage() {
   const { t } = useTranslation();
   const { locale } = useLocale();
+  const navigate = useNavigate();
   const { currencySymbol, formatMoney } = useCurrency();
   const [searchParams] = useSearchParams();
 
@@ -110,7 +112,9 @@ export default function ListingsPage() {
     (p: Property, includeGeo: boolean) => {
       if (search) {
         const q = search.trim().toLowerCase();
-        if (![p.title, p.city, p.district, p.address].some(v => v?.toLowerCase().includes(q))) return false;
+        const idHit = listingIdMatches(p.id, search.trim());
+        const textHit = [p.title, p.city, p.district, p.address].some(v => v?.toLowerCase().includes(q));
+        if (!idHit && !textHit) return false;
       }
       if (includeGeo && drawnArea) {
         // The drawn shape replaces the city/district geo filter entirely.
@@ -128,7 +132,8 @@ export default function ListingsPage() {
           return false;
         }
       }
-      if (filters.status && p.status !== filters.status) return false;
+      /* "both" listings are offered for sale and for rent, so they match either filter. */
+      if (filters.status && p.status !== filters.status && p.status !== 'both') return false;
       if (filters.type && p.type !== filters.type) return false;
       if (filters.bedrooms && p.bedrooms < parseInt(filters.bedrooms)) return false;
       if (filters.priceMin && p.price < parseInt(filters.priceMin)) return false;
@@ -144,6 +149,7 @@ export default function ListingsPage() {
   /** Everything matching the filter form — this is what the map draws. */
   const filtered = useMemo(() => {
     const r = properties.filter(p => matches(p, true));
+    const q = search.trim();
     switch (sort) {
       case 'price-desc': r.sort((a, b) => b.price - a.price); break;
       case 'price-asc': r.sort((a, b) => a.price - b.price); break;
@@ -151,9 +157,27 @@ export default function ListingsPage() {
       case 'popular': r.sort((a, b) => b.viewCount - a.viewCount); break;
       default: r.sort((a, b) => new Date(b.listedDate).getTime() - new Date(a.listedDate).getTime());
     }
+    // Exact / prefix ID hits float to the top so a code search feels instant.
+    if (q && /^\d+$/.test(q)) {
+      r.sort((a, b) => {
+        const score = (p: Property) => {
+          if (p.id === q) return 0;
+          if (p.id.startsWith(q)) return 1;
+          if (p.id.includes(q)) return 2;
+          return 3;
+        };
+        return score(a) - score(b);
+      });
+    }
     return r;
-  }, [properties, matches, sort]);
+  }, [properties, matches, sort, search]);
 
+  function tryOpenById() {
+    const q = search.trim();
+    if (!isExactListingId(q)) return;
+    const hit = properties.find(p => p.id === q);
+    if (hit) navigate(`/property/${hit.id}`);
+  }
   /** Listings just outside the selected area, drawn faded for context. */
   const contextProperties = useMemo(() => {
     if (!activeBoundary) return [];
@@ -249,11 +273,17 @@ export default function ListingsPage() {
   };
 
   const formatPrice = useCallback(
-    (property: Property) =>
-      formatMoney(property.price, {
+    (property: Property) => {
+      const sale = formatMoney(property.price, {
         perMonth: property.status === 'rent',
         compact: property.price >= 1_000_000,
-      }),
+      });
+      /* Sale + rent listings show both figures side by side. */
+      if (property.status === 'both' && property.rentPrice) {
+        return `${sale} · ${formatMoney(property.rentPrice, { perMonth: true })}`;
+      }
+      return sale;
+    },
     [formatMoney],
   );
 
@@ -291,8 +321,16 @@ export default function ListingsPage() {
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') tryOpenById(); }}
               placeholder={t('listings.searchPlaceholder')}
+              inputMode="search"
             />
+            {isExactListingId(search.trim()) && (
+              <span className="listings-split-search__id-hint" title={t('listings.idSearchHint')}>
+                <Hash size={12} strokeWidth={2.4} />
+                ID
+              </span>
+            )}
             {search && (
               <button type="button" onClick={() => setSearch('')} aria-label={t('listings.clearFilters')}>
                 <X size={14} strokeWidth={2.5} />

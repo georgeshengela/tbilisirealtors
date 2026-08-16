@@ -1,7 +1,8 @@
 import bcrypt from 'bcryptjs';
 import { db, client } from './db.js';
-import { adminUsers, siteSettings } from './schema.js';
+import { users, siteSettings, rolePermissions } from './schema.js';
 import { eq } from 'drizzle-orm';
+import { ROLES, ROLE_DEFAULT_PERMISSIONS, ROLE_DEFAULT_SCOPE } from './permissions.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -14,19 +15,29 @@ async function seed() {
   console.log('Seeding database...');
 
   try {
+    // Role templates — inserted once, editable from the panel afterwards.
+    for (const role of ROLES) {
+      await db
+        .insert(rolePermissions)
+        .values({ role, permissions: ROLE_DEFAULT_PERMISSIONS[role] })
+        .onConflictDoNothing();
+    }
+    console.log('✅ Role permission templates seeded');
+
     // Create admin user if not exists
     const [existing] = await db
       .select()
-      .from(adminUsers)
-      .where(eq(adminUsers.email, ADMIN_EMAIL));
+      .from(users)
+      .where(eq(users.email, ADMIN_EMAIL));
 
     if (!existing) {
       const passwordHash = await bcrypt.hash(ADMIN_PASSWORD, 12);
-      await db.insert(adminUsers).values({
+      await db.insert(users).values({
         email: ADMIN_EMAIL,
         name: ADMIN_NAME,
         passwordHash,
         role: 'super_admin',
+        scope: ROLE_DEFAULT_SCOPE.super_admin,
         isActive: true,
       });
 

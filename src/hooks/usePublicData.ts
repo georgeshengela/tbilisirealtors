@@ -6,8 +6,9 @@ import {
   fetchBlogPosts,
   fetchProperties,
   fetchPropertyById,
+  fetchTeam,
 } from '../lib/publicApi';
-import type { Agent, BlogPost, Property } from '../types/listing';
+import type { Agent, BlogPost, Property, TeamMember } from '../types/listing';
 
 type AsyncState<T> = {
   data: T;
@@ -87,6 +88,35 @@ export function useAgents(): AsyncState<Agent[]> {
   useEffect(() => {
     let cancelled = false;
     fetchAgents()
+      .then(result => {
+        if (!cancelled) {
+          setData(result);
+          setError(null);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setData([]);
+          setError(err instanceof Error ? err.message : 'Failed to load data');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  return { data, loading, error };
+}
+
+export function useTeam(): AsyncState<TeamMember[]> {
+  const [data, setData] = useState<TeamMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchTeam()
       .then(result => {
         if (!cancelled) {
           setData(result);

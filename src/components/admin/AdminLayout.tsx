@@ -11,7 +11,7 @@ interface AdminLayoutProps {
 
 export default function AdminLayout({ subtitle, activeSection, hideAddButton, children }: AdminLayoutProps) {
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#f4f6fa' }}>
+    <div className="admin-shell min-h-screen flex flex-col">
       <AdminHeader subtitle={subtitle} activeSection={activeSection} hideAddButton={hideAddButton} />
       <main className="flex-1">{children}</main>
       <AdminFooter />

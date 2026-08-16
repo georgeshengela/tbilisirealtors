@@ -1,18 +1,66 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useEffect, useLayoutEffect, useMemo, useRef, useState,
+  type MouseEvent as ReactMouseEvent, type ReactNode,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
   Search, Plus, Pencil, Trash2, Eye, ExternalLink,
-  Star, Zap, MapPin, Bed, Layers, Ruler, User, Phone,
+  Star, MapPin, Bed, Layers, Ruler, User, Phone,
   ArrowUpDown, ArrowUp, ArrowDown, X, Building2, TrendingUp, Home,
-  Image as ImageIcon, Calendar, ChevronDown, Check,
+  Image as ImageIcon, Calendar, ChevronDown, Check, Copy, History,
+  PhoneCall, CalendarClock, Loader2, Mail, FileText, MessageSquare,
+  CreditCard as IdCard, Upload, ClipboardList,
   type LucideIcon,
 } from 'lucide-react';
+import { listingIdMatches } from '../../lib/listingId';
+import { formatGeorgianDateTime, formatGeorgianShortDate } from '../../lib/dateFormat';
+import { useFileUpload, type UploadedFile } from '../../hooks/useFileUpload';
+import { useAdminAuth, useApiRequest } from '../../contexts/AdminAuthContext';
+import ListingWorkPanel from './desk/ListingWorkPanel';
+
+export interface PriceChangeRow {
+  id: number;
+  propertyId: string;
+  oldPrice: string | null;
+  newPrice: string;
+  changedBy: string | null;
+  source: string;
+  createdAt: string;
+}
+
+export interface PropertyOwnerInfo {
+  name?: string;
+  phone?: string;
+  email?: string;
+  idNumber?: string;
+  address?: string;
+  note?: string;
+}
+
+export interface PropertyContractDoc {
+  id: string;
+  title: string;
+  url: string;
+  kind: 'pdf' | 'image' | 'link';
+  addedAt: string;
+  addedBy?: string;
+}
+
+export interface InternalNoteRow {
+  id: string;
+  text: string;
+  author?: string;
+  createdAt: string;
+}
 
 export interface AdminPropertyRow {
   id: string;
   title: string;
   price: string;
+  rentPrice?: string | null;
   pricePerSqm: string;
+  address?: string | null;
   city: string;
   district: string;
   type: string;
@@ -33,13 +81,44 @@ export interface AdminPropertyRow {
   agentName: string;
   agentPhone: string;
   agentEmail: string;
+  source?: string | null;
+  sourceUrl?: string | null;
+  sourceId?: string | null;
+  lifecycleState?: string | null;
+  rentTermMonths?: number | null;
+  rentStartedAt?: string | null;
+  rentExpiresAt?: string | null;
+  lifecycleNote?: string | null;
+  priceHistory?: PriceChangeRow[];
+  owner?: PropertyOwnerInfo | null;
+  contracts?: PropertyContractDoc[] | null;
+  internalNotes?: InternalNoteRow[] | null;
 }
 
+/** Patch payload sent to PATCH /admin/properties/:id */
+export type PropertyPatch = Partial<{
+  isPremium: boolean;
+  isFeatured: boolean;
+  isNew: boolean;
+  price: number;
+  rentPrice: number | null;
+  status: string;
+  lifecycleState: string;
+  rentTermMonths: number | null;
+  rentStartedAt: string | null;
+  rentExpiresAt: string | null;
+  lifecycleNote: string;
+  owner: PropertyOwnerInfo | null;
+  contracts: PropertyContractDoc[];
+  internalNotes: InternalNoteRow[];
+}>;
+
 type StatusFilter = 'all' | 'sale' | 'rent';
+type LifecycleFilter = 'all' | 'new' | 'current' | 'old' | 'new_r';
 type BadgeFilter = 'all' | 'premium' | 'featured' | 'new';
 type SortKey =
   | 'title' | 'price' | 'pricePerSqm' | 'area' | 'city' | 'type' | 'status'
-  | 'bedrooms' | 'floor' | 'viewCount' | 'createdAt' | 'agentName';
+  | 'bedrooms' | 'floor' | 'viewCount' | 'createdAt' | 'agentName' | 'lifecycle' | 'owner';
 type SortDir = 'asc' | 'desc';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -48,10 +127,67 @@ const TYPE_LABELS: Record<string, string> = {
 const TYPE_COLORS: Record<string, string> = {
   apartment: '#2563eb', house: '#10B981', commercial: '#f59e0b', land: '#2563eb', villa: '#ec4899', hotel: '#ef4444',
 };
-const STATUS_LABEL: Record<string, string> = { sale: 'იყიდება', rent: 'ქირავდება' };
-const STATUS_COLOR: Record<string, string> = { sale: '#f59e0b', rent: '#10B981' };
+const STATUS_LABEL: Record<string, string> = { sale: 'იყიდება', rent: 'ქირავდება', both: 'იყიდება + ქირავდება' };
+/** A listing marked "both" is offered for sale and for rent at once. */
+const sellsAt = (p: AdminPropertyRow) => p.status === 'sale' || p.status === 'both';
+const rentsAt = (p: AdminPropertyRow) => p.status === 'rent' || p.status === 'both';
+
+/* Lifecycle vocabulary is the client's own: new → current → old → new R */
+const LIFECYCLE_ORDER = ['new', 'current', 'old', 'new_r'] as const;
+
+const LIFECYCLE_META: Record<string, { label: string; note: string; color: string; bg: string }> = {
+  new:     { label: 'new',     note: 'ახლად დამატებული, ჯერ დაუმუშავებელი', color: '#2563eb', bg: '#eff6ff' },
+  current: { label: 'current', note: 'აქტიურია — გამოქვეყნებულია და იყიდება/ქირავდება', color: '#10b981', bg: '#ecfdf5' },
+  old:     { label: 'old',     note: 'გაქირავდა/გაიყიდა — ვადით გაჩერებული', color: '#64748b', bg: '#f1f5f9' },
+  new_r:   { label: 'new R',   note: 'ვადა გავიდა — თავისუფლდება, დასარეკი და გადასამოწმებელი', color: '#ef4444', bg: '#fef2f2' },
+};
+
+const RENT_TERMS = [6, 12, 18, 24];
+
+const SOURCE_LABEL: Record<string, string> = {
+  'myhome.ge': 'myhome.ge',
+  'ss.ge': 'ss.ge',
+  manual: 'ხელით',
+};
+
+const PRICE_SOURCE_LABEL: Record<string, string> = {
+  admin: 'ადმინ პანელი',
+  import: 'იმპორტი',
+  system: 'სისტემა',
+};
 
 const GEL = (n: number | string) => Number(n).toLocaleString('ka-GE') + ' ₾';
+
+const lifecycleOf = (p: AdminPropertyRow) => (p.lifecycleState && LIFECYCLE_META[p.lifecycleState] ? p.lifecycleState : 'new');
+
+/** The address minus the district and city, which are shown separately. */
+function streetOf(p: AdminPropertyRow): string {
+  const parts = (p.address || '').split(',').map(s => s.trim()).filter(Boolean);
+  const skip = new Set([p.city, p.district].filter(Boolean));
+  return parts.filter(part => !skip.has(part)).join(', ');
+}
+
+/** Whole days from today; negative once the date is in the past. */
+function daysUntil(dateStr?: string | null): number | null {
+  if (!dateStr) return null;
+  const target = new Date(`${dateStr.slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(target.getTime())) return null;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return Math.round((target.getTime() - today.getTime()) / 86_400_000);
+}
+
+function addMonthsISO(startedAt: string, months: number): string {
+  const date = new Date(`${startedAt}T00:00:00Z`);
+  const day = date.getUTCDate();
+  date.setUTCDate(1);
+  date.setUTCMonth(date.getUTCMonth() + months);
+  const lastDay = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 0)).getUTCDate();
+  date.setUTCDate(Math.min(day, lastDay));
+  return date.toISOString().slice(0, 10);
+}
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 function Badge({ label, color }: { label: string; color: string }) {
   return (
@@ -97,13 +233,14 @@ function ImgThumb({ src, large }: { src?: string; large?: boolean }) {
   );
 }
 
-function fmtDate(iso?: string) {
+function fmtDate(iso?: string | null) {
   if (!iso) return '—';
-  try {
-    return new Date(iso).toLocaleDateString('ka-GE', { day: '2-digit', month: 'short', year: 'numeric' });
-  } catch {
-    return '—';
-  }
+  return formatGeorgianShortDate(iso) || '—';
+}
+
+function fmtDateTime(iso?: string | null) {
+  if (!iso) return '—';
+  return formatGeorgianDateTime(iso) || '—';
 }
 
 function sortValue(p: AdminPropertyRow, key: SortKey): string | number {
@@ -112,7 +249,8 @@ function sortValue(p: AdminPropertyRow, key: SortKey): string | number {
     case 'price': return Number(p.price) || 0;
     case 'pricePerSqm': return Number(p.pricePerSqm) || 0;
     case 'area': return Number(p.area) || 0;
-    case 'city': return `${p.city} ${p.district}`.toLowerCase();
+    case 'city': return `${p.district} ${streetOf(p)} ${p.city}`.toLowerCase();
+    case 'owner': return (p.owner?.name || '').toLowerCase();
     case 'type': return p.type || '';
     case 'status': return p.status || '';
     case 'bedrooms': return p.bedrooms || 0;
@@ -120,6 +258,8 @@ function sortValue(p: AdminPropertyRow, key: SortKey): string | number {
     case 'viewCount': return p.viewCount || 0;
     case 'createdAt': return p.createdAt || p.listedDate || '';
     case 'agentName': return (p.agentName || '').toLowerCase();
+    /* new R first, then the ones about to free up. */
+    case 'lifecycle': return LIFECYCLE_ORDER.indexOf(lifecycleOf(p) as (typeof LIFECYCLE_ORDER)[number]);
     default: return 0;
   }
 }
@@ -290,7 +430,7 @@ function SortDropdown({
         onClick={() => setOpen(o => !o)}
         className="inline-flex items-center gap-2 pl-3 pr-2.5 py-2 rounded-xl text-xs font-bold border transition-all duration-200"
         style={{
-          background: 'linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%)',
+          background: '#f8fafc',
           borderColor: '#bfdbfe',
           color: '#2563eb',
           boxShadow: 'none',
@@ -378,17 +518,1013 @@ function SortHeader({
   );
 }
 
-interface AdminPropertiesSectionProps {
-  properties: AdminPropertyRow[];
-  onPatch: (id: string, field: 'isPremium' | 'isFeatured' | 'isNew', value: boolean) => void;
-  onDelete: (id: string) => void;
+/* Portalled so the table's horizontal scroll container cannot clip it. */
+function AnchoredPopover({
+  anchor, width = 300, onClose, children,
+}: {
+  anchor: HTMLElement | null;
+  width?: number;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!anchor) return;
+    const place = () => {
+      const rect = anchor.getBoundingClientRect();
+      const height = ref.current?.offsetHeight ?? 280;
+      const fitsBelow = window.innerHeight - rect.bottom > height + 16;
+      setPos({
+        top: fitsBelow ? rect.bottom + 8 : Math.max(12, rect.top - height - 8),
+        left: Math.min(Math.max(12, rect.left), window.innerWidth - width - 12),
+      });
+    };
+    place();
+    window.addEventListener('resize', place);
+    window.addEventListener('scroll', place, true);
+    return () => {
+      window.removeEventListener('resize', place);
+      window.removeEventListener('scroll', place, true);
+    };
+  }, [anchor, width]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onDown = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (ref.current?.contains(target) || anchor?.contains(target)) return;
+      onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    document.addEventListener('mousedown', onDown);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.removeEventListener('mousedown', onDown);
+    };
+  }, [anchor, onClose]);
+
+  return createPortal(
+    <div
+      ref={ref}
+      className="rounded-2xl border border-slate-200 bg-white p-3.5"
+      style={{
+        position: 'fixed',
+        top: pos?.top ?? -9999,
+        left: pos?.left ?? -9999,
+        width,
+        zIndex: 80,
+        boxShadow: '0 20px 50px rgba(15,23,42,0.16), 0 4px 12px rgba(15,23,42,0.08)',
+      }}
+    >
+      {children}
+    </div>,
+    document.body,
+  );
 }
 
-export default function AdminPropertiesSection({ properties, onPatch, onDelete }: AdminPropertiesSectionProps) {
-  const navigate = useNavigate();
+/* ── ID + link to the original ad it was imported from ── */
+function IdCell({ p }: { p: AdminPropertyRow }) {
+  const [copied, setCopied] = useState(false);
+  const sourceLabel = p.source ? SOURCE_LABEL[p.source] ?? p.source : null;
+  const numeric = /^\d{8}$/.test(p.id);
 
+  async function copyId() {
+    try {
+      await navigator.clipboard.writeText(p.id);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      /* clipboard blocked */
+    }
+  }
+
+  return (
+    <div className="min-w-0">
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          onClick={copyId}
+          title="ID-ის კოპირება"
+          className="group/id inline-flex items-center gap-1.5 rounded-lg px-1.5 py-1 -ml-1.5 transition-all hover:bg-blue-50"
+        >
+          <span
+            className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[9px] font-extrabold tracking-tight"
+            style={{
+              background: numeric ? '#2563eb' : '#e2e8f0',
+              color: numeric ? '#fff' : '#64748b',
+            }}
+          >
+            #
+          </span>
+          <span
+            className="font-mono text-[13px] font-extrabold tracking-wide tabular-nums transition-colors"
+            style={{ color: copied ? '#059669' : '#0f172a', letterSpacing: '0.04em' }}
+          >
+            {p.id}
+          </span>
+          {copied
+            ? <Check size={12} className="text-emerald-500" />
+            : <Copy size={11} className="opacity-30 group-hover/id:opacity-70 text-slate-500" />}
+        </button>
+
+        {p.sourceUrl ? (
+          <a
+            href={p.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            title={`ორიგინალი განცხადება: ${p.sourceUrl}`}
+            className="p-1 rounded-md text-blue-500 hover:text-white hover:bg-blue-500 transition-colors"
+          >
+            <ExternalLink size={12} />
+          </a>
+        ) : null}
+      </div>
+
+      <p className="text-[10px] font-semibold text-slate-400 mt-0.5 truncate pl-0.5">
+        {copied ? 'დაკოპირდა' : sourceLabel ?? (p.sourceId ? `#${p.sourceId}` : 'ხელით დამატებული')}
+      </p>
+    </div>
+  );
+}
+
+/* One editable money value — used for both the sale and the rent price. */
+function InlineMoney({
+  value, label, labelColor, suffix, onSave, delta,
+}: {
+  value: number | null;
+  label: string;
+  labelColor: string;
+  suffix?: string;
+  onSave: (next: number) => Promise<void>;
+  delta?: { previous: number; current: number } | null;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [saving, setSaving] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.select();
+  }, [editing]);
+
+  async function commit() {
+    const next = Number(draft.replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(next) || next < 0 || next === value) {
+      setEditing(false);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave(next);
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1 py-0.5">
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter') commit();
+            if (e.key === 'Escape') setEditing(false);
+          }}
+          disabled={saving}
+          className="w-[92px] px-2 py-1 rounded-lg border border-blue-300 bg-white text-xs font-bold text-slate-800 focus:outline-none focus:border-blue-500"
+        />
+        <button
+          type="button"
+          onClick={commit}
+          disabled={saving}
+          className="p-1 rounded-lg bg-emerald-500 text-white hover:bg-emerald-600 disabled:opacity-60"
+          title="შენახვა"
+        >
+          {saving ? <Loader2 size={11} className="animate-spin" /> : <Check size={11} strokeWidth={3} />}
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditing(false)}
+          className="p-1 rounded-lg bg-slate-100 text-slate-500 hover:bg-slate-200"
+          title="გაუქმება"
+        >
+          <X size={11} strokeWidth={3} />
+        </button>
+      </div>
+    );
+  }
+
+  const diff = delta ? delta.current - delta.previous : 0;
+  const pct = delta && delta.previous ? Math.abs(diff / delta.previous) * 100 : 0;
+
+  return (
+    <div className="flex items-center gap-1.5 whitespace-nowrap">
+      <span className="text-[9px] font-extrabold uppercase tracking-wide" style={{ color: labelColor }}>
+        {label}
+      </span>
+      <button
+        type="button"
+        onClick={() => { setDraft(value ? String(Math.round(value)) : ''); setEditing(true); }}
+        title="ფასის შეცვლა"
+        className="font-extrabold text-slate-800 hover:text-blue-600 transition-colors text-[13px]"
+      >
+        {value ? GEL(value) : <span className="text-slate-300">ფასი —</span>}
+        {value && suffix ? <span className="text-[10px] font-bold text-slate-400">{suffix}</span> : null}
+      </button>
+
+      {delta && diff !== 0 && (
+        <span
+          className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded-md text-[9px] font-extrabold"
+          style={diff > 0 ? { background: '#fef2f2', color: '#ef4444' } : { background: '#ecfdf5', color: '#10b981' }}
+        >
+          {diff > 0 ? <ArrowUp size={8} strokeWidth={3} /> : <ArrowDown size={8} strokeWidth={3} />}
+          {pct >= 0.1 ? `${pct.toFixed(pct < 10 ? 1 : 0)}%` : ''}
+        </span>
+      )}
+    </div>
+  );
+}
+
+/* ── Sale and/or rent price, inline editable, with the full change log ── */
+function PriceCell({
+  p, onPatch,
+}: {
+  p: AdminPropertyRow;
+  onPatch: (id: string, patch: PropertyPatch) => Promise<void>;
+}) {
+  const [historyAnchor, setHistoryAnchor] = useState<HTMLElement | null>(null);
+
+  const history = p.priceHistory ?? [];
+  const lastChange = history.find(h => h.oldPrice != null && h.oldPrice !== '');
+  const previous = lastChange ? Number(lastChange.oldPrice) : null;
+  const current = Number(p.price) || 0;
+  const rent = p.rentPrice == null || p.rentPrice === '' ? null : Number(p.rentPrice);
+
+  const sells = sellsAt(p);
+  const rents = rentsAt(p);
+
+  return (
+    <div className="min-w-0 space-y-0.5">
+      {sells && (
+        <InlineMoney
+          value={current}
+          label="იყიდება"
+          labelColor="#f59e0b"
+          onSave={next => onPatch(p.id, { price: next })}
+          delta={previous !== null ? { previous, current } : null}
+        />
+      )}
+
+      {rents && (
+        <InlineMoney
+          value={p.status === 'rent' ? current : rent}
+          label="ქირავდება"
+          labelColor="#10b981"
+          suffix="/თვე"
+          onSave={next => onPatch(p.id, p.status === 'rent' ? { price: next } : { rentPrice: next })}
+          delta={p.status === 'rent' && previous !== null ? { previous, current } : null}
+        />
+      )}
+
+      <button
+        type="button"
+        onClick={e => setHistoryAnchor(historyAnchor ? null : e.currentTarget)}
+        className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-blue-600 mt-0.5 transition-colors"
+        title="ფასის ისტორია"
+      >
+        <History size={10} />
+        {previous !== null
+          ? <span>წინა: <b className="text-slate-500">{GEL(previous)}</b></span>
+          : <span>ისტორია ({history.length})</span>}
+      </button>
+
+      {historyAnchor && (
+        <AnchoredPopover anchor={historyAnchor} width={310} onClose={() => setHistoryAnchor(null)}>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">ფასის ისტორია</p>
+          {history.length === 0 ? (
+            <p className="text-xs text-slate-400 py-2">ცვლილება ჯერ არ დაფიქსირებულა</p>
+          ) : (
+            <div className="max-h-[260px] overflow-y-auto -mx-1 px-1">
+              {history.map(change => {
+                const from = change.oldPrice == null || change.oldPrice === '' ? null : Number(change.oldPrice);
+                const to = Number(change.newPrice);
+                const up = from !== null && to > from;
+                return (
+                  <div key={change.id} className="py-2 border-b border-slate-50 last:border-0">
+                    <div className="flex items-center gap-1.5 text-xs">
+                      {from !== null ? (
+                        <>
+                          <span className="text-slate-400 line-through">{GEL(from)}</span>
+                          <span className="text-slate-300">→</span>
+                          <span className="font-bold text-slate-800">{GEL(to)}</span>
+                          <span
+                            className="ml-auto inline-flex items-center gap-0.5 text-[10px] font-extrabold"
+                            style={{ color: up ? '#ef4444' : '#10b981' }}
+                          >
+                            {up ? <ArrowUp size={9} strokeWidth={3} /> : <ArrowDown size={9} strokeWidth={3} />}
+                            {GEL(Math.abs(to - from))}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-bold text-slate-800">{GEL(to)}</span>
+                          <span className="ml-auto text-[10px] font-bold text-slate-400">დამატება</span>
+                        </>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      {fmtDateTime(change.createdAt)} · {PRICE_SOURCE_LABEL[change.source] ?? change.source}
+                      {change.changedBy ? ` · ${change.changedBy}` : ''}
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </AnchoredPopover>
+      )}
+    </div>
+  );
+}
+
+/* ── Lifecycle state with the rental term that turns "old" into "new R" ── */
+function LifecycleCell({
+  p, onPatch,
+}: {
+  p: AdminPropertyRow;
+  onPatch: (id: string, patch: PropertyPatch) => Promise<void>;
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const state = lifecycleOf(p);
+  const meta = LIFECYCLE_META[state];
+  const days = daysUntil(p.rentExpiresAt);
+
+  const [draftState, setDraftState] = useState(state);
+  const [draftTerm, setDraftTerm] = useState<number | null>(p.rentTermMonths ?? 12);
+  const [draftStart, setDraftStart] = useState(p.rentStartedAt?.slice(0, 10) ?? todayISO());
+  const [draftEnd, setDraftEnd] = useState(p.rentExpiresAt?.slice(0, 10) ?? '');
+  const [draftNote, setDraftNote] = useState(p.lifecycleNote ?? '');
+
+  function openEditor(e: ReactMouseEvent<HTMLButtonElement>) {
+    setDraftState(state);
+    setDraftTerm(p.rentTermMonths ?? 12);
+    setDraftStart(p.rentStartedAt?.slice(0, 10) ?? todayISO());
+    setDraftEnd(p.rentExpiresAt?.slice(0, 10) ?? addMonthsISO(p.rentStartedAt?.slice(0, 10) ?? todayISO(), p.rentTermMonths ?? 12));
+    setDraftNote(p.lifecycleNote ?? '');
+    setAnchor(anchor ? null : e.currentTarget);
+  }
+
+  function pickTerm(months: number) {
+    setDraftTerm(months);
+    setDraftEnd(addMonthsISO(draftStart || todayISO(), months));
+  }
+
+  function pickStart(value: string) {
+    setDraftStart(value);
+    if (draftTerm) setDraftEnd(addMonthsISO(value || todayISO(), draftTerm));
+  }
+
+  const parked = draftState === 'old' || draftState === 'new_r';
+
+  async function save() {
+    setSaving(true);
+    try {
+      await onPatch(p.id, {
+        lifecycleState: draftState,
+        rentTermMonths: parked ? draftTerm : null,
+        rentStartedAt: parked ? draftStart || todayISO() : null,
+        rentExpiresAt: parked ? draftEnd || null : null,
+        lifecycleNote: draftNote.trim(),
+      });
+      setAnchor(null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="min-w-0">
+      <button
+        type="button"
+        onClick={openEditor}
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-extrabold transition-all hover:brightness-95"
+        style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.color}25` }}
+        title={meta.note}
+      >
+        {state === 'new_r' && <PhoneCall size={10} strokeWidth={2.6} />}
+        {meta.label}
+        <ChevronDown size={10} className="opacity-50" />
+      </button>
+
+      {state === 'old' && p.rentExpiresAt && (
+        <p
+          className="text-[10px] font-semibold mt-1 flex items-center gap-1 whitespace-nowrap"
+          style={{ color: days !== null && days <= 30 ? '#d97706' : '#94a3b8' }}
+        >
+          <CalendarClock size={10} />
+          {fmtDate(p.rentExpiresAt)}
+          {days !== null && days >= 0 && <span>· {days} დღე</span>}
+        </p>
+      )}
+
+      {state === 'new_r' && (
+        <p className="text-[10px] font-bold text-red-500 mt-1 whitespace-nowrap">
+          {days !== null && days < 0 ? `ვადა ${Math.abs(days)} დღის წინ გავიდა` : 'ვადა გავიდა — დაურეკე'}
+        </p>
+      )}
+
+      {anchor && (
+        <AnchoredPopover anchor={anchor} width={318} onClose={() => setAnchor(null)}>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">განცხადების სტატუსი</p>
+
+          <div className="space-y-1">
+            {LIFECYCLE_ORDER.map(key => {
+              const item = LIFECYCLE_META[key];
+              const selected = draftState === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setDraftState(key)}
+                  className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-xl text-left transition-colors"
+                  style={selected ? { background: item.bg, border: `1px solid ${item.color}30` } : { border: '1px solid transparent' }}
+                  onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLElement).style.background = '#f8fafc'; }}
+                  onMouseLeave={e => { if (!selected) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                >
+                  <span
+                    className="mt-0.5 w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ background: selected ? item.color : '#cbd5e1' }}
+                  />
+                  <span className="min-w-0">
+                    <span className="block text-xs font-extrabold" style={{ color: selected ? item.color : '#334155' }}>
+                      {item.label}
+                    </span>
+                    <span className="block text-[10px] text-slate-400 leading-snug">{item.note}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          {parked && (
+            <div className="mt-3 pt-3 border-t border-slate-100 space-y-2.5">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">ვადა</p>
+                <div className="flex flex-wrap gap-1">
+                  {RENT_TERMS.map(months => (
+                    <button
+                      key={months}
+                      type="button"
+                      onClick={() => pickTerm(months)}
+                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors"
+                      style={
+                        draftTerm === months
+                          ? { background: '#eff6ff', borderColor: '#bfdbfe', color: '#2563eb' }
+                          : { background: '#fff', borderColor: '#e2e8f0', color: '#64748b' }
+                      }
+                    >
+                      {months} თვე
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block">
+                  <span className="block text-[10px] font-bold text-slate-400 mb-1">დაწყება</span>
+                  <input
+                    type="date"
+                    value={draftStart}
+                    onChange={e => pickStart(e.target.value)}
+                    className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 focus:outline-none focus:border-blue-400"
+                  />
+                </label>
+                <label className="block">
+                  <span className="block text-[10px] font-bold text-slate-400 mb-1">თავისუფლდება</span>
+                  <input
+                    type="date"
+                    value={draftEnd}
+                    onChange={e => { setDraftEnd(e.target.value); setDraftTerm(null); }}
+                    className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 focus:outline-none focus:border-blue-400"
+                  />
+                </label>
+              </div>
+
+              <input
+                value={draftNote}
+                onChange={e => setDraftNote(e.target.value)}
+                placeholder="შენიშვნა (მოიჯარე, ხელშეკრულება...)"
+                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 placeholder-slate-300 focus:outline-none focus:border-blue-400"
+              />
+
+              {draftEnd && (
+                <p className="text-[10px] text-slate-400">
+                  ვადის გასვლის შემდეგ სტატუსი ავტომატურად გახდება <b className="text-red-500">new R</b> და გამოჩნდება დასარეკებში.
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              type="button"
+              onClick={save}
+              disabled={saving}
+              className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60"
+              style={{ background: '#059669' }}
+            >
+              {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} strokeWidth={3} />}
+              შენახვა
+            </button>
+            <button
+              type="button"
+              onClick={() => setAnchor(null)}
+              className="px-3 py-2 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200"
+            >
+              გაუქმება
+            </button>
+          </div>
+        </AnchoredPopover>
+      )}
+    </div>
+  );
+}
+
+/* ── Owner: name in the row, full record in a popover ── */
+const OWNER_FIELDS: { key: keyof PropertyOwnerInfo; label: string; placeholder: string; icon: LucideIcon }[] = [
+  { key: 'name',     label: 'სახელი გვარი',    placeholder: 'ნინო ბერიძე',        icon: User },
+  { key: 'phone',    label: 'ტელეფონი',        placeholder: '+995 5XX XXX XXX',   icon: Phone },
+  { key: 'email',    label: 'Email',           placeholder: 'owner@mail.com',     icon: Mail },
+  { key: 'idNumber', label: 'პირადი ნომერი',   placeholder: '01001XXXXXX',        icon: IdCard },
+  { key: 'address',  label: 'მისამართი',       placeholder: 'ქ. თბილისი, ...',    icon: MapPin },
+];
+
+function OwnerCell({
+  p, onPatch,
+}: {
+  p: AdminPropertyRow;
+  onPatch: (id: string, patch: PropertyPatch) => Promise<void>;
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [draft, setDraft] = useState<PropertyOwnerInfo>({});
+
+  const owner = p.owner ?? {};
+  const filled = Object.values(owner).some(v => v && String(v).trim());
+
+  function open(e: ReactMouseEvent<HTMLButtonElement>) {
+    setDraft({ ...owner });
+    setEditing(!filled);
+    setAnchor(anchor ? null : e.currentTarget);
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      await onPatch(p.id, { owner: draft });
+      setEditing(false);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="min-w-0">
+      <button
+        type="button"
+        onClick={open}
+        className="text-left min-w-0 max-w-[140px] group/owner"
+        title="მესაკუთრის ინფორმაცია"
+      >
+        {filled ? (
+          <>
+            <span className="block text-xs font-bold text-slate-700 truncate group-hover/owner:text-blue-600 transition-colors">
+              {owner.name || 'უსახელო'}
+            </span>
+            <span className="block text-[10px] text-slate-400 truncate">
+              {owner.phone || owner.email || 'დეტალები'}
+            </span>
+          </>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-blue-500 transition-colors">
+            <Plus size={11} /> მესაკუთრე
+          </span>
+        )}
+      </button>
+
+      {anchor && (
+        <AnchoredPopover anchor={anchor} width={320} onClose={() => setAnchor(null)}>
+          <div className="flex items-center justify-between mb-2.5">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">მესაკუთრე</p>
+            {!editing && (
+              <button
+                type="button"
+                onClick={() => { setDraft({ ...owner }); setEditing(true); }}
+                className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline"
+              >
+                <Pencil size={10} /> რედაქტირება
+              </button>
+            )}
+          </div>
+
+          {editing ? (
+            <div className="space-y-2">
+              {OWNER_FIELDS.map(field => (
+                <label key={field.key} className="block">
+                  <span className="block text-[10px] font-bold text-slate-400 mb-1">{field.label}</span>
+                  <input
+                    value={draft[field.key] ?? ''}
+                    onChange={e => setDraft(d => ({ ...d, [field.key]: e.target.value }))}
+                    placeholder={field.placeholder}
+                    className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 placeholder-slate-300 focus:outline-none focus:border-blue-400"
+                  />
+                </label>
+              ))}
+              <label className="block">
+                <span className="block text-[10px] font-bold text-slate-400 mb-1">შენიშვნა</span>
+                <textarea
+                  value={draft.note ?? ''}
+                  onChange={e => setDraft(d => ({ ...d, note: e.target.value }))}
+                  rows={2}
+                  placeholder="რეესტრი, თანამესაკუთრეები, სპეციფიკა..."
+                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 placeholder-slate-300 resize-none focus:outline-none focus:border-blue-400"
+                />
+              </label>
+
+              <div className="flex items-center gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={save}
+                  disabled={saving}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60"
+                  style={{ background: '#059669' }}
+                >
+                  {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} strokeWidth={3} />}
+                  შენახვა
+                </button>
+                <button
+                  type="button"
+                  onClick={() => (filled ? setEditing(false) : setAnchor(null))}
+                  className="px-3 py-2 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200"
+                >
+                  გაუქმება
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {OWNER_FIELDS.filter(f => owner[f.key]).map(field => (
+                <div key={field.key} className="flex items-start gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-slate-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                    <field.icon size={11} className="text-slate-400" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400">{field.label}</p>
+                    <p className="text-xs font-semibold text-slate-700 break-words">{owner[field.key]}</p>
+                  </div>
+                </div>
+              ))}
+              {owner.note && (
+                <div className="pt-2 mt-1 border-t border-slate-100">
+                  <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400 mb-1">შენიშვნა</p>
+                  <p className="text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap">{owner.note}</p>
+                </div>
+              )}
+            </div>
+          )}
+        </AnchoredPopover>
+      )}
+    </div>
+  );
+}
+
+/* ── Signed agreements kept against the listing ── */
+function docKind(url: string): PropertyContractDoc['kind'] {
+  const clean = url.split('?')[0].toLowerCase();
+  if (clean.endsWith('.pdf')) return 'pdf';
+  if (/\.(jpe?g|png|webp|heic|gif)$/.test(clean)) return 'image';
+  return 'link';
+}
+
+function ContractCell({
+  p, onPatch,
+}: {
+  p: AdminPropertyRow;
+  onPatch: (id: string, patch: PropertyPatch) => Promise<void>;
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState('');
+  const [url, setUrl] = useState('');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const { upload, uploading, error: uploadError } = useFileUpload();
+
+  const docs = p.contracts ?? [];
+  const signed = docs.length > 0;
+
+  async function persist(next: PropertyContractDoc[]) {
+    setSaving(true);
+    try {
+      await onPatch(p.id, { contracts: next });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function attachFiles(files: FileList | null) {
+    if (!files?.length) return;
+    const uploaded = await upload(files);
+    if (!uploaded.length) return;
+    await persist([
+      ...docs,
+      ...uploaded.map((file: UploadedFile, i: number) => ({
+        id: `c${Date.now().toString(36)}${i}`,
+        title: title.trim() || file.name,
+        url: file.url,
+        kind: file.kind === 'pdf' ? ('pdf' as const) : ('image' as const),
+        addedAt: new Date().toISOString(),
+      })),
+    ]);
+    setTitle('');
+  }
+
+  async function add() {
+    const link = url.trim();
+    if (!link) return;
+    await persist([
+      ...docs,
+      {
+        id: `c${Date.now().toString(36)}`,
+        title: title.trim() || 'ხელშეკრულება',
+        url: link,
+        kind: docKind(link),
+        addedAt: new Date().toISOString(),
+      },
+    ]);
+    setTitle('');
+    setUrl('');
+  }
+
+  return (
+    <div className="min-w-0">
+      <button
+        type="button"
+        onClick={e => setAnchor(anchor ? null : e.currentTarget)}
+        className="inline-flex items-center gap-1.5"
+        title={signed ? `${docs.length} ხელშეკრულება` : 'ხელშეკრულება არ არის'}
+      >
+        <span
+          className="w-[18px] h-[18px] rounded-[6px] border-2 flex items-center justify-center transition-all"
+          style={
+            signed
+              ? { background: '#10b981', borderColor: '#10b981' }
+              : { background: '#fff', borderColor: '#cbd5e1' }
+          }
+        >
+          {signed && <Check size={11} strokeWidth={4} className="text-white" />}
+        </span>
+        <span className="text-[10px] font-bold" style={{ color: signed ? '#059669' : '#94a3b8' }}>
+          {signed ? `${docs.length} ფაილი` : 'არა'}
+        </span>
+      </button>
+
+      {anchor && (
+        <AnchoredPopover anchor={anchor} width={330} onClose={() => setAnchor(null)}>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2.5">
+            ხელშეკრულებები მესაკუთრესთან
+          </p>
+
+          {docs.length === 0 ? (
+            <p className="text-[11px] text-slate-400 pb-2">ჯერ არაფერია მიმაგრებული</p>
+          ) : (
+            <div className="space-y-1.5 mb-3 max-h-[180px] overflow-y-auto -mx-1 px-1">
+              {docs.map(doc => (
+                <div key={doc.id} className="flex items-center gap-2 p-2 rounded-xl bg-slate-50">
+                  <span
+                    className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                    style={{ background: doc.kind === 'pdf' ? '#fef2f2' : doc.kind === 'image' ? '#eff6ff' : '#f1f5f9' }}
+                  >
+                    {doc.kind === 'image'
+                      ? <ImageIcon size={12} className="text-blue-500" />
+                      : <FileText size={12} className={doc.kind === 'pdf' ? 'text-red-500' : 'text-slate-400'} />}
+                  </span>
+                  <a
+                    href={doc.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="min-w-0 flex-1 group/doc"
+                  >
+                    <span className="block text-[11px] font-bold text-slate-700 truncate group-hover/doc:text-blue-600">
+                      {doc.title}
+                    </span>
+                    <span className="block text-[9px] text-slate-400">{fmtDate(doc.addedAt)}</span>
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => persist(docs.filter(d => d.id !== doc.id))}
+                    className="p-1 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50"
+                    title="მოხსნა"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div className="space-y-1.5 pt-2 border-t border-slate-100">
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="დასახელება (მაგ. ექსკლუზივი 12.08)"
+              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 placeholder-slate-300 focus:outline-none focus:border-blue-400"
+            />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/pdf,image/*"
+              multiple
+              hidden
+              onChange={e => { void attachFiles(e.target.files); e.target.value = ''; }}
+            />
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploading || saving}
+              className="w-full inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40"
+              style={{ background: '#059669' }}
+            >
+              {uploading ? <Loader2 size={12} className="animate-spin" /> : <Upload size={12} strokeWidth={3} />}
+              PDF / ფოტოს ატვირთვა
+            </button>
+
+            <div className="flex items-center gap-1.5">
+              <input
+                value={url}
+                onChange={e => setUrl(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') add(); }}
+                placeholder="ან ჩასვით ბმული"
+                className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 placeholder-slate-300 focus:outline-none focus:border-blue-400"
+              />
+              <button
+                type="button"
+                onClick={add}
+                disabled={saving || !url.trim()}
+                className="p-1.5 rounded-lg bg-slate-100 text-slate-500 hover:bg-blue-50 hover:text-blue-600 disabled:opacity-40"
+                title="ბმულის მიმაგრება"
+              >
+                {saving ? <Loader2 size={12} className="animate-spin" /> : <Plus size={12} strokeWidth={3} />}
+              </button>
+            </div>
+
+            {uploadError && <p className="text-[10px] font-bold text-red-500">{uploadError}</p>}
+          </div>
+        </AnchoredPopover>
+      )}
+    </div>
+  );
+}
+
+/* ── Internal comments: registry details that must not reach the public site ── */
+function NotesButton({
+  p, onPatch,
+}: {
+  p: AdminPropertyRow;
+  onPatch: (id: string, patch: PropertyPatch) => Promise<void>;
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
+  const [text, setText] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const notes = p.internalNotes ?? [];
+
+  async function persist(next: InternalNoteRow[]) {
+    setSaving(true);
+    try {
+      await onPatch(p.id, { internalNotes: next });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function add() {
+    const body = text.trim();
+    if (!body) return;
+    await persist([
+      { id: `n${Date.now().toString(36)}`, text: body, createdAt: new Date().toISOString() },
+      ...notes,
+    ]);
+    setText('');
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={e => setAnchor(anchor ? null : e.currentTarget)}
+        className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold transition-colors"
+        style={
+          notes.length
+            ? { background: '#eff6ff', color: '#2563eb' }
+            : { background: '#f8fafc', color: '#94a3b8' }
+        }
+        title="შიდა კომენტარები"
+      >
+        <MessageSquare size={11} />
+        კომენტარი
+        {notes.length > 0 && (
+          <span className="px-1 rounded-md bg-blue-100 text-blue-700 text-[9px] font-extrabold">{notes.length}</span>
+        )}
+      </button>
+
+      {anchor && (
+        <AnchoredPopover anchor={anchor} width={340} onClose={() => setAnchor(null)}>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">შიდა კომენტარები</p>
+          <p className="text-[10px] text-slate-400 mb-2.5">ჩანს მხოლოდ ადმინში — საიტზე არ გამოქვეყნდება.</p>
+
+          <textarea
+            value={text}
+            onChange={e => setText(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) add(); }}
+            rows={3}
+            placeholder="რეესტრი ვის სახელზეა, დამატებითი დეტალები..."
+            className="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-[11px] text-slate-700 placeholder-slate-300 resize-none focus:outline-none focus:border-blue-400"
+          />
+          <button
+            type="button"
+            onClick={add}
+            disabled={saving || !text.trim()}
+            className="w-full mt-1.5 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-40"
+            style={{ background: '#2563eb' }}
+          >
+            {saving ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} strokeWidth={3} />}
+            შენახვა
+          </button>
+
+          {notes.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-slate-100 space-y-2 max-h-[220px] overflow-y-auto -mx-1 px-1">
+              {notes.map(note => (
+                <div key={note.id} className="group/note p-2 rounded-xl bg-slate-50">
+                  <p className="text-[11px] text-slate-700 leading-relaxed whitespace-pre-wrap">{note.text}</p>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[9px] text-slate-400">
+                      {fmtDateTime(note.createdAt)}{note.author ? ` · ${note.author}` : ''}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => persist(notes.filter(n => n.id !== note.id))}
+                      className="ml-auto p-0.5 rounded text-slate-300 hover:text-red-500 opacity-0 group-hover/note:opacity-100 transition-opacity"
+                      title="წაშლა"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </AnchoredPopover>
+      )}
+    </>
+  );
+}
+
+interface AdminPropertiesSectionProps {
+  properties: AdminPropertyRow[];
+  onPatch: (id: string, patch: PropertyPatch) => Promise<void>;
+  onDelete: (id: string) => void;
+  showToast?: (message: string, type?: 'success' | 'error') => void;
+}
+
+export default function AdminPropertiesSection({ properties, onPatch, onDelete, showToast }: AdminPropertiesSectionProps) {
+  const navigate = useNavigate();
+  const { user, can } = useAdminAuth();
+  const api = useApiRequest();
+
+  // The server already strips what this account may not see; these keep the
+  // matching controls out of the table so nothing looks editable but isn't.
+  const canPrice = can('listings.price');
+  const canOwner = can('listings.owner');
+  const canContracts = can('listings.contracts');
+  const canNotes = can('listings.notes');
+  const canFlags = can('listings.flags');
+  const canLifecycle = can('listings.lifecycle');
+  const canEdit = can('listings.edit');
+  const canDelete = can('listings.delete');
+  const canTasks = can('listings.tasks');
+
+  const [workPanel, setWorkPanel] = useState<AdminPropertyRow | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [badgeFilter, setBadgeFilter] = useState<BadgeFilter>('all');
   const [cityFilter, setCityFilter] = useState('all');
@@ -400,14 +1536,31 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'ka'));
   }, [properties]);
 
-  const stats = useMemo(() => ({
-    total: properties.length,
-    sale: properties.filter(p => p.status === 'sale').length,
-    rent: properties.filter(p => p.status === 'rent').length,
-    premium: properties.filter(p => p.isPremium).length,
-    featured: properties.filter(p => p.isFeatured).length,
-    views: properties.reduce((s, p) => s + (p.viewCount || 0), 0),
-  }), [properties]);
+  const stats = useMemo(() => {
+    const byState = (state: string) => properties.filter(p => lifecycleOf(p) === state).length;
+    return {
+      total: properties.length,
+      sale: properties.filter(sellsAt).length,
+      rent: properties.filter(rentsAt).length,
+      premium: properties.filter(p => p.isPremium).length,
+      views: properties.reduce((s, p) => s + (p.viewCount || 0), 0),
+      new: byState('new'),
+      current: byState('current'),
+      old: byState('old'),
+      newR: byState('new_r'),
+      freeingSoon: properties.filter(p => {
+        if (lifecycleOf(p) !== 'old') return false;
+        const days = daysUntil(p.rentExpiresAt);
+        return days !== null && days >= 0 && days <= 30;
+      }).length,
+    };
+  }, [properties]);
+
+  /* Rentals whose term ran out — the call-back list. */
+  const needsCall = useMemo(
+    () => properties.filter(p => lifecycleOf(p) === 'new_r'),
+    [properties],
+  );
 
   function handleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
@@ -452,16 +1605,21 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     let list = properties.filter(p => {
-      if (statusFilter !== 'all' && p.status !== statusFilter) return false;
+      if (statusFilter === 'sale' && !sellsAt(p)) return false;
+      if (statusFilter === 'rent' && !rentsAt(p)) return false;
+      if (lifecycleFilter !== 'all' && lifecycleOf(p) !== lifecycleFilter) return false;
       if (typeFilter !== 'all' && p.type !== typeFilter) return false;
       if (cityFilter !== 'all' && p.city !== cityFilter) return false;
       if (badgeFilter === 'premium' && !p.isPremium) return false;
       if (badgeFilter === 'featured' && !p.isFeatured) return false;
       if (badgeFilter === 'new' && !p.isNew) return false;
       if (!q) return true;
+      if (listingIdMatches(p.id, search.trim())) return true;
       const hay = [
-        p.title, p.city, p.district, p.agentName, p.agentPhone, p.agentEmail,
-        TYPE_LABELS[p.type], STATUS_LABEL[p.status], p.id,
+        p.title, p.city, p.district, p.address, p.agentName, p.agentPhone, p.agentEmail,
+        // Owner details are only searchable for accounts allowed to see them.
+        ...(canOwner ? [p.owner?.name, p.owner?.phone, p.owner?.email, p.owner?.idNumber] : []),
+        TYPE_LABELS[p.type], STATUS_LABEL[p.status], p.sourceId, p.source, p.lifecycleNote,
       ].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
@@ -475,13 +1633,15 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
       return 0;
     });
     return list;
-  }, [properties, search, statusFilter, typeFilter, cityFilter, badgeFilter, sortKey, sortDir]);
+  }, [properties, search, statusFilter, lifecycleFilter, typeFilter, cityFilter, badgeFilter, sortKey, sortDir, canOwner]);
 
-  const hasFilters = search || statusFilter !== 'all' || typeFilter !== 'all' || cityFilter !== 'all' || badgeFilter !== 'all';
+  const hasFilters = search || statusFilter !== 'all' || lifecycleFilter !== 'all'
+    || typeFilter !== 'all' || cityFilter !== 'all' || badgeFilter !== 'all';
 
   function clearFilters() {
     setSearch('');
     setStatusFilter('all');
+    setLifecycleFilter('all');
     setTypeFilter('all');
     setCityFilter('all');
     setBadgeFilter('all');
@@ -492,27 +1652,59 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { label: 'სულ', value: stats.total, color: '#2563eb', bg: '#eff6ff', icon: Building2 },
+          { label: 'სულ', value: stats.total, color: '#2563eb', bg: '#eff6ff', icon: Building2, filter: 'all' as LifecycleFilter },
           { label: 'იყიდება', value: stats.sale, color: '#f59e0b', bg: '#fffbeb', icon: TrendingUp },
           { label: 'ქირავდება', value: stats.rent, color: '#10b981', bg: '#ecfdf5', icon: Home },
-          { label: 'VIP', value: stats.premium, color: '#f59e0b', bg: '#fef9c3', icon: Zap },
-          { label: 'გამორჩეული', value: stats.featured, color: '#2563eb', bg: '#eff6ff', icon: Star },
+          { label: 'დასარეკი (new R)', value: stats.newR, color: '#ef4444', bg: '#fef2f2', icon: PhoneCall, filter: 'new_r' as LifecycleFilter },
+          { label: 'თავისუფლდება 30 დღეში', value: stats.freeingSoon, color: '#d97706', bg: '#fffbeb', icon: CalendarClock, filter: 'old' as LifecycleFilter },
           { label: 'ნახვები', value: stats.views.toLocaleString('ka-GE'), color: '#64748b', bg: '#f8fafc', icon: Eye },
-        ].map(({ label, value, color, bg, icon: Icon }) => (
-          <div
+        ].map(({ label, value, color, bg, icon: Icon, filter }) => (
+          <button
             key={label}
-            className="rounded-2xl p-4 border border-slate-100 bg-white shadow-sm"
+            type="button"
+            onClick={() => filter && setLifecycleFilter(filter)}
+            className={`text-left rounded-2xl p-4 border bg-white shadow-sm transition-all ${filter ? 'hover:border-slate-300 cursor-pointer' : 'cursor-default'}`}
+            style={{ borderColor: filter && lifecycleFilter === filter && filter !== 'all' ? color : '#f1f5f9' }}
           >
             <div className="flex items-center justify-between mb-2">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: bg }}>
                 <Icon size={15} style={{ color }} />
               </div>
             </div>
-            <p className="text-xl font-extrabold text-slate-800 leading-none">{value}</p>
-            <p className="text-[11px] font-semibold text-slate-400 mt-1 uppercase tracking-wide">{label}</p>
-          </div>
+            <p className="text-xl font-extrabold leading-none" style={{ color: value ? '#1e293b' : '#94a3b8' }}>{value}</p>
+            <p className="text-[11px] font-semibold text-slate-400 mt-1 uppercase tracking-wide leading-tight">{label}</p>
+          </button>
         ))}
       </div>
+
+      {/* Call-back reminder: rentals whose term ran out */}
+      {needsCall.length > 0 && lifecycleFilter !== 'new_r' && (
+        <div
+          className="rounded-2xl border p-4 flex flex-wrap items-center gap-3"
+          style={{ background: '#fef2f2', borderColor: '#fecaca' }}
+        >
+          <span className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
+            <PhoneCall size={16} className="text-red-500" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-extrabold text-slate-800">
+              {needsCall.length} განცხადებას ვადა გაუვიდა — გადასამოწმებელია
+            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5 truncate">
+              {needsCall.slice(0, 3).map(p => p.title || p.id).join(' · ')}
+              {needsCall.length > 3 ? ` · +${needsCall.length - 3}` : ''}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setLifecycleFilter('new_r')}
+            className="px-4 py-2 rounded-xl text-xs font-bold text-white flex-shrink-0"
+            style={{ background: '#dc2626' }}
+          >
+            სიის ნახვა
+          </button>
+        </div>
+      )}
 
       {/* Toolbar */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 sm:p-5 space-y-4">
@@ -523,8 +1715,8 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="ძიება: სათაური, ქალაქი, რაიონი, აგენტი, ID..."
-              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none bg-slate-50/50"
+              placeholder="ძიება ID-ით (24171150), სათაური, ქალაქი, აგენტი..."
+              className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none bg-slate-50/50 font-medium"
             />
             {search && (
               <button type="button" onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
@@ -536,11 +1728,47 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
             type="button"
             onClick={() => navigate('/admin/listings/new')}
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white flex-shrink-0"
-            style={{ background: 'linear-gradient(135deg, #059669, #10b981)' }}
+            style={{ background: '#059669' }}
           >
             <Plus size={16} strokeWidth={2.5} />
             ახალი განცხადება
           </button>
+        </div>
+
+        {/* Lifecycle: the client's own new → current → old → new R vocabulary */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mr-1">სტატუსი</span>
+          {([
+            ['all', 'ყველა', '#64748b', stats.total],
+            ['new', LIFECYCLE_META.new.label, LIFECYCLE_META.new.color, stats.new],
+            ['current', LIFECYCLE_META.current.label, LIFECYCLE_META.current.color, stats.current],
+            ['old', LIFECYCLE_META.old.label, LIFECYCLE_META.old.color, stats.old],
+            ['new_r', LIFECYCLE_META.new_r.label, LIFECYCLE_META.new_r.color, stats.newR],
+          ] as const).map(([value, label, color, countValue]) => {
+            const active = lifecycleFilter === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setLifecycleFilter(value)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all"
+                style={
+                  active
+                    ? { background: `${color}14`, borderColor: `${color}45`, color }
+                    : { background: '#fff', borderColor: '#e2e8f0', color: '#64748b' }
+                }
+              >
+                {value === 'new_r' && countValue > 0 && <PhoneCall size={11} />}
+                {label}
+                <span
+                  className="px-1.5 rounded-md text-[10px] font-extrabold"
+                  style={{ background: active ? `${color}20` : '#f1f5f9', color: active ? color : '#94a3b8' }}
+                >
+                  {countValue}
+                </span>
+              </button>
+            );
+          })}
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -608,46 +1836,53 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[1200px]">
+          <table className="w-full text-sm min-w-[1340px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/80">
-                <th className="text-left py-3.5 pl-5 pr-2 w-[240px]">
-                  <SortHeader label="განცხადება" sortKey="title" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                <th className="text-left py-3.5 pl-5 pr-2 w-[76px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ფოტო</th>
+                <th className="text-left py-3.5 px-2 w-[126px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ID / წყარო</th>
+                <th className="text-left py-3.5 px-2 w-[200px]">
+                  <SortHeader label="მისამართი" sortKey="city" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
-                <th className="text-left py-3.5 px-2">
-                  <SortHeader label="ტიპი" sortKey="type" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                </th>
-                <th className="text-left py-3.5 px-2">
-                  <SortHeader label="გარიგ." sortKey="status" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                </th>
-                <th className="text-left py-3.5 px-2">
+                <th className="text-left py-3.5 px-2 w-[172px]">
                   <SortHeader label="ფასი" sortKey="price" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
-                <th className="text-left py-3.5 px-2 hidden xl:table-cell">
+                {canOwner && (
+                  <th className="text-left py-3.5 px-2 w-[144px]">
+                    <SortHeader label="მესაკუთრე" sortKey="owner" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                  </th>
+                )}
+                <th className="text-left py-3.5 px-2 w-[142px]">
+                  <SortHeader label="სტატუსი" sortKey="lifecycle" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                </th>
+                {canContracts && (
+                  <th className="text-left py-3.5 px-2 w-[96px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ხელშეკრ.</th>
+                )}
+                <th className="text-left py-3.5 px-2 hidden lg:table-cell">
+                  <SortHeader label="ტიპი" sortKey="type" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                </th>
+                <th className="text-left py-3.5 px-2 hidden 2xl:table-cell">
                   <SortHeader label="₾/მ²" sortKey="pricePerSqm" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
                 <th className="text-left py-3.5 px-2">
-                  <SortHeader label="ფართი" sortKey="area" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                  <SortHeader label="პარამეტრები" sortKey="area" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
-                <th className="text-left py-3.5 px-2 hidden lg:table-cell">
-                  <SortHeader label="ოთახი" sortKey="bedrooms" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                </th>
-                <th className="text-left py-3.5 px-2 hidden lg:table-cell">
-                  <SortHeader label="სართ." sortKey="floor" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                </th>
-                <th className="text-left py-3.5 px-2 hidden xl:table-cell">
+                <th className="text-left py-3.5 px-2 hidden 2xl:table-cell">
                   <SortHeader label="აგენტი" sortKey="agentName" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
-                <th className="text-left py-3.5 px-2">
+                <th className="text-left py-3.5 px-2 hidden xl:table-cell">
                   <SortHeader label="ნახვა" sortKey="viewCount" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
-                <th className="text-left py-3.5 px-2 hidden md:table-cell">
+                <th className="text-left py-3.5 px-2 hidden xl:table-cell">
                   <SortHeader label="თარიღი" sortKey="createdAt" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
-                <th className="text-center py-3.5 px-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">VIP</th>
-                <th className="text-center py-3.5 px-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">გამ.</th>
-                <th className="text-center py-3.5 px-1 text-[10px] font-bold uppercase tracking-wider text-slate-500">ახ.</th>
-                <th className="py-3.5 pr-5 pl-2 w-[100px]" />
+                {canFlags && (
+                  <th className="text-center py-3.5 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">სტიკერები</th>
+                )}
+                <th
+                  className="py-3.5 pr-5 pl-2 w-[112px] sticky right-0 bg-slate-50"
+                  style={{ boxShadow: '-10px 0 12px -10px rgba(15,23,42,0.12)' }}
+                />
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
@@ -665,54 +1900,86 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
                     )}
                   </td>
                 </tr>
-              ) : filtered.map(p => (
-                <tr key={p.id} className="hover:bg-blue-50/30 transition-colors group">
+              ) : filtered.map(p => {
+                const state = lifecycleOf(p);
+                return (
+                <tr
+                  key={p.id}
+                  className="hover:bg-blue-50/30 transition-colors group"
+                  style={state === 'new_r' ? { background: 'rgba(239,68,68,0.045)' } : undefined}
+                >
                   <td className="py-3 pl-5 pr-2">
-                    <div className="flex items-center gap-3 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/listings/${p.id}/edit`)}
+                      className="relative block rounded-xl overflow-hidden hover:ring-2 hover:ring-blue-300 transition-all"
+                      title="რედაქტირება"
+                    >
                       <ImgThumb src={p.images?.[0]} large />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-bold text-slate-800 text-sm leading-snug line-clamp-2 max-w-[200px]" title={p.title}>
-                          {p.title || '—'}
-                        </p>
-                        <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1 truncate">
-                          <MapPin size={10} className="flex-shrink-0 text-blue-400" />
-                          {[p.district, p.city].filter(Boolean).join(', ') || '—'}
-                        </p>
-                        <p className="text-[10px] text-slate-300 font-mono mt-0.5 truncate" title={p.id}>{p.id.slice(0, 8)}…</p>
-                      </div>
+                      {p.images?.length > 1 && (
+                        <span className="absolute bottom-0.5 right-0.5 px-1 rounded-md bg-black/60 text-white text-[9px] font-bold">
+                          {p.images.length}
+                        </span>
+                      )}
+                    </button>
+                  </td>
+                  <td className="py-3 px-2">
+                    <IdCell p={p} />
+                  </td>
+                  <td className="py-3 px-2">
+                    <div className="min-w-0">
+                      <p className="font-bold text-slate-800 text-[13px] leading-snug truncate" title={p.address || undefined}>
+                        {[p.district, streetOf(p)].filter(Boolean).join(', ') || p.city || '—'}
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1 truncate" title={p.title}>
+                        <MapPin size={10} className="flex-shrink-0 text-blue-400" />
+                        {p.city || '—'}{p.title ? ` · ${p.title}` : ''}
+                      </p>
                     </div>
                   </td>
                   <td className="py-3 px-2">
+                    {canPrice
+                      ? <PriceCell p={p} onPatch={onPatch} />
+                      : <span className="text-sm font-extrabold text-slate-800 whitespace-nowrap">{GEL(p.price)}</span>}
+                  </td>
+                  {canOwner && (
+                    <td className="py-3 px-2">
+                      <OwnerCell p={p} onPatch={onPatch} />
+                    </td>
+                  )}
+                  <td className="py-3 px-2">
+                    {canLifecycle
+                      ? <LifecycleCell p={p} onPatch={onPatch} />
+                      : <Badge label={LIFECYCLE_META[state]?.label ?? state} color={LIFECYCLE_META[state]?.color ?? '#94a3b8'} />}
+                  </td>
+                  {canContracts && (
+                    <td className="py-3 px-2">
+                      <ContractCell p={p} onPatch={onPatch} />
+                    </td>
+                  )}
+                  <td className="py-3 px-2 hidden lg:table-cell">
                     <Badge label={TYPE_LABELS[p.type] || p.type} color={TYPE_COLORS[p.type] || '#94a3b8'} />
                   </td>
-                  <td className="py-3 px-2">
-                    <Badge label={STATUS_LABEL[p.status] || p.status} color={STATUS_COLOR[p.status] || '#94a3b8'} />
-                  </td>
-                  <td className="py-3 px-2 whitespace-nowrap">
-                    <p className="font-extrabold text-slate-800">{GEL(p.price)}</p>
-                  </td>
-                  <td className="py-3 px-2 hidden xl:table-cell whitespace-nowrap text-xs text-slate-500">
+                  <td className="py-3 px-2 hidden 2xl:table-cell whitespace-nowrap text-xs text-slate-500">
                     {p.pricePerSqm ? GEL(p.pricePerSqm) : '—'}
                   </td>
                   <td className="py-3 px-2 whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-700">
-                      <Ruler size={11} className="text-slate-400" />
-                      {p.area ? `${Number(p.area).toLocaleString('ka-GE')} მ²` : '—'}
-                    </span>
+                    <div className="flex items-center gap-2.5 text-xs text-slate-600">
+                      <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
+                        <Ruler size={11} className="text-slate-400" />
+                        {p.area ? `${Number(p.area).toLocaleString('ka-GE')} მ²` : '—'}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Bed size={11} className="text-slate-400" />
+                        {p.bedrooms || '—'}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <Layers size={11} className="text-slate-400" />
+                        {p.floor ? `${p.floor}${p.totalFloors ? `/${p.totalFloors}` : ''}` : '—'}
+                      </span>
+                    </div>
                   </td>
-                  <td className="py-3 px-2 hidden lg:table-cell">
-                    <span className="inline-flex items-center gap-1 text-xs text-slate-600">
-                      <Bed size={11} className="text-slate-400" />
-                      {p.bedrooms || '—'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-2 hidden lg:table-cell">
-                    <span className="inline-flex items-center gap-1 text-xs text-slate-600">
-                      <Layers size={11} className="text-slate-400" />
-                      {p.floor ? `${p.floor}${p.totalFloors ? `/${p.totalFloors}` : ''}` : '—'}
-                    </span>
-                  </td>
-                  <td className="py-3 px-2 hidden xl:table-cell max-w-[140px]">
+                  <td className="py-3 px-2 hidden 2xl:table-cell max-w-[140px]">
                     {p.agentName ? (
                       <div className="min-w-0">
                         <p className="text-xs font-semibold text-slate-700 truncate flex items-center gap-1">
@@ -730,62 +1997,100 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete }
                       <span className="text-xs text-slate-300">—</span>
                     )}
                   </td>
-                  <td className="py-3 px-2 whitespace-nowrap">
+                  <td className="py-3 px-2 hidden xl:table-cell whitespace-nowrap">
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
                       <Eye size={11} className="text-slate-400" />
                       {(p.viewCount ?? 0).toLocaleString('ka-GE')}
                     </span>
                   </td>
-                  <td className="py-3 px-2 hidden md:table-cell whitespace-nowrap">
+                  <td className="py-3 px-2 hidden xl:table-cell whitespace-nowrap">
                     <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
                       <Calendar size={10} className="text-slate-400" />
                       {fmtDate(p.createdAt || p.listedDate)}
                     </span>
                   </td>
-                  <td className="py-3 px-1 text-center">
-                    <Toggle on={p.isPremium} onToggle={() => onPatch(p.id, 'isPremium', !p.isPremium)} label="VIP" color="#f59e0b" />
-                  </td>
-                  <td className="py-3 px-1 text-center">
-                    <Toggle on={p.isFeatured} onToggle={() => onPatch(p.id, 'isFeatured', !p.isFeatured)} label="გამორჩეული" color="#2563eb" />
-                  </td>
-                  <td className="py-3 px-1 text-center">
-                    <Toggle on={p.isNew} onToggle={() => onPatch(p.id, 'isNew', !p.isNew)} label="ახალი" color="#10B981" />
-                  </td>
-                  <td className="py-3 pr-5 pl-2">
-                    <div className="flex items-center justify-end gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                      <a
-                        href={`/property/${p.id}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-2 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-                        title="საიტზე ნახვა"
-                      >
-                        <ExternalLink size={14} />
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/admin/listings/${p.id}/edit`)}
-                        className="p-2 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
-                        title="რედაქტირება"
-                      >
-                        <Pencil size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onDelete(p.id)}
-                        className="p-2 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
-                        title="წაშლა"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+                  {canFlags && (
+                    <td className="py-3 px-2">
+                      <div className="flex items-center justify-center gap-1.5">
+                        <Toggle on={p.isPremium} onToggle={() => onPatch(p.id, { isPremium: !p.isPremium })} label="VIP" color="#f59e0b" />
+                        <Toggle on={p.isFeatured} onToggle={() => onPatch(p.id, { isFeatured: !p.isFeatured })} label="გამორჩეული" color="#2563eb" />
+                        <Toggle on={p.isNew} onToggle={() => onPatch(p.id, { isNew: !p.isNew })} label="ახალი" color="#10B981" />
+                      </div>
+                    </td>
+                  )}
+                  <td
+                    className="py-3 pr-5 pl-2 sticky right-0 bg-white group-hover:bg-[#f5f9ff] transition-colors"
+                    style={{
+                      boxShadow: '-10px 0 12px -10px rgba(15,23,42,0.12)',
+                      ...(state === 'new_r' ? { background: '#fdf3f3' } : null),
+                    }}
+                  >
+                    <div className="flex flex-col items-end gap-1">
+                      <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
+                        <a
+                          href={`/property/${p.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
+                          title="საიტზე ნახვა"
+                        >
+                          <ExternalLink size={14} />
+                        </a>
+                        {canTasks && (
+                          <button
+                            type="button"
+                            onClick={() => setWorkPanel(p)}
+                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
+                            title="დავალებები და ზარები"
+                          >
+                            <ClipboardList size={14} />
+                          </button>
+                        )}
+                        {canEdit && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/admin/listings/${p.id}/edit`)}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
+                            title="რედაქტირება"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            type="button"
+                            onClick={() => onDelete(p.id)}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
+                            title="წაშლა"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </div>
+                      {canNotes && <NotesButton p={p} onPatch={onPatch} />}
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
       </div>
+
+      {workPanel && (
+        <ListingWorkPanel
+          propertyId={workPanel.id}
+          propertyTitle={workPanel.title}
+          ownerPhone={workPanel.owner?.phone ?? null}
+          api={api}
+          showToast={showToast ?? (() => {})}
+          currentUserId={user?.id ?? 0}
+          canAssignOthers={can('listings.assign')}
+          canLogCalls={canTasks}
+          onClose={() => setWorkPanel(null)}
+        />
+      )}
     </div>
   );
 }

@@ -5,39 +5,44 @@ import {
   Pencil, Trash2, X, Eye, TrendingUp, UserCheck,
   BookOpen, Search, CheckCircle, XCircle, Shield, Home,
   Star, Zap, Sparkles, Image as ImageIcon,
-  Phone, Mail, Globe, RefreshCw, ArrowUpRight, MapPin, Clock,
-  ExternalLink, type LucideIcon,
+  Phone, Globe, RefreshCw, ArrowUpRight, MapPin, Clock,
+  ExternalLink, Headphones, UserCog, Ban, Lock, type LucideIcon,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
-import AdminPropertiesSection from '../components/admin/AdminPropertiesSection';
+import AdminPropertiesSection, {
+  type AdminPropertyRow, type PropertyPatch,
+} from '../components/admin/AdminPropertiesSection';
+import AdminBrokersSection, { type BrokerRow } from '../components/admin/AdminBrokersSection';
+import AdminDeskSection, { type DeskTab } from '../components/admin/desk/AdminDeskSection';
+import StaffPermissionEditor from '../components/admin/StaffPermissionEditor';
 import BrandLogo from '../components/BrandLogo';
+import AdminFooter from '../components/admin/AdminFooter';
+import { formatGeorgianLongDate, formatGeorgianShortDate } from '../lib/dateFormat';
+import {
+  ROLE_DESCRIPTION, STAFF_ROLES,
+  canManageRole, roleColor, roleLabel, type Role,
+} from '../lib/permissions';
 
 // ─── TYPES ──────────────────────────────────────────────────────────────────
 
 interface Stats {
   properties: number; agents: number; blogPosts: number;
   adminUsers: number; totalViews: number;
+  members?: number; pendingModeration?: number;
+  scope?: 'own' | 'all';
   recentProperties: PropertyRow[];
+  needsCall?: number; freeingSoon?: number;
+  lifecycle?: Record<string, number>;
+  monthly?: { months: string[]; listings: number[]; views: number[] };
 }
 
-interface PropertyRow {
-  id: string; title: string; price: string; pricePerSqm: string;
-  city: string; district: string; type: string; status: string;
-  bedrooms: number; bathrooms: number; area: string; floor: number;
-  totalFloors: number; yearBuilt: number;
-  images: string[]; amenities: string[]; features: string[];
-  isFeatured: boolean; isNew: boolean; isPremium: boolean;
-  viewCount: number; listedDate: string; createdAt: string;
-  agentId: string; agentName: string; agentPhone: string; agentEmail: string;
+interface PropertyRow extends AdminPropertyRow {
+  amenities: string[]; features: string[];
+  agentId: string;
   description: string;
 }
 
-interface AgentRow {
-  id: string; name: string; email: string; phone: string;
-  photo: string; company: string; verified: boolean; isActive: boolean;
-  propertyCount: number; rating: string; yearsExperience: number;
-  bio: string; languages: string[]; specialization: string[];
-}
+interface BrokerAdminRow extends BrokerRow {}
 
 interface BlogRow {
   id: string; title: string; excerpt: string; category: string;
@@ -46,13 +51,61 @@ interface BlogRow {
 }
 
 interface AdminUserRow {
-  id: number; email: string; name: string; role: string;
-  isActive: boolean; createdAt: string;
+  id: number;
+  email: string;
+  name: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  dateOfBirth?: string | null;
+  phone?: string | null;
+  avatarUrl?: string | null;
+  jobTitle?: string | null;
+  bio?: string | null;
+  showOnFrontend?: boolean;
+  role: string;
+  scope?: 'own' | 'all';
+  permissions?: Record<string, boolean>;
+  effectivePermissions?: string[];
+  isActive: boolean;
+  blockedReason?: string | null;
+  lastLoginAt?: string | null;
+  createdAt: string;
+}
+
+interface MemberRow {
+  id: number;
+  email: string;
+  name: string;
+  phone?: string | null;
+  avatarUrl?: string | null;
+  isActive: boolean;
+  blockedReason?: string | null;
+  listingCount: number;
+  lastLoginAt?: string | null;
+  createdAt: string;
 }
 
 interface Setting { key: string; value: string; label: string; }
 
-type Section = 'dashboard' | 'properties' | 'agents' | 'blog' | 'users' | 'settings';
+type Section =
+  | 'dashboard' | 'properties' | 'desk' | 'agents'
+  | 'blog' | 'staff' | 'members' | 'settings';
+
+const SECTIONS: Section[] = [
+  'dashboard', 'properties', 'desk', 'agents', 'blog', 'staff', 'members', 'settings',
+];
+
+/** A section unlocks as soon as the actor holds any one of these permissions. */
+const SECTION_PERMISSIONS: Record<Section, string[]> = {
+  dashboard: ['dashboard.view'],
+  properties: ['listings.view'],
+  desk: ['listings.tasks', 'listings.moderate', 'listings.assign', 'analytics.full'],
+  agents: ['agents.view'],
+  blog: ['blog.view'],
+  staff: ['staff.view'],
+  members: ['members.view'],
+  settings: ['settings.view'],
+};
 
 // ─── HELPERS ────────────────────────────────────────────────────────────────
 
@@ -142,9 +195,13 @@ function Field({ label, children, hint }: { label: string; children: ReactNode; 
 
 // ─── CHART HELPERS ───────────────────────────────────────────────────────────
 
-const MONTHS_GEO = ['იან','თებ','მარ','აპრ','მაი','ივნ','ივლ','აგვ','სექ','ოქტ','ნოე','დეკ'];
-const MOCK_LISTINGS = [14, 20, 18, 26, 32, 28, 36, 30, 24, 22, 19, 16];
-const MOCK_VIEWS_K  = [9,  13, 11, 17, 21, 18, 23, 19, 15, 13, 11, 10];
+const MONTHS_GEO = ['იან', 'თებ', 'მარ', 'აპრ', 'მაი', 'ივნ', 'ივლ', 'აგვ', 'სექ', 'ოქტ', 'ნოე', 'დეკ'];
+
+function monthLabel(ym: string): string {
+  const [, m] = ym.split('-');
+  const idx = Math.max(0, Math.min(11, Number(m) - 1));
+  return MONTHS_GEO[idx] ?? ym;
+}
 
 function SparkLine({ data, color }: { data: number[]; color: string }) {
   if (data.length < 2) return null;
@@ -175,12 +232,19 @@ function SparkLine({ data, color }: { data: number[]; color: string }) {
   );
 }
 
-function MonthlyBarChart() {
-  const maxV = Math.max(...MOCK_LISTINGS, ...MOCK_VIEWS_K, 1);
+function MonthlyBarChart({ listings, views, months }: { listings: number[]; views: number[]; months: string[] }) {
+  const list = listings ?? [];
+  const view = views ?? [];
+  const labels = months ?? [];
+  if (labels.length === 0) {
+    return <div className="py-12 text-center text-sm text-slate-400">ჯერ არ არის საკმარისი მონაცემი</div>;
+  }
+  const maxV = Math.max(...list, ...view, 1);
   const H = 100, padT = 8, padB = 22, padL = 28, totalW = 620;
-  const slotW = (totalW - padL) / 12;
+  const n = Math.max(labels.length, 1);
+  const slotW = (totalW - padL) / n;
   const bw = 11;
-  const curMonth = new Date().getMonth();
+  const curKey = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
   return (
     <svg width="100%" viewBox={`0 0 ${totalW} ${H + padT + padB}`} preserveAspectRatio="xMidYMid meet">
       {[0, 0.25, 0.5, 0.75, 1].map((pct, i) => (
@@ -192,19 +256,19 @@ function MonthlyBarChart() {
           </text>
         </g>
       ))}
-      {MONTHS_GEO.map((m, i) => {
+      {labels.map((ym, i) => {
         const cx = padL + i * slotW + slotW / 2;
-        const lh = (MOCK_LISTINGS[i] / maxV) * H;
-        const vh = (MOCK_VIEWS_K[i] / maxV) * H;
-        const active = i === curMonth;
+        const lh = ((list[i] ?? 0) / maxV) * H;
+        const vh = ((view[i] ?? 0) / maxV) * H;
+        const active = ym === curKey;
         return (
-          <g key={m}>
-            <rect x={cx - bw - 1.5} y={padT + H - vh} width={bw} height={vh} rx="3.5"
-              fill={active ? '#bbf7d0' : '#dcfce7'} />
-            <rect x={cx + 1.5} y={padT + H - lh} width={bw} height={lh} rx="3.5"
-              fill={active ? '#2563eb' : '#bfdbfe'} />
+          <g key={ym}>
+            <rect x={cx - bw - 1.5} y={padT + H - vh} width={bw} height={Math.max(vh, 0)} rx="3.5"
+              fill={active ? '#86efac' : '#bbf7d0'} />
+            <rect x={cx + 1.5} y={padT + H - lh} width={bw} height={Math.max(lh, 0)} rx="3.5"
+              fill={active ? '#2563eb' : '#93c5fd'} />
             <text x={cx} y={padT + H + padB - 4} textAnchor="middle" fontSize="8.5"
-              fill={active ? '#2563eb' : '#94a3b8'} fontWeight={active ? '700' : '400'}>{m}</text>
+              fill={active ? '#2563eb' : '#94a3b8'} fontWeight={active ? '700' : '400'}>{monthLabel(ym)}</text>
           </g>
         );
       })}
@@ -213,11 +277,18 @@ function MonthlyBarChart() {
 }
 
 function DonutSegments({
-  segments, total, demo,
-}: { segments: { label: string; value: number; color: string }[]; total: number; demo?: boolean }) {
+  segments, total,
+}: { segments: { label: string; value: number; color: string }[]; total: number }) {
   const r = 46, cx = 62, cy = 62, sw = 14;
   const circ = 2 * Math.PI * r;
   let cum = 0;
+  if (total === 0 || segments.length === 0) {
+    return (
+      <div className="py-10 text-center text-sm text-slate-400">
+        ჯერ არ არის საკმარისი მონაცემი
+      </div>
+    );
+  }
   return (
     <div className="flex flex-col items-center gap-4">
       <svg width={124} height={124} viewBox={`0 0 124 124`}>
@@ -235,7 +306,7 @@ function DonutSegments({
         })}
         <circle cx={cx} cy={cy} r={r - sw / 2 - 3} fill="white" />
         <text x={cx} y={cy - 5} textAnchor="middle" fontSize="18" fontWeight="800" fill="#0f172a">{total}</text>
-        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="9" fill="#94a3b8">{demo ? 'demo' : 'სულ'}</text>
+        <text x={cx} y={cy + 10} textAnchor="middle" fontSize="9" fill="#94a3b8">სულ</text>
       </svg>
       <div className="w-full space-y-2">
         {segments.map(seg => (
@@ -261,16 +332,18 @@ function PropertyTypeChart({ properties }: { properties: PropertyRow[] }) {
   const segs = Object.entries(TYPE_COLORS)
     .map(([t, c]) => ({ label: TYPE_LABELS[t] || t, value: counts[t] || 0, color: c }))
     .filter(s => s.value > 0);
-  if (segs.length === 0) {
-    const demo = [
-      { label: 'ბინა',  value: 60, color: '#2563eb' },
-      { label: 'სახლი', value: 20, color: '#10b981' },
-      { label: 'კომ.',  value: 12, color: '#f59e0b' },
-      { label: 'ვილა',  value: 8,  color: '#ec4899' },
-    ];
-    return <DonutSegments segments={demo} total={100} demo />;
-  }
   return <DonutSegments segments={segs} total={segs.reduce((s, d) => s + d.value, 0)} />;
+}
+
+function monthOverMonthDelta(series: number[]): { label: string; up: boolean } | null {
+  if (series.length < 2) return null;
+  const prev = series[series.length - 2] ?? 0;
+  const cur = series[series.length - 1] ?? 0;
+  if (prev === 0 && cur === 0) return { label: '0%', up: true };
+  if (prev === 0) return { label: '+100%', up: true };
+  const pct = Math.round(((cur - prev) / prev) * 100);
+  const sign = pct > 0 ? '+' : '';
+  return { label: `${sign}${pct}%`, up: pct >= 0 };
 }
 
 // ─── MAIN COMPONENT ─────────────────────────────────────────────────────────
@@ -278,34 +351,37 @@ function PropertyTypeChart({ properties }: { properties: PropertyRow[] }) {
 export default function AdminPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, logout, loading: authLoading } = useAdminAuth();
+  const { user, logout, can, loading: authLoading } = useAdminAuth();
   const api = useApiRequest();
 
   const sectionParam = searchParams.get('section');
   const initialSection: Section =
-    sectionParam && ['dashboard', 'properties', 'agents', 'blog', 'users', 'settings'].includes(sectionParam)
+    sectionParam && SECTIONS.includes(sectionParam as Section)
       ? (sectionParam as Section)
       : 'dashboard';
 
   const [section, setSection] = useState<Section>(initialSection);
+  const deskTab = (searchParams.get('tab') ?? undefined) as DeskTab | undefined;
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [propList, setPropList] = useState<PropertyRow[]>([]);
-  const [agentList, setAgentList] = useState<AgentRow[]>([]);
+  const [agentList, setAgentList] = useState<BrokerAdminRow[]>([]);
   const [blogList, setBlogList] = useState<BlogRow[]>([]);
-  const [userList, setUserList] = useState<AdminUserRow[]>([]);
+  const [staffList, setStaffList] = useState<AdminUserRow[]>([]);
+  const [memberList, setMemberList] = useState<MemberRow[]>([]);
   const [settingList, setSettingList] = useState<Setting[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
-  const [modal, setModal] = useState<{ type: 'agent' | 'blog' | 'user'; mode: 'create' | 'edit'; data: Record<string, unknown> } | null>(null);
+  const [modal, setModal] = useState<{ type: 'blog' | 'staff'; mode: 'create' | 'edit'; data: Record<string, unknown> } | null>(null);
+  const [permissionTarget, setPermissionTarget] = useState<AdminUserRow | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{ type: Section; id: string | number } | null>(null);
 
   useEffect(() => {
     const param = searchParams.get('section');
-    if (param && ['dashboard', 'properties', 'agents', 'blog', 'users', 'settings'].includes(param)) {
+    if (param && SECTIONS.includes(param as Section)) {
       setSection(param as Section);
     }
   }, [searchParams]);
@@ -313,6 +389,11 @@ export default function AdminPage() {
   const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
     setToast({ message, type });
   }, []);
+
+  const canSection = useCallback(
+    (id: Section) => SECTION_PERMISSIONS[id].some(permission => can(permission)),
+    [can],
+  );
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/admin/login');
@@ -325,12 +406,12 @@ export default function AdminPage() {
       if (s === 'dashboard') {
         const [statsData, propsData] = await Promise.all([
           api('/stats'),
-          api('/properties?limit=100'),
+          can('listings.view') ? api('/properties?limit=200') : Promise.resolve({ data: [] }),
         ]);
         setStats(statsData);
         setPropList(propsData.data ?? []);
       } else if (s === 'properties') {
-        const data = await api('/properties?limit=100');
+        const data = await api('/properties?limit=200');
         setPropList(data.data);
       } else if (s === 'agents') {
         const data = await api('/agents');
@@ -338,9 +419,12 @@ export default function AdminPage() {
       } else if (s === 'blog') {
         const data = await api('/blog');
         setBlogList(data);
-      } else if (s === 'users') {
-        const data = await api('/users');
-        setUserList(data);
+      } else if (s === 'staff') {
+        const data = await api('/staff');
+        setStaffList(data);
+      } else if (s === 'members') {
+        const data = await api('/members');
+        setMemberList(data);
       } else if (s === 'settings') {
         const data = await api('/settings');
         setSettingList(data);
@@ -350,23 +434,28 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, api, showToast]);
+  }, [user, api, can, showToast]);
 
   useEffect(() => {
     if (user) loadSection(section);
   }, [section, user, loadSection]);
 
-  // Quick toggle property flag
-  async function patchProp(id: string, field: string, value: boolean) {
+  // Inline edits from the properties table: flags, price, lifecycle
+  async function patchProp(id: string, patch: PropertyPatch) {
     try {
       const updated = await api(`/properties/${id}`, {
         method: 'PATCH',
-        body: JSON.stringify({ [field]: value }),
+        body: JSON.stringify(patch),
       });
       setPropList(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
-      showToast('განახლდა');
+      showToast(
+        'price' in patch ? 'ფასი განახლდა'
+          : 'lifecycleState' in patch ? 'სტატუსი განახლდა'
+          : 'განახლდა',
+      );
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'შეცდომა', 'error');
+      throw err;
     }
   }
 
@@ -375,7 +464,10 @@ export default function AdminPage() {
     const { type, id } = confirmDelete;
     setConfirmDelete(null);
     try {
-      const pathMap: Record<string, string> = { properties: 'properties', agents: 'agents', blog: 'blog', users: 'users' };
+      const pathMap: Partial<Record<Section, string>> = {
+        properties: 'properties', agents: 'agents', blog: 'blog',
+        staff: 'staff', members: 'members',
+      };
       await api(`/${pathMap[type]}/${id}`, { method: 'DELETE' });
       showToast('წაიშალა');
       loadSection(type);
@@ -387,14 +479,43 @@ export default function AdminPage() {
   async function saveModal(formData: Record<string, unknown>) {
     if (!modal) return;
     const { type, mode, data } = modal;
-    const pathMap: Record<string, string> = { property: 'properties', agent: 'agents', blog: 'blog', user: 'users' };
+    const pathMap: Record<string, string> = { blog: 'blog', staff: 'staff' };
     const base = pathMap[type];
     const path = mode === 'create' ? `/${base}` : `/${base}/${String(data.id)}`;
     await api(path, { method: mode === 'create' ? 'POST' : 'PUT', body: JSON.stringify(formData) });
     showToast(mode === 'create' ? 'დაემატა' : 'განახლდა');
     setModal(null);
-    const sMap: Record<string, Section> = { property: 'properties', agent: 'agents', blog: 'blog', user: 'users' };
+    const sMap: Record<string, Section> = { blog: 'blog', staff: 'staff' };
     if (type) loadSection(sMap[type]);
+  }
+
+  /** Saves the per-user permission overrides from the editor drawer. */
+  async function savePermissions(userId: number, permissions: Record<string, boolean>, scope: 'own' | 'all') {
+    await api(`/staff/${userId}/permissions`, {
+      method: 'PUT',
+      body: JSON.stringify({ permissions, scope }),
+    });
+    showToast('უფლებები განახლდა');
+    setPermissionTarget(null);
+    loadSection('staff');
+  }
+
+  async function saveRoleTemplate(role: Role, permissions: string[]) {
+    await api(`/roles/${role}`, { method: 'PUT', body: JSON.stringify({ permissions }) });
+    showToast(`${roleLabel(role)} — შაბლონი განახლდა`);
+  }
+
+  async function toggleMember(member: MemberRow) {
+    try {
+      await api(`/members/${member.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ isActive: !member.isActive }),
+      });
+      showToast(member.isActive ? 'მომხმარებელი დაიბლოკა' : 'ბლოკი მოიხსნა');
+      loadSection('members');
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'შეცდომა', 'error');
+    }
   }
 
   async function saveSettings() {
@@ -406,26 +527,39 @@ export default function AdminPage() {
     }
   }
 
-  const navItems: { id: Section; label: string; icon: LucideIcon }[] = [
+  const allNavItems: { id: Section; label: string; icon: LucideIcon; badge?: number }[] = [
     { id: 'dashboard', label: 'მთავარი', icon: LayoutDashboard },
     { id: 'properties', label: 'განცხადებები', icon: Building2 },
-    { id: 'agents', label: 'აგენტები', icon: Users },
+    { id: 'desk', label: 'დესკი', icon: Headphones, badge: stats?.pendingModeration ?? 0 },
+    { id: 'agents', label: 'ბროკერები', icon: Users },
     { id: 'blog', label: 'ბლოგი', icon: BookOpen },
-    { id: 'users', label: 'ადმინ მომხ.', icon: Shield },
+    { id: 'staff', label: 'თანამშრომლები', icon: Shield },
+    { id: 'members', label: 'მომხმარებლები', icon: UserCog },
     { id: 'settings', label: 'პარამეტრები', icon: Settings },
   ];
 
-  const filteredAgents = agentList.filter(a =>
-    !search || a.name?.toLowerCase().includes(search.toLowerCase()) || a.email?.toLowerCase().includes(search.toLowerCase())
-  );
+  // The server enforces the same rules; this only keeps unreachable tabs hidden.
+  const navItems = allNavItems.filter(item => canSection(item.id));
 
   const filteredBlog = blogList.filter(b =>
     !search || b.title?.toLowerCase().includes(search.toLowerCase()) || b.category?.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredUsers = userList.filter(u =>
+  const filteredStaff = staffList.filter(u =>
     !search || u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
   );
+
+  const filteredMembers = memberList.filter(m =>
+    !search || m.name?.toLowerCase().includes(search.toLowerCase()) || m.email?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // A broker landing on ?section=settings gets bounced to their first real tab.
+  useEffect(() => {
+    if (!user || authLoading) return;
+    if (canSection(section)) return;
+    const fallback = SECTIONS.find(canSection);
+    if (fallback && fallback !== section) setSection(fallback);
+  }, [section, user, authLoading, canSection]);
 
   const premiumCount = propList.filter(p => p.isPremium).length;
   const featuredCount = propList.filter(p => p.isFeatured).length;
@@ -435,14 +569,14 @@ export default function AdminPage() {
   if (authLoading || !user) return null;
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ background: '#f4f6fa' }}>
+    <div className="admin-shell min-h-screen flex flex-col">
       {/* Admin header */}
       <header
         className="sticky top-0 z-40"
         style={{
           background: '#111827',
           borderBottom: '1px solid rgba(255,255,255,0.08)',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          boxShadow: '0 1px 0 rgba(0,0,0,0.2)',
         }}
       >
         <div className="container-xl">
@@ -504,6 +638,14 @@ export default function AdminPage() {
                     )}
                     <item.icon size={14} strokeWidth={active ? 2.3 : 2} className={active ? undefined : 'opacity-75'} />
                     {item.label}
+                    {Boolean(item.badge) && (
+                      <span
+                        className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white"
+                        style={{ background: '#f59e0b' }}
+                      >
+                        {item.badge}
+                      </span>
+                    )}
                   </button>
                 );
               })}
@@ -511,32 +653,6 @@ export default function AdminPage() {
 
             {/* Actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {['agents', 'blog', 'users'].includes(section) && (
-                <div className="relative hidden xl:block">
-                  <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: 'rgba(148,163,184,0.7)' }} />
-                  <input
-                    type="text"
-                    placeholder="ძიება..."
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    className="pl-9 pr-4 py-2 rounded-xl text-sm focus:outline-none w-48 2xl:w-56 transition-all"
-                    style={{
-                      background: 'rgba(255,255,255,0.06)',
-                      border: '1px solid rgba(255,255,255,0.1)',
-                      color: '#f1f5f9',
-                    }}
-                    onFocus={e => {
-                      (e.target as HTMLInputElement).style.borderColor = 'rgba(37, 99, 235,0.5)';
-                      (e.target as HTMLInputElement).style.background = 'rgba(255,255,255,0.09)';
-                    }}
-                    onBlur={e => {
-                      (e.target as HTMLInputElement).style.borderColor = 'rgba(255,255,255,0.1)';
-                      (e.target as HTMLInputElement).style.background = 'rgba(255,255,255,0.06)';
-                    }}
-                  />
-                </div>
-              )}
-
               <button
                 onClick={() => loadSection(section)}
                 className="p-2.5 rounded-xl transition-all"
@@ -558,44 +674,53 @@ export default function AdminPage() {
                 <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               </button>
 
-              <button
-                onClick={() => navigate('/admin/listings/new')}
-                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
-                style={{
-                  background: '#10b981',
-                }}
-                onMouseEnter={e => {
-                  (e.currentTarget as HTMLElement).style.background = '#059669';
-                }}
-                onMouseLeave={e => {
-                  (e.currentTarget as HTMLElement).style.background = '#10b981';
-                }}
-              >
-                <Plus size={15} strokeWidth={2.5} />
-                <span className="hidden sm:inline">განც. დამატება</span>
-              </button>
+              {can('listings.create') && (
+                <button
+                  onClick={() => navigate('/admin/listings/new')}
+                  className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
+                  style={{
+                    background: '#10b981',
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLElement).style.background = '#059669';
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLElement).style.background = '#10b981';
+                  }}
+                >
+                  <Plus size={15} strokeWidth={2.5} />
+                  <span className="hidden sm:inline">განც. დამატება</span>
+                </button>
+              )}
 
-              {/* User chip */}
-              <div
-                className="hidden md:flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-xl ml-1"
+              {/* User chip → profile */}
+              <button
+                type="button"
+                onClick={() => navigate('/admin/profile')}
+                className="hidden md:flex items-center gap-2.5 pl-1 pr-3 py-1 rounded-xl ml-1 transition-all hover:bg-white/10"
                 style={{
                   background: 'rgba(255,255,255,0.05)',
                   border: '1px solid rgba(255,255,255,0.08)',
                 }}
+                title="ჩემი პროფილი"
               >
                 <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold overflow-hidden"
                   style={{ background: '#2563eb' }}
                 >
-                  {user.name.charAt(0)}
+                  {user.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    (user.firstName || user.name).charAt(0).toUpperCase()
+                  )}
                 </div>
-                <div className="hidden lg:block min-w-0 max-w-[110px]">
-                  <p className="text-white text-xs font-bold truncate leading-tight">{user.name.split(' ')[0]}</p>
+                <div className="hidden lg:block min-w-0 max-w-[140px] text-left">
+                  <p className="text-white text-xs font-bold truncate leading-tight">{user.name}</p>
                   <p className="text-slate-500 text-[10px] truncate">
-                    {user.role === 'super_admin' ? 'სუპ. ადმინი' : 'ადმინი'}
+                    {roleLabel(user.role)}{user.scope === 'own' ? ' · საკუთარი' : ''}
                   </p>
                 </div>
-              </div>
+              </button>
 
               <button
                 onClick={() => navigate('/')}
@@ -671,6 +796,14 @@ export default function AdminPage() {
                 >
                   <item.icon size={13} strokeWidth={active ? 2.2 : 2} />
                   {item.label}
+                  {Boolean(item.badge) && (
+                    <span
+                      className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white"
+                      style={{ background: '#f59e0b' }}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -680,10 +813,9 @@ export default function AdminPage() {
 
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
-        <div className="container-xl py-6">
-          {/* Mobile search */}
-          {['agents', 'blog', 'users'].includes(section) && (
-            <div className="relative mb-5 md:hidden">
+        <div className={`container-xl ${section === 'dashboard' ? 'py-6 sm:py-7' : 'py-6'}`}>
+          {['blog', 'staff', 'members'].includes(section) && (
+            <div className="relative mb-5 md:max-w-sm">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
@@ -709,202 +841,325 @@ export default function AdminPage() {
 
           {/* ── DASHBOARD ── */}
           {section === 'dashboard' && (
-            <div className="space-y-5">
+            <div className="admin-dash">
 
-              {/* ── Hero banner ── */}
-              <div className="rounded-2xl p-6 relative overflow-hidden" style={{
-                background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 45%, #1d4ed8 100%)',
-              }}>
-                <div style={{ position:'absolute', top:-50, right:-50, width:220, height:220, borderRadius:'50%', background:'rgba(37, 99, 235,0.13)', pointerEvents:'none' }} />
-                <div style={{ position:'absolute', bottom:-70, right:120, width:260, height:260, borderRadius:'50%', background:'rgba(16,185,129,0.08)', pointerEvents:'none' }} />
-                <div className="relative flex flex-wrap items-center justify-between gap-5">
-                  <div>
-                    <p style={{ color:'rgba(255,255,255,0.5)', fontSize:12, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:5 }}>
-                      <Clock size={10} style={{ display:'inline', marginRight:4, verticalAlign:'middle' }} />
-                      {new Date().toLocaleDateString('ka-GE', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
-                    </p>
-                    <h2 style={{ color:'#fff', fontSize:22, fontWeight:800, lineHeight:1.2, marginBottom:4 }}>
-                      გამარჯობა, {user.name.split(' ')[0]} 👋
+              {/* Hero */}
+              <div className="admin-dash-hero">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+                  <div className="min-w-0 max-w-2xl">
+                    <div className="admin-dash-kicker mb-4">
+                      <Clock size={12} />
+                      {formatGeorgianLongDate()}
+                    </div>
+                    <h2 className="text-white text-[2rem] sm:text-[2.35rem] font-extrabold tracking-tight leading-[1.08] mb-2">
+                      გამარჯობა, {user.firstName || user.name.split(' ')[0]}
                     </h2>
-                    <p style={{ color:'rgba(255,255,255,0.4)', fontSize:12.5 }}>
-                      {user.role === 'super_admin' ? 'სუპერ ადმინი' : 'ადმინი'} · TbilisiRealtor.GE
+                    <p className="text-slate-400 text-sm sm:text-[15px] leading-relaxed max-w-xl">
+                      {roleLabel(user.role)} · {user.scope === 'own'
+                        ? 'თქვენი განცხადებები და აქტივობა'
+                        : 'პორტფოლიო, ბროკერები და კონტენტი ერთ ადგილას'}
                     </p>
+                    <div className="flex flex-wrap items-center gap-2.5 mt-7">
+                      {can('listings.create') && (
+                        <button type="button" onClick={() => navigate('/admin/listings/new')} className="admin-dash-cta admin-dash-cta--primary">
+                          <Plus size={15} strokeWidth={2.5} />
+                          ახალი განცხადება
+                        </button>
+                      )}
+                      {can('listings.view') && (
+                        <button type="button" onClick={() => setSection('properties')} className="admin-dash-cta admin-dash-cta--ghost">
+                          <Building2 size={15} />
+                          განცხადებები
+                        </button>
+                      )}
+                      {can('listings.moderate') && Boolean(stats?.pendingModeration) && (
+                        <button type="button" onClick={() => setSection('desk')} className="admin-dash-cta admin-dash-cta--ghost">
+                          <Headphones size={15} />
+                          მოდერაცია · {stats?.pendingModeration}
+                        </button>
+                      )}
+                      <button type="button" onClick={() => navigate('/')} className="admin-dash-cta admin-dash-cta--link">
+                        <ExternalLink size={14} />
+                        საიტი
+                      </button>
+                    </div>
                   </div>
-                  <div className="hidden sm:flex items-center gap-7">
+
+                  <div className="grid grid-cols-2 gap-3 w-full lg:w-auto lg:min-w-[360px]">
                     {[
-                      { label:'განცხ.', value: stats?.properties ?? 0, color:'#2563eb' },
-                      { label:'ნახვა',  value:(stats?.totalViews ?? 0).toLocaleString(), color:'#6ee7b7' },
-                      { label:'აგენტი', value: stats?.agents ?? 0,     color:'#fcd34d' },
-                      { label:'ბლოგი',  value: stats?.blogPosts ?? 0,  color:'#f9a8d4' },
-                    ].map(({ label, value, color }) => (
-                      <div key={label} className="text-center">
-                        <p style={{ color, fontSize:22, fontWeight:800, lineHeight:1 }}>{value}</p>
-                        <p style={{ color:'rgba(255,255,255,0.4)', fontSize:11, fontWeight:600, marginTop:3 }}>{label}</p>
+                      { label: 'განცხადება', value: stats?.properties ?? 0 },
+                      { label: 'ნახვა', value: (stats?.totalViews ?? 0).toLocaleString('ka-GE') },
+                      { label: 'ბროკერი', value: stats?.agents ?? 0 },
+                      { label: 'ბლოგი', value: stats?.blogPosts ?? 0 },
+                    ].map(item => (
+                      <div key={item.label} className="rounded-2xl px-4 py-4 bg-slate-800 border border-slate-700">
+                        <p className="text-2xl font-extrabold tabular-nums leading-none text-white">{item.value}</p>
+                        <p className="text-[11px] font-semibold text-slate-400 mt-2 tracking-wide uppercase">{item.label}</p>
                       </div>
                     ))}
                   </div>
-                  <button onClick={() => navigate('/admin/listings/new')}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all"
-                    style={{ background:'rgba(255,255,255,0.12)', color:'#fff', border:'1.5px solid rgba(255,255,255,0.18)', backdropFilter:'blur(8px)' }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.22)'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.12)'; }}
-                  >
-                    <Plus size={15} strokeWidth={2.5} />განცხ. დამატება
-                  </button>
                 </div>
               </div>
 
-              {/* ── KPI stat cards ── */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label:'სულ განცხადება', value: stats?.properties ?? 0,                 icon: Building2, color:'#2563eb', bg:'#eff6ff', trend:'+8%',  spark:[8,10,9,12,14,11,15,13,16,14,18,stats?.properties??0] },
-                  { label:'სულ ნახვა',       value:(stats?.totalViews ?? 0).toLocaleString(), icon: Eye,       color:'#059669', bg:'#ecfdf5', trend:'+23%', spark:[400,600,700,900,1100,950,1200,1050,1300,1150,1400,stats?.totalViews??0] },
-                  { label:'აქტ. აგენტი',    value: stats?.agents ?? 0,                     icon: UserCheck, color:'#d97706', bg:'#fffbeb', trend:'+3%',  spark:[4,5,5,6,7,6,8,7,9,8,9,stats?.agents??0] },
-                  { label:'ბლოგ სტატია',    value: stats?.blogPosts ?? 0,                  icon: BookOpen,  color:'#2563eb', bg:'#f5f3ff', trend:'+5%',  spark:[2,3,3,4,4,5,5,6,6,7,7,stats?.blogPosts??0] },
-                ].map(({ label, value, icon: Icon, color, bg, trend, spark }) => (
-                  <div key={label} className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-shadow group">
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="w-10 h-10 rounded-xl flex items-center justify-center transition-transform group-hover:scale-110" style={{ background: bg }}>
-                        <Icon size={18} style={{ color }} />
+              {(stats?.needsCall ?? 0) > 0 && (
+                <button type="button" onClick={() => setSection('properties')} className="admin-alert">
+                  <span className="w-11 h-11 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center flex-shrink-0">
+                    <Phone size={18} className="text-red-600" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-extrabold text-slate-900">
+                      {stats?.needsCall} განცხადებას გაუვიდა ვადა — დასარეკია
+                    </span>
+                    <span className="block text-[12px] text-slate-500 mt-0.5">
+                      {(stats?.freeingSoon ?? 0) > 0
+                        ? `კიდევ ${stats?.freeingSoon} თავისუფლდება უახლოეს 30 დღეში`
+                        : 'გადაამოწმე ობიექტები და დაუკავშირდი მესაკუთრეებს'}
+                    </span>
+                  </span>
+                  <span className="px-4 py-2.5 rounded-xl text-xs font-bold text-white flex-shrink-0 bg-red-600">
+                    სიის ნახვა
+                  </span>
+                </button>
+              )}
+
+              {/* Primary metrics */}
+              <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
+                {(() => {
+                  const listingDelta = monthOverMonthDelta(stats?.monthly?.listings ?? []);
+                  const viewsDelta = monthOverMonthDelta(stats?.monthly?.views ?? []);
+                  return [
+                    { label: 'სულ განცხადება', value: stats?.properties ?? 0, icon: Building2, accent: '#2563eb', soft: '#eff6ff', delta: listingDelta, spark: stats?.monthly?.listings ?? [] },
+                    { label: 'სულ ნახვა', value: (stats?.totalViews ?? 0).toLocaleString('ka-GE'), icon: Eye, accent: '#059669', soft: '#ecfdf5', delta: viewsDelta, spark: stats?.monthly?.views ?? [] },
+                    { label: 'აქტიური ბროკერი', value: stats?.agents ?? 0, icon: UserCheck, accent: '#d97706', soft: '#fffbeb', delta: null, spark: [] as number[] },
+                    { label: 'ბლოგ სტატია', value: stats?.blogPosts ?? 0, icon: BookOpen, accent: '#7c3aed', soft: '#f5f3ff', delta: null, spark: [] as number[] },
+                  ].map(({ label, value, icon: Icon, accent, soft, delta, spark }) => (
+                    <div key={label} className="admin-metric" style={{ ['--accent' as string]: accent, ['--accent-soft' as string]: soft }}>
+                      <div className="flex items-start justify-between gap-3 mb-4">
+                        <div className="admin-metric__icon"><Icon size={18} /></div>
+                        {delta ? (
+                          <span
+                            className="admin-metric__delta"
+                            style={{ background: delta.up ? '#ecfdf5' : '#fef2f2', color: delta.up ? '#059669' : '#dc2626' }}
+                            title="შედარება წინა თვესთან"
+                          >
+                            <ArrowUpRight size={11} className={delta.up ? undefined : 'rotate-90'} />
+                            {delta.label}
+                          </span>
+                        ) : null}
                       </div>
-                      <span className="inline-flex items-center gap-0.5 text-xs font-bold px-2 py-0.5 rounded-full"
-                        style={{ background:'#f0fdf4', color:'#16a34a' }}>
-                        <ArrowUpRight size={10} />{trend}
-                      </span>
+                      <p className="admin-metric__value">{value}</p>
+                      <p className="admin-metric__label">{label}</p>
+                      {spark.length > 1 ? (
+                        <div className="mt-3 opacity-90"><SparkLine data={spark} color={accent} /></div>
+                      ) : null}
                     </div>
-                    <p className="text-2xl font-extrabold text-slate-800">{value}</p>
-                    <p className="text-xs text-slate-500 mt-0.5 mb-3">{label}</p>
-                    <SparkLine data={spark} color={color} />
-                  </div>
+                  ));
+                })()}
+              </div>
+
+              {/* Lifecycle */}
+              <div className="admin-life">
+                {[
+                  { key: 'new', label: 'ახალი', hint: 'ახლახანს დამატებული', accent: '#2563eb' },
+                  { key: 'current', label: 'მიმდინარე', hint: 'აქტიური პორტფოლიო', accent: '#059669' },
+                  { key: 'old', label: 'ძველი / ქირა', hint: 'ვადიანი ქირავნობა', accent: '#d97706' },
+                  { key: 'new_r', label: 'დასარეკი', hint: 'ვადა ამოიწურა', accent: '#dc2626' },
+                ].map(item => (
+                  <button
+                    key={item.key}
+                    type="button"
+                    className="admin-life-chip"
+                    style={{ ['--accent' as string]: item.accent }}
+                    onClick={() => setSection('properties')}
+                  >
+                    <span className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: item.accent }}>
+                      {item.label}
+                    </span>
+                    <span className="text-[1.75rem] font-extrabold tabular-nums tracking-tight text-slate-900 leading-none">
+                      {stats?.lifecycle?.[item.key] ?? 0}
+                    </span>
+                    <span className="text-[11px] text-slate-500 font-medium">{item.hint}</span>
+                  </button>
                 ))}
               </div>
 
-              {/* ── Charts row ── */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-                {/* Monthly bar chart */}
-                <div className="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                  <div className="flex items-center justify-between mb-4">
+              {/* Charts */}
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+                <div className="xl:col-span-8 admin-panel">
+                  <div className="admin-panel__head">
                     <div>
-                      <p className="font-bold text-slate-800 text-sm">ყოველთვიური აქტივობა</p>
-                      <p className="text-xs text-slate-400 mt-0.5">2024 — განცხადება vs ნახვა (×100)</p>
+                      <p className="admin-panel__title">ყოველთვიური აქტივობა</p>
+                      <p className="admin-panel__sub">ბოლო 12 თვე · ახალი განცხადებები და რეალური ნახვები</p>
                     </div>
-                    <div className="flex items-center gap-3">
-                      <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                        <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background:'#bfdbfe' }} />განცხ.
+                    <div className="flex items-center gap-4 pt-0.5">
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-blue-500" />განცხ.
                       </span>
-                      <span className="flex items-center gap-1.5 text-xs text-slate-500">
-                        <span className="w-3 h-2.5 rounded-sm inline-block" style={{ background:'#bbf7d0' }} />ნახვა
+                      <span className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+                        <span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" />ნახვა
                       </span>
                     </div>
                   </div>
-                  <MonthlyBarChart />
+                  <div className="px-4 sm:px-5 pb-5 pt-2">
+                    <MonthlyBarChart
+                      months={stats?.monthly?.months ?? []}
+                      listings={stats?.monthly?.listings ?? []}
+                      views={stats?.monthly?.views ?? []}
+                    />
+                  </div>
                 </div>
 
-                {/* Property type donut */}
-                <div className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm">
-                  <p className="font-bold text-slate-800 text-sm mb-5">ქონების ტიპები</p>
-                  <PropertyTypeChart properties={propList} />
+                <div className="xl:col-span-4 admin-panel">
+                  <div className="admin-panel__head">
+                    <div>
+                      <p className="admin-panel__title">ქონების ტიპები</p>
+                      <p className="admin-panel__sub">პორტფოლიოს შემადგენლობა</p>
+                    </div>
+                  </div>
+                  <div className="px-5 pb-5 pt-2">
+                    <PropertyTypeChart properties={propList} />
+                  </div>
                 </div>
               </div>
 
-              {/* ── Status breakdown row ── */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Mix + snapshot */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
                 {[
-                  { label:'იყიდება',        count: forSaleCount,  total: propList.length, color:'#f59e0b', bg:'#fffbeb', icon: TrendingUp },
-                  { label:'ქირავდება',       count: forRentCount,  total: propList.length, color:'#10b981', bg:'#ecfdf5', icon: Home       },
-                  { label:'VIP / პრემიუმი', count: premiumCount,  total: propList.length, color:'#f59e0b', bg:'#fef9c3', icon: Zap        },
-                  { label:'გამორჩეული',      count: featuredCount, total: propList.length, color:'#2563eb', bg:'#eff6ff', icon: Star       },
-                ].map(({ label, count, total, color, bg, icon: Icon }) => {
-                  const pct = total ? Math.round(count / total * 100) : 0;
+                  { label: 'იყიდება', count: forSaleCount, total: propList.length, color: '#d97706', soft: '#fffbeb', icon: TrendingUp },
+                  { label: 'ქირავდება', count: forRentCount, total: propList.length, color: '#059669', soft: '#ecfdf5', icon: Home },
+                  { label: 'VIP / პრემიუმი', count: premiumCount, total: propList.length, color: '#b45309', soft: '#fef3c7', icon: Zap },
+                  { label: 'გამორჩეული', count: featuredCount, total: propList.length, color: '#2563eb', soft: '#eff6ff', icon: Star },
+                ].map(({ label, count, total, color, soft, icon: Icon }) => {
+                  const pct = total ? Math.round((count / total) * 100) : 0;
                   return (
-                    <div key={label} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm">
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
-                          <Icon size={16} style={{ color }} />
+                    <div key={label} className="admin-panel p-5">
+                      <div className="flex items-center gap-3 mb-4">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: soft, color }}>
+                          <Icon size={17} />
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-xs text-slate-500 truncate">{label}</p>
-                          <p className="text-xl font-extrabold text-slate-800 leading-none mt-0.5">{count}</p>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{label}</p>
+                          <p className="text-2xl font-extrabold text-slate-900 leading-none mt-1 tabular-nums">{count}</p>
                         </div>
-                        <span className="ml-auto text-xs font-bold" style={{ color }}>{pct}%</span>
+                        <span className="text-sm font-extrabold tabular-nums" style={{ color }}>{pct}%</span>
                       </div>
-                      <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                        <div className="h-1.5 rounded-full transition-all duration-700"
-                          style={{ width:`${pct}%`, background: color }} />
+                      <div className="admin-progress">
+                        <span style={{ width: `${pct}%`, background: color }} />
                       </div>
-                      <p className="text-xs text-slate-400 mt-1.5">სულ {total} განცხ.-დან</p>
+                      <p className="text-[11px] text-slate-400 mt-2.5 font-medium">სულ {total} განცხადებიდან</p>
                     </div>
                   );
                 })}
               </div>
 
-              {/* ── Top-viewed properties ── */}
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-5 py-4" style={{ borderBottom:'1px solid #f1f5f9' }}>
-                  <div>
-                    <p className="font-bold text-slate-800 text-sm">ყველაზე ნანახი განცხადებები</p>
-                    <p className="text-xs text-slate-400 mt-0.5">ნახვების მიხედვით დალაგებული</p>
-                  </div>
-                  <button onClick={() => setSection('properties')}
-                    className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
-                    style={{ color:'#2563eb', background:'#eff6ff' }}>
-                    ყველა <ArrowUpRight size={12} />
-                  </button>
-                </div>
-                <div className="divide-y divide-slate-50">
-                  {[...(propList.length ? propList : (stats?.recentProperties ?? []))]
-                    .sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0))
-                    .slice(0, 8)
-                    .map((p, idx) => (
-                      <div key={p.id} className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/70 transition-colors group">
-                        <span className="text-xs font-bold w-5 text-slate-300 flex-shrink-0">{idx + 1}</span>
-                        <ImgThumb src={p.images?.[0]} />
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-slate-700 truncate">{p.title}</p>
-                          <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
-                            <MapPin size={10} />{p.city}{p.district ? ` · ${p.district}` : ''}
-                          </p>
-                        </div>
-                        <div className="hidden sm:flex items-center gap-2 flex-shrink-0">
-                          <Badge label={TYPE_LABELS[p.type] || p.type} color={TYPE_COLORS[p.type] || '#94a3b8'} />
-                          <Badge label={p.status === 'sale' ? 'იყ.' : 'ქირ.'} color={STATUS_COLOR[p.status] || '#94a3b8'} />
-                        </div>
-                        <div className="text-right flex-shrink-0 min-w-[80px]">
-                          <p className="text-sm font-bold text-slate-800">{GEL(p.price)}</p>
-                          <p className="text-xs text-slate-400 flex items-center gap-1 justify-end mt-0.5">
-                            <Eye size={10} />{(p.viewCount ?? 0).toLocaleString()}
-                          </p>
-                        </div>
-                        {p.isPremium && <Zap size={13} className="text-amber-400 flex-shrink-0" />}
-                      </div>
-                    ))}
-                  {propList.length === 0 && !stats?.recentProperties?.length && (
-                    <div className="py-10 text-center text-slate-400 text-sm">განცხადება ჯერ არ არის</div>
-                  )}
-                </div>
-              </div>
-
-              {/* ── Quick actions ── */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                {[
-                  { label:'+ განცხადება',  color:'#2563eb', bg:'#eff6ff',  icon: Plus,          action: () => navigate('/admin/listings/new') },
-                  { label:'განცხადებები',  color:'#059669', bg:'#ecfdf5',  icon: Building2,     action: () => setSection('properties') },
-                  { label:'აგენტები',      color:'#d97706', bg:'#fffbeb',  icon: UserCheck,     action: () => setSection('agents') },
-                  { label:'ბლოგი',         color:'#2563eb', bg:'#f5f3ff',  icon: BookOpen,      action: () => setSection('blog') },
-                ].map(({ label, color, bg, icon: Icon, action }) => (
-                  <button key={label} onClick={action}
-                    className="flex items-center gap-3 p-4 rounded-2xl border transition-all hover:shadow-md text-left"
-                    style={{ background: bg, borderColor: `${color}22` }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.borderColor = color; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = `${color}22`; }}
-                  >
-                    <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 bg-white shadow-sm">
-                      <Icon size={16} style={{ color }} />
+              {/* Top + actions */}
+              <div className="grid grid-cols-1 xl:grid-cols-12 gap-4">
+                <div className="xl:col-span-8 admin-panel">
+                  <div className="admin-panel__head">
+                    <div>
+                      <p className="admin-panel__title">ტოპ განცხადებები</p>
+                      <p className="admin-panel__sub">ნახვების მიხედვით · ID-ით იდენტიფიკაცია</p>
                     </div>
-                    <span className="text-sm font-bold" style={{ color }}>{label}</span>
-                  </button>
-                ))}
+                    <button
+                      type="button"
+                      onClick={() => setSection('properties')}
+                      className="inline-flex items-center gap-1 text-xs font-bold px-3 py-2 rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition-colors"
+                    >
+                      ყველა <ArrowUpRight size={12} />
+                    </button>
+                  </div>
+                  <div>
+                    {[...(propList.length ? propList : (stats?.recentProperties ?? []))]
+                      .sort((a, b) => (b.viewCount ?? 0) - (a.viewCount ?? 0))
+                      .slice(0, 8)
+                      .map((p, idx) => (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => navigate(`/property/${p.id}`)}
+                          className="admin-listing-row"
+                        >
+                          <span
+                            className="admin-rank"
+                            style={{
+                              background: idx < 3 ? '#0f172a' : '#f1f5f9',
+                              color: idx < 3 ? '#fff' : '#94a3b8',
+                            }}
+                          >
+                            {idx + 1}
+                          </span>
+                          <ImgThumb src={p.images?.[0]} />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="font-mono text-[11px] font-extrabold tracking-wide text-blue-600 flex-shrink-0">
+                                #{p.id}
+                              </span>
+                              <p className="text-sm font-semibold text-slate-800 truncate">{p.title}</p>
+                            </div>
+                            <p className="text-xs text-slate-400 flex items-center gap-1 mt-0.5">
+                              <MapPin size={10} />{p.city}{p.district ? ` · ${p.district}` : ''}
+                            </p>
+                          </div>
+                          <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+                            <Badge label={TYPE_LABELS[p.type] || p.type} color={TYPE_COLORS[p.type] || '#94a3b8'} />
+                            <Badge
+                              label={p.status === 'sale' ? 'იყ.' : p.status === 'rent' ? 'ქირ.' : 'ორივე'}
+                              color={STATUS_COLOR[p.status] || '#6366f1'}
+                            />
+                          </div>
+                          <div className="text-right flex-shrink-0 min-w-[88px]">
+                            <p className="text-sm font-extrabold text-slate-900 tabular-nums">{GEL(p.price)}</p>
+                            <p className="text-[11px] text-slate-400 flex items-center gap-1 justify-end mt-0.5">
+                              <Eye size={10} />{(p.viewCount ?? 0).toLocaleString('ka-GE')}
+                            </p>
+                          </div>
+                          {p.isPremium && <Zap size={13} className="text-amber-500 flex-shrink-0" />}
+                        </button>
+                      ))}
+                    {propList.length === 0 && !stats?.recentProperties?.length && (
+                      <div className="py-14 text-center text-slate-400 text-sm">განცხადება ჯერ არ არის</div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="xl:col-span-4 space-y-4">
+                  <div className="admin-panel p-5">
+                    <p className="admin-panel__title mb-1">სწრაფი მოქმედებები</p>
+                    <p className="admin-panel__sub mb-4">ხშირად გამოყენებული ბრძანებები</p>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'ახალი განცხადება', sub: 'ფორმა + ფოტოები', color: '#2563eb', soft: '#eff6ff', icon: Plus, action: () => navigate('/admin/listings/new') },
+                        { label: 'განცხადებების ცხრილი', sub: 'რედაქტირება / ფასები', color: '#059669', soft: '#ecfdf5', icon: Building2, action: () => setSection('properties') },
+                        { label: 'ბროკერების მართვა', sub: 'პროფილები და პორტფოლიო', color: '#d97706', soft: '#fffbeb', icon: UserCheck, action: () => setSection('agents') },
+                        { label: 'ბლოგი', sub: 'სტატიები და გიდები', color: '#7c3aed', soft: '#f5f3ff', icon: BookOpen, action: () => setSection('blog') },
+                      ].map(({ label, sub, color, soft, icon: Icon, action }) => (
+                        <button key={label} type="button" onClick={action} className="admin-quick-tile">
+                          <div
+                            className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                            style={{ background: soft, color }}
+                          >
+                            <Icon size={16} />
+                          </div>
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm font-bold text-slate-800">{label}</span>
+                            <span className="block text-[11px] text-slate-500 mt-0.5">{sub}</span>
+                          </span>
+                          <ArrowUpRight size={14} className="text-slate-300 flex-shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-[18px] p-5 text-white border border-slate-800 bg-slate-900">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-slate-400 mb-3">პორტფოლიო</p>
+                    <p className="text-3xl font-extrabold tabular-nums tracking-tight mb-1">{stats?.properties ?? 0}</p>
+                    <p className="text-sm text-slate-400 mb-5">აქტიური განცხადება სისტემაში</p>
+                    <div className="flex items-center gap-4 text-[12px] font-semibold text-slate-300">
+                      <span className="inline-flex items-center gap-1.5"><Star size={13} className="text-amber-400" />{featuredCount} გამორჩ.</span>
+                      <span className="inline-flex items-center gap-1.5"><Zap size={13} className="text-amber-400" />{premiumCount} VIP</span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
             </div>
@@ -914,62 +1169,22 @@ export default function AdminPage() {
           {section === 'properties' && (
             <AdminPropertiesSection
               properties={propList}
-              onPatch={(id, field, value) => patchProp(id, field, value)}
+              onPatch={patchProp}
               onDelete={id => setConfirmDelete({ type: 'properties', id })}
+              showToast={showToast}
             />
           )}
 
-          {/* ── AGENTS ── */}
+          {/* ── BROKERS ── */}
           {section === 'agents' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-500">სულ: <b className="text-slate-700">{filteredAgents.length}</b></p>
-                <button onClick={() => setModal({ type: 'agent', mode: 'create', data: {} })}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 transition-colors">
-                  <Plus size={15} />აგენტი
-                </button>
-              </div>
-              <div className="grid gap-3">
-                {filteredAgents.length === 0 ? (
-                  <div className="bg-white rounded-2xl p-10 text-center text-slate-400 text-sm border border-slate-100">
-                    {search ? 'ვერ მოიძებნა' : 'აგენტი ჯერ არ არის'}
-                  </div>
-                ) : filteredAgents.map(a => (
-                  <div key={a.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4 group">
-                    {a.photo ? (
-                      <img src={a.photo} alt={a.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 bg-slate-100" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-600 to-blue-600 flex items-center justify-center text-white font-bold flex-shrink-0">{a.name.charAt(0)}</div>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <p className="font-bold text-slate-800 text-sm">{a.name}</p>
-                        {a.verified && <Badge label="✓ ვერ." color="#10B981" />}
-                        {!a.isActive && <Badge label="დაბლ." color="#ef4444" />}
-                      </div>
-                      <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 flex-wrap">
-                        {a.email && <span className="flex items-center gap-1"><Mail size={10} />{a.email}</span>}
-                        {a.phone && <span className="flex items-center gap-1"><Phone size={10} />{a.phone}</span>}
-                        <span className="flex items-center gap-1"><Building2 size={10} />{a.propertyCount} განცხ.</span>
-                        <span>★ {a.rating}</span>
-                        {a.yearsExperience > 0 && <span>{a.yearsExperience} წელი</span>}
-                      </div>
-                      {a.specialization?.length > 0 && (
-                        <div className="flex gap-1 mt-1.5 flex-wrap">
-                          {a.specialization.map(s => <span key={s} className="text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{s}</span>)}
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      <button onClick={() => setModal({ type: 'agent', mode: 'edit', data: a as unknown as Record<string, unknown> })}
-                        className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"><Pencil size={13} /></button>
-                      <button onClick={() => setConfirmDelete({ type: 'agents', id: a.id })}
-                        className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"><Trash2 size={13} /></button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <AdminBrokersSection
+              brokers={agentList}
+              search={search}
+              onSearchChange={setSearch}
+              onReload={() => loadSection('agents')}
+              api={api}
+              showToast={showToast}
+            />
           )}
 
           {/* ── BLOG ── */}
@@ -1019,35 +1234,142 @@ export default function AdminPage() {
             </div>
           )}
 
-          {/* ── ADMIN USERS ── */}
-          {section === 'users' && (
+          {/* ── MANAGER DESK ── */}
+          {section === 'desk' && (
+            <AdminDeskSection api={api} showToast={showToast} initialTab={deskTab} />
+          )}
+
+          {/* ── STAFF ── */}
+          {section === 'staff' && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-slate-500">სულ: <b className="text-slate-700">{filteredUsers.length}</b></p>
-                <button onClick={() => setModal({ type: 'user', mode: 'create', data: {} })}
-                  className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 transition-colors">
-                  <Plus size={15} />ადმინი
-                </button>
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-800">თანამშრომლები</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    როლი განსაზღვრავს საბაზისო უფლებებს, ინდივიდუალური კორექტირება კი მათ ზემოდან ედება
+                  </p>
+                </div>
+                {can('staff.create') && (
+                  <button onClick={() => setModal({ type: 'staff', mode: 'create', data: {} })}
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-colors">
+                    <Plus size={15} />თანამშრომელი
+                  </button>
+                )}
               </div>
+
+              {can('staff.permissions') && (
+                <div className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-3 flex-wrap">
+                  <Lock size={16} className="text-slate-400" />
+                  <p className="text-xs text-slate-600 flex-1 min-w-[200px]">
+                    როლის შაბლონის შეცვლა იმოქმედებს ყველა თანამშრომელზე ამ როლით.
+                  </p>
+                  <button
+                    onClick={() => setPermissionTarget({
+                      id: 0, email: '', name: 'როლების შაბლონები', role: 'super_admin',
+                      isActive: true, createdAt: '',
+                    })}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-700 text-xs font-bold hover:bg-slate-50 transition-colors"
+                  >
+                    როლების შაბლონები
+                  </button>
+                </div>
+              )}
+
               <div className="grid gap-3">
-                {filteredUsers.map(u => (
-                  <div key={u.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4 group">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${u.role === 'super_admin' ? 'bg-gradient-to-br from-blue-600 to-blue-600' : 'bg-gradient-to-br from-blue-600 to-blue-600'}`}>
-                      {u.name.charAt(0)}
+                {filteredStaff.map(u => {
+                  const manageable = canManageRole(user.role, u.role) || u.id === user.id;
+                  const color = roleColor(u.role);
+                  return (
+                    <div key={u.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4 flex-wrap group">
+                      <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden bg-blue-600">
+                        {u.avatarUrl ? <img src={u.avatarUrl} alt="" className="w-full h-full object-cover" /> : u.name.charAt(0)}
+                      </div>
+                      <div className="flex-1 min-w-[160px]">
+                        <p className="font-bold text-slate-800 text-sm">
+                          {u.name}
+                          {u.id === user.id && <span className="ml-2 text-[10px] font-semibold text-slate-400">(თქვენ)</span>}
+                        </p>
+                        <p className="text-xs text-slate-400">{u.email}{u.jobTitle ? ` · ${u.jobTitle}` : ''}</p>
+                      </div>
+                      <div className="flex items-center gap-2 flex-wrap justify-end">
+                        <span
+                          className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-bold"
+                          style={{ background: color.bg, color: color.text }}
+                        >
+                          {roleLabel(u.role)}
+                        </span>
+                        {u.scope === 'own' && <Badge label="მხოლოდ საკუთარი" color="#b45309" />}
+                        <Badge label={`${u.effectivePermissions?.length ?? 0} უფლება`} color="#64748b" />
+                        <Badge label={u.isActive ? 'აქტ.' : 'დაბლ.'} color={u.isActive ? '#10B981' : '#ef4444'} />
+                        {u.showOnFrontend && <Badge label="საიტზე ჩანს" color="#0ea5e9" />}
+                      </div>
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {can('staff.permissions') && u.id !== user.id && manageable && (
+                          <button onClick={() => setPermissionTarget(u)} title="უფლებები"
+                            className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"><Lock size={13} /></button>
+                        )}
+                        {can('staff.edit') && manageable && (
+                          <button onClick={() => setModal({ type: 'staff', mode: 'edit', data: u as unknown as Record<string, unknown> })}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"><Pencil size={13} /></button>
+                        )}
+                        {can('staff.delete') && u.id !== user.id && canManageRole(user.role, u.role) && (
+                          <button onClick={() => setConfirmDelete({ type: 'staff', id: u.id })}
+                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"><Trash2 size={13} /></button>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-bold text-slate-800 text-sm">{u.name}</p>
-                      <p className="text-xs text-slate-400">{u.email}</p>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ── MEMBERS ── */}
+          {section === 'members' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between flex-wrap gap-3">
+                <div>
+                  <h2 className="text-lg font-extrabold text-slate-800">საიტის მომხმარებლები</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">რეგისტრირებული მომხმარებლები — რჩეულები და განაცხადები</p>
+                </div>
+                <p className="text-xs text-slate-500">სულ: <b className="text-slate-700">{filteredMembers.length}</b></p>
+              </div>
+
+              {filteredMembers.length === 0 && (
+                <div className="bg-white rounded-2xl p-12 border border-slate-100 shadow-sm text-center">
+                  <UserCog size={26} className="text-slate-300 mx-auto mb-3" />
+                  <p className="text-sm text-slate-500">ჯერ არავინ დარეგისტრირებულა</p>
+                </div>
+              )}
+
+              <div className="grid gap-3">
+                {filteredMembers.map(m => (
+                  <div key={m.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4 flex-wrap">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden bg-slate-400">
+                      {m.avatarUrl ? <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" /> : m.name.charAt(0)}
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge label={u.role === 'super_admin' ? 'სუპ. ადმ.' : 'ადმინი'} color={u.role === 'super_admin' ? '#2563eb' : '#2563eb'} />
-                      <Badge label={u.isActive ? 'აქტ.' : 'დაბლ.'} color={u.isActive ? '#10B981' : '#ef4444'} />
+                    <div className="flex-1 min-w-[160px]">
+                      <p className="font-bold text-slate-800 text-sm">{m.name}</p>
+                      <p className="text-xs text-slate-400">
+                        {m.email}{m.phone ? ` · ${m.phone}` : ''}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
-                      <button onClick={() => setModal({ type: 'user', mode: 'edit', data: u as unknown as Record<string, unknown> })}
-                        className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"><Pencil size={13} /></button>
-                      {u.id !== user.id && (
-                        <button onClick={() => setConfirmDelete({ type: 'users', id: u.id })}
+                    <div className="flex items-center gap-2 flex-wrap justify-end">
+                      <Badge label={`${m.listingCount} განცხადება`} color="#2563eb" />
+                      <Badge label={m.isActive ? 'აქტ.' : 'დაბლოკილი'} color={m.isActive ? '#10B981' : '#ef4444'} />
+                      <span className="text-[11px] text-slate-400">
+                        {m.createdAt ? formatGeorgianShortDate(m.createdAt) : ''}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      {can('members.block') && (
+                        <button onClick={() => toggleMember(m)} title={m.isActive ? 'დაბლოკვა' : 'ბლოკის მოხსნა'}
+                          className={`p-1.5 rounded-lg transition-colors ${m.isActive ? 'hover:bg-orange-50 text-slate-400 hover:text-orange-600' : 'hover:bg-green-50 text-slate-400 hover:text-green-600'}`}>
+                          {m.isActive ? <Ban size={13} /> : <CheckCircle size={13} />}
+                        </button>
+                      )}
+                      {can('members.delete') && (
+                        <button onClick={() => setConfirmDelete({ type: 'members', id: m.id })}
                           className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"><Trash2 size={13} /></button>
                       )}
                     </div>
@@ -1088,14 +1410,27 @@ export default function AdminPage() {
       </main>
 
       {/* ── MODALS ── */}
-      {modal?.type === 'agent' && (
-        <AgentModal mode={modal.mode} data={modal.data} onClose={() => setModal(null)} onSave={saveModal} />
-      )}
       {modal?.type === 'blog' && (
         <BlogModal mode={modal.mode} data={modal.data} onClose={() => setModal(null)} onSave={saveModal} />
       )}
-      {modal?.type === 'user' && (
-        <UserModal mode={modal.mode} data={modal.data} onClose={() => setModal(null)} onSave={saveModal} />
+      {modal?.type === 'staff' && (
+        <StaffModal
+          mode={modal.mode}
+          data={modal.data}
+          actorRole={user.role}
+          isSelf={Number(modal.data.id) === user.id}
+          onClose={() => setModal(null)}
+          onSave={saveModal}
+        />
+      )}
+
+      {permissionTarget && (
+        <StaffPermissionEditor
+          target={permissionTarget.id ? permissionTarget : null}
+          onClose={() => setPermissionTarget(null)}
+          onSaveUser={savePermissions}
+          onSaveRole={saveRoleTemplate}
+        />
       )}
 
       {/* Delete Confirm Modal */}
@@ -1121,97 +1456,8 @@ export default function AdminPage() {
       )}
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <AdminFooter />
     </div>
-  );
-}
-
-// ─── AGENT MODAL ─────────────────────────────────────────────────────────────
-
-function AgentModal({ mode, data, onClose, onSave }: { mode: 'create' | 'edit'; data: Record<string, unknown>; onClose: () => void; onSave: (d: Record<string, unknown>) => Promise<void> }) {
-  const [form, setForm] = useState({
-    name: String(data.name || ''),
-    email: String(data.email || ''),
-    phone: String(data.phone || ''),
-    photo: String(data.photo || ''),
-    bio: String(data.bio || ''),
-    company: String(data.company || 'TbilisiRealtor.GE'),
-    yearsExperience: String(data.yearsExperience || ''),
-    specialization: Array.isArray(data.specialization) ? (data.specialization as string[]).join(', ') : String(data.specialization || ''),
-    languages: Array.isArray(data.languages) ? (data.languages as string[]).join(', ') : String(data.languages || ''),
-    verified: Boolean(data.verified),
-    isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
-  });
-  const [saving, setSaving] = useState(false);
-  const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }));
-
-  async function handleSave() {
-    if (!form.name) return;
-    setSaving(true);
-    try {
-      await onSave({
-        ...form,
-        yearsExperience: parseInt(form.yearsExperience) || 0,
-        specialization: form.specialization.split(',').map(s => s.trim()).filter(Boolean),
-        languages: form.languages.split(',').map(s => s.trim()).filter(Boolean),
-      });
-    } finally { setSaving(false); }
-  }
-
-  return (
-    <Modal title={mode === 'create' ? 'აგენტის დამატება' : 'აგენტის რედაქტირება'} onClose={onClose}>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <Field label="სახელი, გვარი *">
-            <input type="text" value={form.name} onChange={e => set('name', e.target.value)} className={inputCls} />
-          </Field>
-        </div>
-        <Field label="Email">
-          <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="ტელეფონი">
-          <input type="text" value={form.phone} onChange={e => set('phone', e.target.value)} className={inputCls} />
-        </Field>
-        <div className="col-span-2">
-          <Field label="ფოტოს URL">
-            <div className="flex gap-3">
-              <input type="url" value={form.photo} onChange={e => set('photo', e.target.value)} className={`${inputCls} flex-1`} placeholder="https://..." />
-              {form.photo && <img src={form.photo} alt="" className="w-12 h-12 rounded-full object-cover flex-shrink-0" />}
-            </div>
-          </Field>
-        </div>
-        <Field label="კომპანია">
-          <input type="text" value={form.company} onChange={e => set('company', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="გამოცდ. (წ.)">
-          <input type="number" value={form.yearsExperience} onChange={e => set('yearsExperience', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="სპეც. (მძ.-ით)" hint="მაგ: საცხოვრებელი, კომ.">
-          <input type="text" value={form.specialization} onChange={e => set('specialization', e.target.value)} className={inputCls} />
-        </Field>
-        <Field label="ენები (მძ.-ით)" hint="მაგ: ქართული, ინგლისური">
-          <input type="text" value={form.languages} onChange={e => set('languages', e.target.value)} className={inputCls} />
-        </Field>
-        <div className="col-span-2">
-          <Field label="ბიოგრაფია">
-            <textarea value={form.bio} onChange={e => set('bio', e.target.value)} rows={3} className={`${inputCls} resize-none`} />
-          </Field>
-        </div>
-        <div className="col-span-2 flex gap-6">
-          {[{ k: 'verified', l: 'დადასტ.' }, { k: 'isActive', l: 'აქტიური' }].map(opt => (
-            <label key={opt.k} className="flex items-center gap-2 cursor-pointer">
-              <Toggle on={Boolean(form[opt.k as keyof typeof form])} onToggle={() => set(opt.k, !form[opt.k as keyof typeof form])} label={opt.l} />
-              <span className="text-sm font-medium text-slate-700">{opt.l}</span>
-            </label>
-          ))}
-        </div>
-      </div>
-      <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-slate-100">
-        <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50">გაუქმება</button>
-        <button onClick={handleSave} disabled={saving || !form.name} className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 disabled:opacity-60">
-          {saving ? 'მიმდინ...' : mode === 'create' ? 'დამატება' : 'შენახვა'}
-        </button>
-      </div>
-    </Modal>
   );
 }
 
@@ -1288,55 +1534,124 @@ function BlogModal({ mode, data, onClose, onSave }: { mode: 'create' | 'edit'; d
   );
 }
 
-// ─── USER MODAL ──────────────────────────────────────────────────────────────
+// ─── STAFF MODAL ─────────────────────────────────────────────────────────────
 
-function UserModal({ mode, data, onClose, onSave }: { mode: 'create' | 'edit'; data: Record<string, unknown>; onClose: () => void; onSave: (d: Record<string, unknown>) => Promise<void> }) {
+function StaffModal({ mode, data, actorRole, isSelf, onClose, onSave }: {
+  mode: 'create' | 'edit';
+  data: Record<string, unknown>;
+  actorRole: string;
+  isSelf: boolean;
+  onClose: () => void;
+  onSave: (d: Record<string, unknown>) => Promise<void>;
+}) {
   const [form, setForm] = useState({
     email: String(data.email || ''),
-    name: String(data.name || ''),
+    firstName: String(data.firstName || (typeof data.name === 'string' ? data.name.split(' ')[0] : '') || ''),
+    lastName: String(data.lastName || (typeof data.name === 'string' ? data.name.split(' ').slice(1).join(' ') : '') || ''),
+    dateOfBirth: data.dateOfBirth ? String(data.dateOfBirth).slice(0, 10) : '',
+    phone: String(data.phone || ''),
+    jobTitle: String(data.jobTitle || ''),
     password: '',
-    role: String(data.role || 'admin'),
+    role: String(data.role || 'broker'),
+    scope: data.scope === 'own' ? 'own' : 'all',
+    showOnFrontend: Boolean(data.showOnFrontend),
     isActive: data.isActive !== undefined ? Boolean(data.isActive) : true,
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const set = (k: string, v: unknown) => setForm(f => ({ ...f, [k]: v }));
 
+  // You can only hand out a role below your own.
+  const assignableRoles = STAFF_ROLES.filter(r => canManageRole(actorRole, r));
+
   async function handleSave() {
-    if (!form.name || (mode === 'create' && !form.password)) return;
+    if (!form.firstName || (mode === 'create' && !form.password)) return;
     setSaving(true);
-    try { await onSave(form); } finally { setSaving(false); }
+    setError('');
+    try {
+      await onSave({
+        ...form,
+        name: [form.firstName, form.lastName].filter(Boolean).join(' '),
+        dateOfBirth: form.dateOfBirth || null,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'შენახვა ვერ მოხერხდა');
+    } finally {
+      setSaving(false);
+    }
   }
 
   return (
-    <Modal title={mode === 'create' ? 'ადმინის დამატება' : 'ადმინის რედ.'} onClose={onClose}>
+    <Modal title={mode === 'create' ? 'თანამშრომლის დამატება' : 'თანამშრომლის რედაქტირება'} onClose={onClose}>
       <div className="space-y-4">
-        <Field label="სახელი *">
-          <input type="text" value={form.name} onChange={e => set('name', e.target.value)} className={inputCls} />
-        </Field>
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="სახელი *">
+            <input type="text" value={form.firstName} onChange={e => set('firstName', e.target.value)} className={inputCls} placeholder="თეონა" />
+          </Field>
+          <Field label="გვარი">
+            <input type="text" value={form.lastName} onChange={e => set('lastName', e.target.value)} className={inputCls} placeholder="ბერიძე" />
+          </Field>
+        </div>
         {mode === 'create' && (
           <Field label="Email *">
             <input type="email" value={form.email} onChange={e => set('email', e.target.value)} className={inputCls} />
           </Field>
         )}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="დაბადების თარიღი">
+            <input type="date" value={form.dateOfBirth} onChange={e => set('dateOfBirth', e.target.value)} className={inputCls} />
+          </Field>
+          <Field label="ტელეფონი">
+            <input type="text" value={form.phone} onChange={e => set('phone', e.target.value)} className={inputCls} placeholder="+995 ..." />
+          </Field>
+        </div>
+        <Field label="თანამდებობა">
+          <input type="text" value={form.jobTitle} onChange={e => set('jobTitle', e.target.value)} className={inputCls} placeholder="რეალტორი" />
+        </Field>
         <Field label={mode === 'create' ? 'პაროლი *' : 'ახალი პაროლი (სურ.)'}
-          hint={mode === 'edit' ? 'დატოვეთ ცარიელი, თუ არ ცვლით' : undefined}>
+          hint={mode === 'edit' ? 'შეცვლისას აქტიური სესიები ითიშება' : 'მინიმუმ 6 სიმბოლო'}>
           <input type="password" value={form.password} onChange={e => set('password', e.target.value)} className={inputCls} />
         </Field>
-        <Field label="როლი">
-          <select value={form.role} onChange={e => set('role', e.target.value)} className={selectCls}>
-            <option value="admin">ადმინი</option>
-            <option value="super_admin">სუპ. ადმინი</option>
-          </select>
-        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="როლი" hint={isSelf ? 'საკუთარი როლის შეცვლა არ შეიძლება' : ROLE_DESCRIPTION[form.role as Role]}>
+            <select
+              value={form.role}
+              disabled={isSelf}
+              onChange={e => set('role', e.target.value)}
+              className={`${selectCls} disabled:bg-slate-50 disabled:text-slate-400`}
+            >
+              {assignableRoles.map(r => <option key={r} value={r}>{roleLabel(r)}</option>)}
+              {!assignableRoles.includes(form.role as Role) && (
+                <option value={form.role}>{roleLabel(form.role)}</option>
+              )}
+            </select>
+          </Field>
+          <Field label="ხედვის არეალი" hint={form.scope === 'own' ? 'მხოლოდ თავისი განცხადებები' : 'ყველა განცხადება'}>
+            <select value={form.scope} onChange={e => set('scope', e.target.value)} className={selectCls}>
+              <option value="all">ყველა განცხადება</option>
+              <option value="own">მხოლოდ საკუთარი</option>
+            </select>
+          </Field>
+        </div>
+
         <label className="flex items-center gap-2 cursor-pointer">
           <Toggle on={form.isActive} onToggle={() => set('isActive', !form.isActive)} label="აქტ." />
           <span className="text-sm font-medium text-slate-700">აქტიური</span>
         </label>
+        <label className="flex items-center gap-2 cursor-pointer">
+          <Toggle on={form.showOnFrontend} onToggle={() => set('showOnFrontend', !form.showOnFrontend)} label="საიტი" />
+          <span className="text-sm font-medium text-slate-700">სახელის ჩვენება საიტზე (გუნდი)</span>
+        </label>
+
+        {error && (
+          <p className="text-xs font-semibold text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>
+        )}
       </div>
       <div className="flex justify-end gap-3 mt-5 pt-4 border-t border-slate-100">
         <button onClick={onClose} className="px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-semibold hover:bg-slate-50">გაუქმება</button>
-        <button onClick={handleSave} disabled={saving || !form.name || (mode === 'create' && !form.password)}
-          className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-600 disabled:opacity-60">
+        <button onClick={handleSave} disabled={saving || !form.firstName || (mode === 'create' && !form.password)}
+          className="px-6 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-60">
           {saving ? 'მიმდინ...' : mode === 'create' ? 'დამატება' : 'შენახვა'}
         </button>
       </div>

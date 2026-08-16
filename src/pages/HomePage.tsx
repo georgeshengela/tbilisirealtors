@@ -5,7 +5,7 @@ import {
   Search, MapPin, ChevronDown, ChevronLeft, ChevronRight, ArrowRight,
   Sparkles, X, Tag, Home, Maximize2, DollarSign,
   Bed, Bath, SlidersHorizontal,
-  Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent,
+  Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent, Key,
 } from 'lucide-react';
 import { constructionProjects, faqItems } from '../data/mockData';
 import type { Property, BlogPost } from '../types/listing';
@@ -709,6 +709,19 @@ export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<string | null>(faqItems[0]?.id ?? null);
   const featured = useMemo(() => properties.filter(p => p.isFeatured).slice(0, 12), [properties]);
   const newest = useMemo(() => properties.filter(p => p.isNew).slice(0, 12), [properties]);
+  /* Curated rows the office asked for: premium rentals and Vake sales. */
+  const premiumRentals = useMemo(
+    () => properties
+      .filter(p => (p.status === 'rent' || p.status === 'both') && (p.isPremium || p.isFeatured))
+      .slice(0, 12),
+    [properties],
+  );
+  const vakeSales = useMemo(
+    () => properties
+      .filter(p => (p.status === 'sale' || p.status === 'both') && /ვაკე|vake/i.test(p.district ?? ''))
+      .slice(0, 12),
+    [properties],
+  );
   const handleSearch = () => {
     const p = new URLSearchParams({ status: tab, city: form.city, district: form.district, type: form.propType || form.type, bedrooms: form.bedrooms, priceMin: form.priceMin, priceMax: form.priceMax, areaMin: form.areaMin, areaMax: form.areaMax });
     p.forEach((v, k) => { if (!v) p.delete(k); });
@@ -1191,35 +1204,6 @@ export default function HomePage() {
                 </div>
               </div>
 
-              {/* ── Row 3: Popular tags ── */}
-              <div
-                className="flex items-center gap-2 px-3 sm:px-4 py-2.5 sm:py-3 overflow-x-auto scrollbar-hide lg:flex-wrap lg:overflow-visible rounded-b-[20px]"
-                style={{ background: '#fafbfc', borderTop: '1px solid #f0f2f5' }}
-              >
-                <span className="flex-shrink-0" style={{ fontSize: 11, color: '#9ea0a7', fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{t('home.popular')}</span>
-                {[
-                  { l: t('home.popularTags.vake'), q: '?city=თბილისი&district=ვაკე' },
-                  { l: t('home.popularTags.batumiCenter'), q: '?city=ბათუმი&district=ძველი ბათუმი' },
-                  { l: t('home.popularTags.newComplex'), q: '?new=true' },
-                  { l: t('home.popularTags.threeRoom'), q: '?bedrooms=3' },
-                  { l: t('home.popularTags.rentApartment'), q: '?status=rent&propType=apartment' },
-                ].map(tag => (
-                  <button key={tag.l}
-                    onClick={() => navigate(`/listings${tag.q}`)}
-                    className="px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all duration-150 flex-shrink-0"
-                    style={{ background: '#fff', color: '#5a5c64', border: '1px solid #e8eaed' }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(37, 99, 235,0.08)';
-                      (e.currentTarget as HTMLElement).style.color = '#2563eb';
-                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37, 99, 235,0.25)';
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.background = '#fff';
-                      (e.currentTarget as HTMLElement).style.color = '#5a5c64';
-                      (e.currentTarget as HTMLElement).style.borderColor = '#e8eaed';
-                    }}>{tag.l}</button>
-                ))}
-              </div>
               </div>{/* desktop search */}
 
               {/* ── MOBILE BOTTOM SHEETS ── */}
@@ -1646,6 +1630,45 @@ export default function HomePage() {
             />
           </InViewFade>
           <ListingSlider items={newest} badge="new" />
+        </div>
+      </section>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          PREMIUM RENTALS
+      ══════════════════════════════════════════════════════ */}
+      {premiumRentals.length > 0 && (
+      <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#fff' }}>
+        <div className="container-xl">
+          <InViewFade>
+            <SectionTitle
+              icon={Key}
+              title={t('home.sections.premiumRentals')}
+              linkTo="/listings?status=rent&vip=true"
+              linkLabel={t('home.sections.premiumRentalsAll')}
+            />
+          </InViewFade>
+          <ListingSlider items={premiumRentals} badge="vip" />
+        </div>
+      </section>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          VAKE SALES
+      ══════════════════════════════════════════════════════ */}
+      {vakeSales.length > 0 && (
+      <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#f7f9fb' }}>
+        <div className="container-xl">
+          <InViewFade>
+            <SectionTitle
+              icon={MapPin}
+              title={t('home.sections.vakeSales')}
+              accent="green"
+              linkTo="/listings?status=sale&district=ვაკე"
+              linkLabel={t('home.sections.vakeSalesAll')}
+            />
+          </InViewFade>
+          <ListingSlider items={vakeSales} />
         </div>
       </section>
       )}

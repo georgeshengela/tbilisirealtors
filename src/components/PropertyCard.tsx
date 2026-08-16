@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Heart, MapPin, Bed, Bath, Square, Sparkles, ArrowUpRight } from 'lucide-react';
 import type { Property } from '../types/listing';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { useIsFavorite } from '../lib/favorites';
 import { useTranslation } from '../i18n/LocaleContext';
 
 interface PropertyCardProps {
@@ -36,7 +37,7 @@ function useFormatPropertyPrice() {
 
 /* ─────────────────────────────────────────────────────── Default card ── */
 export default function PropertyCard({ property, variant = 'default' }: PropertyCardProps) {
-  const [liked, setLiked] = useState(false);
+  const [liked, toggleLike] = useIsFavorite(property.id);
   const [hovered, setHovered] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const labels = usePropertyLabels();
@@ -102,7 +103,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
 
         {/* ── Heart ── */}
         <button
-          onClick={e => { e.preventDefault(); setLiked(l => !l); }}
+          onClick={e => { e.preventDefault(); toggleLike(); }}
           className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-colors duration-200"
           style={{
             background: liked ? '#ef4444' : 'rgba(255,255,255,0.92)',
@@ -219,7 +220,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
 
 /* ─────────────────────────────────────────────── Horizontal / list card ── */
 function HorizontalCard({ property }: { property: Property }) {
-  const [liked, setLiked] = useState(false);
+  const [liked, toggleLike] = useIsFavorite(property.id);
   const { t } = useTranslation();
   const labels = usePropertyLabels();
   const formatPrice = useFormatPropertyPrice();
@@ -270,7 +271,7 @@ function HorizontalCard({ property }: { property: Property }) {
             )}
           </div>
           <button
-            onClick={() => setLiked(l => !l)}
+            onClick={toggleLike}
             className="w-8 h-8 flex items-center justify-center rounded-full transition-colors duration-200 flex-shrink-0"
             style={{ border: `1.5px solid ${liked ? '#ef4444' : '#eceef0'}`, background: liked ? '#ef4444' : '#fff' }}
           >

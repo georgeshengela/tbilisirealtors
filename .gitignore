@@ -22,6 +22,9 @@ dist-server
 .cache
 .shots
 
+# Admin uploads (listing photos, signed contracts)
+uploads
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

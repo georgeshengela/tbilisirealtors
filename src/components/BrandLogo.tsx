@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2 } from 'lucide-react';
 
@@ -88,6 +88,7 @@ interface BrandLogoProps {
   /** Pass `null` to render a non-navigating lockup. */
   href?: string | null;
   badge?: ReactNode;
+  style?: CSSProperties;
 }
 
 export default function BrandLogo({
@@ -99,6 +100,7 @@ export default function BrandLogo({
   className = '',
   href = '/',
   badge,
+  style: styleOverride,
 }: BrandLogoProps) {
   const s = SIZES[size];
   const mobileSize: BrandLogoSize = responsiveText ? 'xs' : size;
@@ -143,7 +145,7 @@ export default function BrandLogo({
     </>
   );
 
-  const style = { gap: s.gap, textDecoration: 'none' as const };
+  const style = { gap: s.gap, textDecoration: 'none' as const, ...styleOverride };
   const classes = `inline-flex items-center flex-shrink-0 ${className}`;
 
   if (href != null) {

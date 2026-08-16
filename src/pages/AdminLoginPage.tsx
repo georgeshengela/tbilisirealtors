@@ -31,18 +31,8 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
-      {/* Background pattern */}
-      <div
-        className="absolute inset-0 opacity-5"
-        style={{
-          backgroundImage: `radial-gradient(circle at 1px 1px, white 1px, transparent 0)`,
-          backgroundSize: '32px 32px',
-        }}
-      />
-
+    <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
       <div className="relative w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="flex justify-center mb-4">
             <BrandLogo variant="dark" size="lg" href={null} />
@@ -50,10 +40,9 @@ export default function AdminLoginPage() {
           <p className="text-slate-400 text-sm mt-1 font-semibold">ადმინ პანელი</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-slate-200/10 p-8">
           <h2 className="text-xl font-bold text-slate-800 mb-2">შესვლა</h2>
-          <p className="text-slate-500 text-sm mb-6">ადმინ პანელში შეასვლისთვის შეიყვანეთ თქვენი მონაცემები</p>
+          <p className="text-slate-500 text-sm mb-6">ადმინ პანელში შესასვლელად შეიყვანეთ თქვენი მონაცემები</p>
 
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm mb-5">
@@ -63,7 +52,6 @@ export default function AdminLoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 Email მისამართი
@@ -84,7 +72,6 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-sm font-semibold text-slate-700 mb-1.5">
                 პაროლი
@@ -112,11 +99,10 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-blue-600 to-blue-600 text-white font-bold text-sm shadow-lg hover:shadow-blue-600/30 hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              className="w-full py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -134,7 +120,7 @@ export default function AdminLoginPage() {
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-6">
-          © 2024 TbilisiRealtor.GE · ადმინ სისტემა
+          © {new Date().getFullYear()} TbilisiRealtor.GE · ადმინ სისტემა
         </p>
       </div>
     </div>
