@@ -483,6 +483,7 @@ export const en = {
     layout: 'Listed date',
     cityLabel: 'City',
     districtLabel: 'District',
+    cadastralCode: 'Cadastral code',
     areaFull: 'Area',
     bedroomsFull: 'Bedrooms',
     similarShort: 'Similar',

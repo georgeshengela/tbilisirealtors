@@ -364,7 +364,7 @@ export default function AdminPage() {
   const initialSection: Section =
     sectionParam && SECTIONS.includes(sectionParam as Section)
       ? (sectionParam as Section)
-      : 'dashboard';
+      : 'properties';
 
   const [section, setSection] = useState<Section>(initialSection);
   // Both sections read ?tab= so a dashboard shortcut can land on an exact board.

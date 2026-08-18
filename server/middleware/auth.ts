@@ -199,3 +199,34 @@ export function requireSuperAdmin(req: AuthRequest, res: Response, next: NextFun
 
 /** Legacy alias kept so older imports keep working. */
 export const requireAdmin = requireStaff;
+
+/**
+ * Attaches req.user when a valid token is present, and otherwise continues
+ * anonymously. Used on public pages that reveal extra fields to staff.
+ */
+export async function optionalAuth(
+  req: AuthRequest,
+  _res: Response,
+  next: NextFunction,
+): Promise<void> {
+  const authHeader = req.headers.authorization;
+  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) {
+    next();
+    return;
+  }
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload;
+    const actor = await loadActor(payload.id);
+    if (
+      actor?.isActive
+      && (typeof payload.tokenVersion !== 'number' || payload.tokenVersion === actor.tokenVersion)
+    ) {
+      req.user = actor;
+    }
+  } catch {
+    /* Invalid tokens stay anonymous — this is a public endpoint. */
+  }
+  next();
+}

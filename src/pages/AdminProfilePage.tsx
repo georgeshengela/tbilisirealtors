@@ -114,7 +114,7 @@ export default function AdminProfilePage() {
   }
 
   return (
-    <AdminLayout subtitle="პროფილი" activeSection="dashboard" hideAddButton>
+    <AdminLayout subtitle="პროფილი" activeSection="properties" hideAddButton>
       <div className="container-xl py-8">
         <div className="max-w-4xl">
         <button

@@ -65,6 +65,11 @@ export function meetsAdminFloor(role: string): boolean {
   return rankOf(role) >= ROLE_RANK.admin;
 }
 
+/** Cadastral code on the public listing page — managers and admins only. */
+export function canViewCadastral(role?: string): boolean {
+  return rankOf(role ?? '') >= ROLE_RANK.manager;
+}
+
 export function isRole(value: string): value is Role {
   return value in ROLE_RANK;
 }

@@ -49,12 +49,22 @@ export async function fetchProperties(force = false): Promise<Property[]> {
   return propertiesPromise;
 }
 
-export async function fetchPropertyById(id: string): Promise<Property | null> {
+function viewerToken(): string | null {
+  try {
+    return localStorage.getItem('member_token') || localStorage.getItem('admin_token');
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchPropertyById(id: string, authToken?: string | null): Promise<Property | null> {
   try {
     const session = getViewSessionKey();
-    const row = await fetch(`/api/properties/${id}`, {
-      headers: { 'X-View-Session': session },
-    }).then(res => parseJson<ApiPropertyRow>(res));
+    const token = authToken || viewerToken();
+    const headers: Record<string, string> = { 'X-View-Session': session };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    const row = await fetch(`/api/properties/${id}`, { headers })
+      .then(res => parseJson<ApiPropertyRow>(res));
     const mapped = mapPropertyFromApi(row);
     if (propertiesCache) {
       const idx = propertiesCache.findIndex(p => p.id === id);

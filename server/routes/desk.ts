@@ -450,7 +450,7 @@ router.post('/listings/:id/calls', requirePermission('listings.tasks'), async (r
 
     // A call is the natural moment to move the listing on — if allowed.
     const nextState = req.body?.lifecycleState;
-    if (typeof nextState === 'string' && nextState && nextState !== listing.lifecycleState) {
+    if (typeof nextState === 'string' && nextState) {
       if (!can(actor, 'listings.lifecycle')) {
         fail(res, 403, 'სტატუსის შეცვლის უფლება არ გაქვთ');
         return;

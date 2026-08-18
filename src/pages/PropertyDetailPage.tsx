@@ -298,6 +298,9 @@ export default function PropertyDetailPage() {
         { label: t('property.parking'), value: list(property.parking) },
         { label: t('property.cityLabel'), value: property.city },
         { label: t('property.districtLabel'), value: property.district },
+        property.cadastralCode
+          ? { label: t('property.cadastralCode'), value: property.cadastralCode }
+          : null,
       ],
     },
   ]

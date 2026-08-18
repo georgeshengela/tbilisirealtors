@@ -1,10 +1,11 @@
 import { Router, Response } from 'express';
 import { db } from '../db.js';
 import { properties, agents, blogPosts, users } from '../schema.js';
-import { and, count, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, ne } from 'drizzle-orm';
 import { toPublicTeamMember } from '../utils/adminProfile.js';
 import { recordPropertyView } from '../services/propertyViews.js';
-import { STAFF_ROLES } from '../permissions.js';
+import { STAFF_ROLES, canViewCadastral } from '../permissions.js';
+import { optionalAuth, type AuthRequest } from '../middleware/auth.js';
 
 const router = Router();
 
@@ -14,14 +15,17 @@ type PropertyRow = typeof properties.$inferSelect;
  * Only approved listings exist as far as the public site is concerned.
  * Member submissions sit at 'pending' until staff signs them off.
  */
-const publiclyVisible = eq(properties.moderationStatus, 'approved');
+const publiclyVisible = and(
+  eq(properties.moderationStatus, 'approved'),
+  ne(properties.lifecycleState, 'old'),
+);
 
 /**
  * Admin-only columns are stripped here — owner records, agreements, private
  * notes and held-back photos must never reach the public API. Listings that
  * opt out of `showAddress` also lose the exact building number.
  */
-function toPublic(row: PropertyRow) {
+function toPublic(row: PropertyRow, viewerRole?: string) {
   const {
     owner: _owner,
     contracts: _contracts,
@@ -30,6 +34,9 @@ function toPublic(row: PropertyRow) {
     agentTaxId: _agentTaxId,
     invoiceRef: _invoiceRef,
     lifecycleNote: _lifecycleNote,
+    lifecycleOutcome: _lifecycleOutcome,
+    lifecycleDealPrice: _lifecycleDealPrice,
+    cadastralCode,
     moderationStatus: _moderationStatus,
     moderationNote: _moderationNote,
     moderatedByUserId: _moderatedByUserId,
@@ -53,6 +60,10 @@ function toPublic(row: PropertyRow) {
       .map(part => part.trim())
       .filter(part => part && !/\d/.test(part));
     pub.address = kept.join(', ') || [pub.district, pub.city].filter(Boolean).join(', ');
+  }
+
+  if (canViewCadastral(viewerRole) && cadastralCode) {
+    return { ...pub, cadastralCode };
   }
 
   return pub;
@@ -99,7 +110,7 @@ router.get('/properties', async (req, res: Response): Promise<void> => {
   }
 });
 
-router.get('/properties/:id', async (req, res: Response): Promise<void> => {
+router.get('/properties/:id', optionalAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const [property] = await db
       .select()
@@ -118,7 +129,7 @@ router.get('/properties/:id', async (req, res: Response): Promise<void> => {
       property.viewCount ?? 0,
     );
 
-    res.json({ ...toPublic(property), viewCount });
+    res.json({ ...toPublic(property, req.user?.role), viewCount });
   } catch (err) {
     console.error('Public property error:', err);
     res.status(500).json({ error: 'Server error' });

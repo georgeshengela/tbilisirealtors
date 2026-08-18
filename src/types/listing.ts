@@ -47,6 +47,7 @@ export interface Property {
   coordinates: { lat: number; lng: number };
   viewCount: number;
   listedDate: string;
+  cadastralCode?: string | null;
 }
 
 export interface Agent {
@@ -124,6 +125,7 @@ export type ApiPropertyRow = {
   agentName: string | null;
   agentPhone: string | null;
   agentEmail: string | null;
+  cadastralCode?: string | null;
 };
 
 export type ApiAgentRow = {

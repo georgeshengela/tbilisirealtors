@@ -10,7 +10,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, X, Building2, TrendingUp, Home,
   Image as ImageIcon, Calendar, ChevronDown, Check, Copy, History,
   PhoneCall, CalendarClock, Loader2, Mail, FileText, MessageSquare,
-  CreditCard as IdCard, Upload, ClipboardList, Lock,
+  CreditCard as IdCard, Upload, ClipboardList, Lock, Archive, Key,
   type LucideIcon,
 } from 'lucide-react';
 import { listingIdMatches } from '../../lib/listingId';
@@ -18,6 +18,12 @@ import { formatGeorgianDateTime, formatGeorgianShortDate } from '../../lib/dateF
 import { useFileUpload, type UploadedFile } from '../../hooks/useFileUpload';
 import { useAdminAuth, useApiRequest } from '../../contexts/AdminAuthContext';
 import ListingWorkPanel from './desk/ListingWorkPanel';
+import {
+  LIFECYCLE_OUTCOMES,
+  LIFECYCLE_OUTCOME_META,
+  isLifecycleOutcome,
+  type LifecycleOutcome,
+} from '../../lib/lifecycle';
 
 export interface PriceChangeRow {
   id: number;
@@ -89,6 +95,8 @@ export interface AdminPropertyRow {
   rentStartedAt?: string | null;
   rentExpiresAt?: string | null;
   lifecycleNote?: string | null;
+  lifecycleOutcome?: string | null;
+  lifecycleDealPrice?: string | number | null;
   priceHistory?: PriceChangeRow[];
   owner?: PropertyOwnerInfo | null;
   contracts?: PropertyContractDoc[] | null;
@@ -113,6 +121,8 @@ export type PropertyPatch = Partial<{
   rentStartedAt: string | null;
   rentExpiresAt: string | null;
   lifecycleNote: string;
+  lifecycleOutcome: string | null;
+  lifecycleDealPrice: number | string | null;
   owner: PropertyOwnerInfo | null;
   contracts: PropertyContractDoc[];
   internalNotes: InternalNoteRow[];
@@ -120,7 +130,8 @@ export type PropertyPatch = Partial<{
 
 type StatusFilter = 'all' | 'sale' | 'rent';
 type LifecycleFilter = 'all' | 'new' | 'current' | 'old' | 'new_r';
-type BadgeFilter = 'all' | 'premium' | 'featured' | 'new';
+type BadgeFilter = 'all' | 'premium' | 'featured' | 'new' | 'rented_invest';
+type OutcomeFilter = 'all' | LifecycleOutcome;
 type SortKey =
   | 'title' | 'price' | 'pricePerSqm' | 'area' | 'city' | 'type' | 'status'
   | 'bedrooms' | 'floor' | 'viewCount' | 'createdAt' | 'agentName' | 'lifecycle' | 'owner';
@@ -143,11 +154,12 @@ const LIFECYCLE_ORDER = ['new', 'current', 'old', 'new_r'] as const;
 const LIFECYCLE_META: Record<string, { label: string; note: string; color: string; bg: string }> = {
   new:     { label: 'new',     note: 'ახლად დამატებული, ჯერ დაუმუშავებელი', color: '#2563eb', bg: '#eff6ff' },
   current: { label: 'current', note: 'აქტიურია — გამოქვეყნებულია და იყიდება/ქირავდება', color: '#10b981', bg: '#ecfdf5' },
-  old:     { label: 'old',     note: 'გაქირავდა/გაიყიდა — ვადით გაჩერებული', color: '#64748b', bg: '#f1f5f9' },
+  old:     { label: 'old',     note: 'არქივი — აირჩიე რატომ: გაიყიდა, გაქირავდა, შეჩერდა, აღარ იყიდება', color: '#64748b', bg: '#f1f5f9' },
   new_r:   { label: 'new R',   note: 'ვადა გავიდა — თავისუფლდება, დასარეკი და გადასამოწმებელი', color: '#ef4444', bg: '#fef2f2' },
 };
 
 const RENT_TERMS = [6, 12, 18, 24];
+const PAUSE_DAYS = [3, 7, 14];
 
 const SOURCE_LABEL: Record<string, string> = {
   'myhome.ge': 'myhome.ge',
@@ -194,6 +206,16 @@ function addMonthsISO(startedAt: string, months: number): string {
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
+function addDaysISO(startedAt: string, days: number): string {
+  const date = new Date(`${startedAt}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+function outcomeOf(p: AdminPropertyRow): LifecycleOutcome | null {
+  return isLifecycleOutcome(p.lifecycleOutcome) ? p.lifecycleOutcome : null;
+}
+
 function Badge({ label, color }: { label: string; color: string }) {
   return (
     <span
@@ -220,11 +242,14 @@ function Toggle({ on, onToggle, label, color = '#10B981' }: { on: boolean; onTog
 }
 
 function ImgThumb({ src, large }: { src?: string; large?: boolean }) {
-  const cls = large ? 'w-14 h-11' : 'w-12 h-10';
+  const size = large
+    ? { width: 128, height: 96, minWidth: 128 }
+    : { width: 96, height: 72, minWidth: 96 };
+  const cls = 'rounded-xl object-cover flex-shrink-0 bg-slate-100 border border-slate-200/80';
   if (!src) {
     return (
-      <div className={`${cls} rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 border border-slate-200/80`}>
-        <ImageIcon size={14} className="text-slate-300" />
+      <div className={`${cls} flex items-center justify-center`} style={size}>
+        <ImageIcon size={20} className="text-slate-300" />
       </div>
     );
   }
@@ -232,7 +257,8 @@ function ImgThumb({ src, large }: { src?: string; large?: boolean }) {
     <img
       src={src}
       alt=""
-      className={`${cls} rounded-xl object-cover flex-shrink-0 bg-slate-100 border border-slate-200/80`}
+      className={cls}
+      style={size}
       onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
     />
   );
@@ -857,7 +883,7 @@ function PriceCell({
   );
 }
 
-/* ── Lifecycle state with the rental term that turns "old" into "new R" ── */
+/* ── Lifecycle state + the old-subcategory that explains why it left the live table ── */
 function LifecycleCell({
   p, onPatch,
 }: {
@@ -868,22 +894,52 @@ function LifecycleCell({
   const [saving, setSaving] = useState(false);
 
   const state = lifecycleOf(p);
-  const meta = LIFECYCLE_META[state];
+  const outcome = outcomeOf(p);
+  const chipState = outcome === 'rented_owner' ? 'current' : state;
+  const meta = LIFECYCLE_META[chipState];
   const days = daysUntil(p.rentExpiresAt);
+  const outcomeMeta = outcome ? LIFECYCLE_OUTCOME_META[outcome] : null;
 
   const [draftState, setDraftState] = useState(state);
+  const [draftOutcome, setDraftOutcome] = useState<LifecycleOutcome | ''>(outcome ?? '');
   const [draftTerm, setDraftTerm] = useState<number | null>(p.rentTermMonths ?? 12);
   const [draftStart, setDraftStart] = useState(p.rentStartedAt?.slice(0, 10) ?? todayISO());
   const [draftEnd, setDraftEnd] = useState(p.rentExpiresAt?.slice(0, 10) ?? '');
+  const [draftPrice, setDraftPrice] = useState(p.lifecycleDealPrice != null ? String(p.lifecycleDealPrice) : '');
   const [draftNote, setDraftNote] = useState(p.lifecycleNote ?? '');
 
   function openEditor(e: ReactMouseEvent<HTMLButtonElement>) {
-    setDraftState(state);
+    const startsOld = state === 'old' || outcome === 'rented_owner';
+    setDraftState(startsOld ? 'old' : state);
+    setDraftOutcome(outcome ?? '');
     setDraftTerm(p.rentTermMonths ?? 12);
     setDraftStart(p.rentStartedAt?.slice(0, 10) ?? todayISO());
-    setDraftEnd(p.rentExpiresAt?.slice(0, 10) ?? addMonthsISO(p.rentStartedAt?.slice(0, 10) ?? todayISO(), p.rentTermMonths ?? 12));
+    setDraftEnd(
+      p.rentExpiresAt?.slice(0, 10)
+      ?? (outcome === 'paused' ? addDaysISO(todayISO(), 7) : addMonthsISO(p.rentStartedAt?.slice(0, 10) ?? todayISO(), p.rentTermMonths ?? 12)),
+    );
+    setDraftPrice(p.lifecycleDealPrice != null ? String(p.lifecycleDealPrice) : '');
     setDraftNote(p.lifecycleNote ?? '');
     setAnchor(anchor ? null : e.currentTarget);
+  }
+
+  function pickState(key: typeof LIFECYCLE_ORDER[number]) {
+    setDraftState(key);
+    if (key !== 'old' && key !== 'new_r') setDraftOutcome('');
+    if (key === 'old' && !draftOutcome) {
+      setDraftEnd(addDaysISO(todayISO(), 7));
+    }
+  }
+
+  function pickOutcome(next: LifecycleOutcome) {
+    setDraftOutcome(next);
+    if (next === 'paused' && !p.rentExpiresAt) setDraftEnd(addDaysISO(todayISO(), 7));
+    if (next === 'rented_us' && !draftStart) {
+      const start = todayISO();
+      setDraftStart(start);
+      setDraftTerm(12);
+      setDraftEnd(addMonthsISO(start, 12));
+    }
   }
 
   function pickTerm(months: number) {
@@ -897,15 +953,21 @@ function LifecycleCell({
   }
 
   const parked = draftState === 'old' || draftState === 'new_r';
+  const needsOutcome = draftState === 'old';
+  const canSave = !needsOutcome || Boolean(draftOutcome);
 
   async function save() {
+    if (!canSave) return;
     setSaving(true);
     try {
+      const termOutcome = draftOutcome === 'rented_us' || (!draftOutcome && parked);
       await onPatch(p.id, {
         lifecycleState: draftState,
-        rentTermMonths: parked ? draftTerm : null,
-        rentStartedAt: parked ? draftStart || todayISO() : null,
-        rentExpiresAt: parked ? draftEnd || null : null,
+        lifecycleOutcome: parked ? (draftOutcome || null) : null,
+        rentTermMonths: termOutcome ? draftTerm : null,
+        rentStartedAt: termOutcome ? draftStart || todayISO() : null,
+        rentExpiresAt: draftOutcome === 'paused' || termOutcome ? (draftEnd || null) : null,
+        lifecycleDealPrice: draftOutcome === 'rented_us' ? (draftPrice.trim() || null) : null,
         lifecycleNote: draftNote.trim(),
       });
       setAnchor(null);
@@ -921,17 +983,24 @@ function LifecycleCell({
         onClick={openEditor}
         className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-extrabold transition-all hover:brightness-95"
         style={{ background: meta.bg, color: meta.color, border: `1px solid ${meta.color}25` }}
-        title={meta.note}
+        title={outcomeMeta?.label ?? meta.note}
       >
-        {state === 'new_r' && <PhoneCall size={10} strokeWidth={2.6} />}
+        {chipState === 'new_r' && <PhoneCall size={10} strokeWidth={2.6} />}
+        {outcome === 'rented_owner' && <Key size={10} strokeWidth={2.6} />}
         {meta.label}
         <ChevronDown size={10} className="opacity-50" />
       </button>
 
-      {state === 'old' && p.rentExpiresAt && (
+      {outcomeMeta && (
+        <p className="text-[10px] font-bold mt-1 leading-snug" style={{ color: outcome === 'rented_owner' ? '#0f766e' : '#64748b' }}>
+          {outcomeMeta.label}
+        </p>
+      )}
+
+      {(state === 'old' || state === 'new_r') && p.rentExpiresAt && (outcome === 'paused' || outcome === 'rented_us' || !outcome) && (
         <p
-          className="text-[10px] font-semibold mt-1 flex items-center gap-1 whitespace-nowrap"
-          style={{ color: days !== null && days <= 30 ? '#d97706' : '#94a3b8' }}
+          className="text-[10px] font-semibold mt-0.5 flex items-center gap-1 whitespace-nowrap"
+          style={{ color: state === 'new_r' || (days !== null && days <= 30) ? '#d97706' : '#94a3b8' }}
         >
           <CalendarClock size={10} />
           {fmtDate(p.rentExpiresAt)}
@@ -940,13 +1009,13 @@ function LifecycleCell({
       )}
 
       {state === 'new_r' && (
-        <p className="text-[10px] font-bold text-red-500 mt-1 whitespace-nowrap">
+        <p className="text-[10px] font-bold text-red-500 mt-0.5 whitespace-nowrap">
           {days !== null && days < 0 ? `ვადა ${Math.abs(days)} დღის წინ გავიდა` : 'ვადა გავიდა — დაურეკე'}
         </p>
       )}
 
       {anchor && (
-        <AnchoredPopover anchor={anchor} width={318} onClose={() => setAnchor(null)}>
+        <AnchoredPopover anchor={anchor} width={360} onClose={() => setAnchor(null)}>
           <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">განცხადების სტატუსი</p>
 
           <div className="space-y-1">
@@ -957,7 +1026,7 @@ function LifecycleCell({
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setDraftState(key)}
+                  onClick={() => pickState(key)}
                   className="w-full flex items-start gap-2.5 px-2.5 py-2 rounded-xl text-left transition-colors"
                   style={selected ? { background: item.bg, border: `1px solid ${item.color}30` } : { border: '1px solid transparent' }}
                   onMouseEnter={e => { if (!selected) (e.currentTarget as HTMLElement).style.background = '#f8fafc'; }}
@@ -978,29 +1047,83 @@ function LifecycleCell({
             })}
           </div>
 
-          {parked && (
-            <div className="mt-3 pt-3 border-t border-slate-100 space-y-2.5">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">ვადა</p>
-                <div className="flex flex-wrap gap-1">
-                  {RENT_TERMS.map(months => (
+          {needsOutcome && (
+            <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">რატომ არის old</p>
+              <div className="grid grid-cols-1 gap-1">
+                {LIFECYCLE_OUTCOMES.map(id => {
+                  const item = LIFECYCLE_OUTCOME_META[id];
+                  const selected = draftOutcome === id;
+                  return (
                     <button
-                      key={months}
+                      key={id}
                       type="button"
-                      onClick={() => pickTerm(months)}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-colors"
-                      style={
-                        draftTerm === months
-                          ? { background: '#eff6ff', borderColor: '#bfdbfe', color: '#2563eb' }
-                          : { background: '#fff', borderColor: '#e2e8f0', color: '#64748b' }
-                      }
+                      onClick={() => pickOutcome(id)}
+                      className="w-full text-left px-2.5 py-1.5 rounded-xl border transition-colors"
+                      style={selected
+                        ? { background: '#f8fafc', borderColor: '#94a3b8' }
+                        : { background: '#fff', borderColor: '#e2e8f0' }}
                     >
-                      {months} თვე
+                      <span className="block text-[11px] font-extrabold text-slate-800">{item.label}</span>
+                      <span className="block text-[10px] text-slate-400 leading-snug">{item.hint}</span>
                     </button>
-                  ))}
-                </div>
+                  );
+                })}
               </div>
+            </div>
+          )}
 
+          {draftOutcome === 'paused' && (
+            <div className="mt-3 space-y-2">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">როდის დაბრუნდეს New R-ში</p>
+              <div className="flex flex-wrap gap-1">
+                {PAUSE_DAYS.map(daysN => (
+                  <button
+                    key={daysN}
+                    type="button"
+                    onClick={() => setDraftEnd(addDaysISO(todayISO(), daysN))}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold border"
+                    style={draftEnd === addDaysISO(todayISO(), daysN)
+                      ? { background: '#eff6ff', borderColor: '#bfdbfe', color: '#2563eb' }
+                      : { background: '#fff', borderColor: '#e2e8f0', color: '#64748b' }}
+                  >
+                    {daysN} დღე
+                  </button>
+                ))}
+              </div>
+              <label className="block">
+                <span className="block text-[10px] font-bold text-slate-400 mb-1">თარიღი</span>
+                <input
+                  type="date"
+                  value={draftEnd}
+                  onChange={e => setDraftEnd(e.target.value)}
+                  className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 focus:outline-none focus:border-blue-400"
+                />
+              </label>
+              <p className="text-[10px] text-slate-400">
+                ამ თარიღზე სტატუსი ავტომატურად გახდება <b className="text-red-500">new R</b>.
+              </p>
+            </div>
+          )}
+
+          {draftOutcome === 'rented_us' && (
+            <div className="mt-3 space-y-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">ქირავნობის ვადა და ფასი</p>
+              <div className="flex flex-wrap gap-1">
+                {RENT_TERMS.map(months => (
+                  <button
+                    key={months}
+                    type="button"
+                    onClick={() => pickTerm(months)}
+                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold border"
+                    style={draftTerm === months
+                      ? { background: '#eff6ff', borderColor: '#bfdbfe', color: '#2563eb' }
+                      : { background: '#fff', borderColor: '#e2e8f0', color: '#64748b' }}
+                  >
+                    {months} თვე
+                  </button>
+                ))}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 <label className="block">
                   <span className="block text-[10px] font-bold text-slate-400 mb-1">დაწყება</span>
@@ -1021,27 +1144,47 @@ function LifecycleCell({
                   />
                 </label>
               </div>
-
-              <input
-                value={draftNote}
-                onChange={e => setDraftNote(e.target.value)}
-                placeholder="შენიშვნა (მოიჯარე, ხელშეკრულება...)"
-                className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 placeholder-slate-300 focus:outline-none focus:border-blue-400"
-              />
-
-              {draftEnd && (
-                <p className="text-[10px] text-slate-400">
-                  ვადის გასვლის შემდეგ სტატუსი ავტომატურად გახდება <b className="text-red-500">new R</b> და გამოჩნდება დასარეკებში.
-                </p>
-              )}
+              <label className="block">
+                <span className="block text-[10px] font-bold text-slate-400 mb-1">ქირის ფასი (₾)</span>
+                <input
+                  type="number"
+                  min={0}
+                  value={draftPrice}
+                  onChange={e => setDraftPrice(e.target.value)}
+                  placeholder="მაგ. 1200"
+                  className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] font-semibold text-slate-700 focus:outline-none focus:border-blue-400"
+                />
+              </label>
+              <p className="text-[10px] text-slate-400">
+                ვადის გასვლის შემდეგ სტატუსი ავტომატურად გახდება <b className="text-red-500">new R</b>.
+              </p>
             </div>
+          )}
+
+          {draftOutcome === 'rented_owner' && (
+            <p className="mt-2 text-[10px] text-teal-700 bg-teal-50 border border-teal-100 rounded-xl px-2.5 py-2 leading-snug">
+              განცხადება რჩება გაყიდვაზე და მთავარ ცხრილში. შიდა ნიშანია, რომ გაქირავებულია — ინვესტიციის ფილტრისთვის.
+            </p>
+          )}
+
+          <div className="mt-3 pt-3 border-t border-slate-100">
+            <input
+              value={draftNote}
+              onChange={e => setDraftNote(e.target.value)}
+              placeholder="კომენტარი (ნებისმიერი სტატუსისთვის)"
+              className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 placeholder-slate-300 focus:outline-none focus:border-blue-400"
+            />
+          </div>
+
+          {!canSave && (
+            <p className="mt-2 text-[10px] font-semibold text-amber-600">აირჩიე ქვეკატეგორია, შემდეგ შეინახე.</p>
           )}
 
           <div className="flex items-center gap-2 mt-3">
             <button
               type="button"
               onClick={save}
-              disabled={saving}
+              disabled={saving || !canSave}
               className="flex-1 inline-flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-60"
               style={{ background: '#059669' }}
             >
@@ -1509,7 +1652,12 @@ interface AdminPropertiesSectionProps {
   showToast?: (message: string, type?: 'success' | 'error') => void;
 }
 
-export default function AdminPropertiesSection({ properties, onPatch, onDelete, showToast }: AdminPropertiesSectionProps) {
+export default function AdminPropertiesSection({
+  properties,
+  onPatch,
+  onDelete,
+  showToast,
+}: AdminPropertiesSectionProps) {
   const navigate = useNavigate();
   const { user, can } = useAdminAuth();
   const api = useApiRequest();
@@ -1532,39 +1680,52 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
   const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [badgeFilter, setBadgeFilter] = useState<BadgeFilter>('all');
+  const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all');
   const [cityFilter, setCityFilter] = useState('all');
   const [sortKey, setSortKey] = useState<SortKey>('createdAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
+  const [mode, setMode] = useState<'active' | 'archive'>('active');
 
   const cities = useMemo(() => {
     const set = new Set(properties.map(p => p.city).filter(Boolean));
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'ka'));
   }, [properties]);
 
+  const pool = useMemo(
+    () => properties.filter(p => (mode === 'archive') === (lifecycleOf(p) === 'old')),
+    [properties, mode],
+  );
+
+  const archivedCount = useMemo(
+    () => properties.filter(p => lifecycleOf(p) === 'old').length,
+    [properties],
+  );
+
   const stats = useMemo(() => {
-    const byState = (state: string) => properties.filter(p => lifecycleOf(p) === state).length;
+    const byState = (state: string) => pool.filter(p => lifecycleOf(p) === state).length;
     return {
-      total: properties.length,
-      sale: properties.filter(sellsAt).length,
-      rent: properties.filter(rentsAt).length,
-      premium: properties.filter(p => p.isPremium).length,
-      views: properties.reduce((s, p) => s + (p.viewCount || 0), 0),
+      total: pool.length,
+      sale: pool.filter(sellsAt).length,
+      rent: pool.filter(rentsAt).length,
+      premium: pool.filter(p => p.isPremium).length,
+      views: pool.reduce((s, p) => s + (p.viewCount || 0), 0),
       new: byState('new'),
       current: byState('current'),
       old: byState('old'),
       newR: byState('new_r'),
-      freeingSoon: properties.filter(p => {
+      rentedOwner: pool.filter(p => outcomeOf(p) === 'rented_owner').length,
+      freeingSoon: pool.filter(p => {
         if (lifecycleOf(p) !== 'old') return false;
         const days = daysUntil(p.rentExpiresAt);
         return days !== null && days >= 0 && days <= 30;
       }).length,
     };
-  }, [properties]);
+  }, [pool]);
 
   /* Rentals whose term ran out — the call-back list. */
   const needsCall = useMemo(
-    () => properties.filter(p => lifecycleOf(p) === 'new_r'),
-    [properties],
+    () => pool.filter(p => lifecycleOf(p) === 'new_r'),
+    [pool],
   );
 
   function handleSort(key: SortKey) {
@@ -1603,13 +1764,14 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
       { value: 'premium' as const, label: 'VIP / პრემიუმი', dot: '#f59e0b' },
       { value: 'featured' as const, label: 'გამორჩეული', dot: '#2563eb' },
       { value: 'new' as const, label: 'ახალი', dot: '#10b981' },
+      { value: 'rented_invest' as const, label: 'გაქირავებული (იყიდება)', dot: '#0f766e' },
     ],
     [],
   );
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    let list = properties.filter(p => {
+    let list = pool.filter(p => {
       if (statusFilter === 'sale' && !sellsAt(p)) return false;
       if (statusFilter === 'rent' && !rentsAt(p)) return false;
       if (lifecycleFilter !== 'all' && lifecycleOf(p) !== lifecycleFilter) return false;
@@ -1618,6 +1780,8 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
       if (badgeFilter === 'premium' && !p.isPremium) return false;
       if (badgeFilter === 'featured' && !p.isFeatured) return false;
       if (badgeFilter === 'new' && !p.isNew) return false;
+      if (badgeFilter === 'rented_invest' && outcomeOf(p) !== 'rented_owner') return false;
+      if (mode === 'archive' && outcomeFilter !== 'all' && outcomeOf(p) !== outcomeFilter) return false;
       if (!q) return true;
       if (listingIdMatches(p.id, search.trim())) return true;
       const hay = [
@@ -1625,6 +1789,7 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
         // Owner details are only searchable for accounts allowed to see them.
         ...(canOwner ? [p.owner?.name, p.owner?.phone, p.owner?.email, p.owner?.idNumber] : []),
         TYPE_LABELS[p.type], STATUS_LABEL[p.status], p.sourceId, p.source, p.lifecycleNote,
+        outcomeOf(p) ? LIFECYCLE_OUTCOME_META[outcomeOf(p)!].label : '',
       ].filter(Boolean).join(' ').toLowerCase();
       return hay.includes(q);
     });
@@ -1638,10 +1803,10 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
       return 0;
     });
     return list;
-  }, [properties, search, statusFilter, lifecycleFilter, typeFilter, cityFilter, badgeFilter, sortKey, sortDir, canOwner]);
+  }, [pool, search, statusFilter, lifecycleFilter, typeFilter, cityFilter, badgeFilter, outcomeFilter, mode, sortKey, sortDir, canOwner]);
 
   const hasFilters = search || statusFilter !== 'all' || lifecycleFilter !== 'all'
-    || typeFilter !== 'all' || cityFilter !== 'all' || badgeFilter !== 'all';
+    || typeFilter !== 'all' || cityFilter !== 'all' || badgeFilter !== 'all' || outcomeFilter !== 'all';
 
   function clearFilters() {
     setSearch('');
@@ -1650,26 +1815,74 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
     setTypeFilter('all');
     setCityFilter('all');
     setBadgeFilter('all');
+    setOutcomeFilter('all');
   }
 
   return (
     <div className="space-y-5">
+      {mode === 'archive' && (
+        <div className="rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+          <p className="text-sm font-extrabold text-slate-800">არქივი — old განცხადებები</p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            გაყიდული, შეჩერებული, ჩვენ რომ გავაქირავეთ, ან აღარ იყიდება. „გაქირავდა“ (მესაკუთრემ) მთავარ ცხრილში რჩება.
+          </p>
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            <button
+              type="button"
+              onClick={() => setOutcomeFilter('all')}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${outcomeFilter === 'all' ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200'}`}
+            >
+              ყველა
+            </button>
+            {LIFECYCLE_OUTCOMES.filter(id => id !== 'rented_owner').map(id => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setOutcomeFilter(id)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${outcomeFilter === id ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-600 border-slate-200'}`}
+              >
+                {LIFECYCLE_OUTCOME_META[id].label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        {[
-          { label: 'სულ', value: stats.total, color: '#2563eb', bg: '#eff6ff', icon: Building2, filter: 'all' as LifecycleFilter },
-          { label: 'იყიდება', value: stats.sale, color: '#f59e0b', bg: '#fffbeb', icon: TrendingUp },
-          { label: 'ქირავდება', value: stats.rent, color: '#10b981', bg: '#ecfdf5', icon: Home },
-          { label: 'დასარეკი (new R)', value: stats.newR, color: '#ef4444', bg: '#fef2f2', icon: PhoneCall, filter: 'new_r' as LifecycleFilter },
-          { label: 'თავისუფლდება 30 დღეში', value: stats.freeingSoon, color: '#d97706', bg: '#fffbeb', icon: CalendarClock, filter: 'old' as LifecycleFilter },
-          { label: 'ნახვები', value: stats.views.toLocaleString('ka-GE'), color: '#64748b', bg: '#f8fafc', icon: Eye },
-        ].map(({ label, value, color, bg, icon: Icon, filter }) => (
+        {(mode === 'archive'
+          ? [
+              { label: 'არქივი', value: stats.total, color: '#64748b', bg: '#f8fafc', icon: Building2, filter: 'all' as LifecycleFilter },
+              { label: 'იყიდება', value: stats.sale, color: '#f59e0b', bg: '#fffbeb', icon: TrendingUp },
+              { label: 'ქირავდება', value: stats.rent, color: '#10b981', bg: '#ecfdf5', icon: Home },
+              { label: 'თავისუფლდება 30 დღეში', value: stats.freeingSoon, color: '#d97706', bg: '#fffbeb', icon: CalendarClock },
+              { label: 'ნახვები', value: stats.views.toLocaleString('ka-GE'), color: '#64748b', bg: '#f8fafc', icon: Eye },
+            ]
+          : [
+              { label: 'სულ', value: stats.total, color: '#2563eb', bg: '#eff6ff', icon: Building2, filter: 'all' as LifecycleFilter },
+              { label: 'იყიდება', value: stats.sale, color: '#f59e0b', bg: '#fffbeb', icon: TrendingUp },
+              { label: 'ქირავდება', value: stats.rent, color: '#10b981', bg: '#ecfdf5', icon: Home },
+              { label: 'დასარეკი (new R)', value: stats.newR, color: '#ef4444', bg: '#fef2f2', icon: PhoneCall, filter: 'new_r' as LifecycleFilter },
+              { label: 'გაქირავებული', value: stats.rentedOwner, color: '#0f766e', bg: '#f0fdfa', icon: Key },
+              { label: 'არქივი (old)', value: archivedCount, color: '#64748b', bg: '#f8fafc', icon: CalendarClock },
+            ]
+        ).map(({ label, value, color, bg, icon: Icon, filter }) => (
           <button
             key={label}
             type="button"
-            onClick={() => filter && setLifecycleFilter(filter)}
-            className={`text-left rounded-2xl p-4 border bg-white shadow-sm transition-all ${filter ? 'hover:border-slate-300 cursor-pointer' : 'cursor-default'}`}
-            style={{ borderColor: filter && lifecycleFilter === filter && filter !== 'all' ? color : '#f1f5f9' }}
+            onClick={() => {
+              if (label.startsWith('არქივი') && mode === 'active') {
+                setMode('archive');
+                setLifecycleFilter('all');
+                return;
+              }
+              if (label === 'გაქირავებული') {
+                setBadgeFilter(v => (v === 'rented_invest' ? 'all' : 'rented_invest'));
+                return;
+              }
+              if (filter) setLifecycleFilter(filter);
+            }}
+            className={`text-left rounded-2xl p-4 border bg-white shadow-sm transition-all ${filter || (mode === 'active' && (label.startsWith('არქივი') || label === 'გაქირავებული')) ? 'hover:border-slate-300 cursor-pointer' : 'cursor-default'}`}
+            style={{ borderColor: (filter && lifecycleFilter === filter && filter !== 'all') || (label === 'გაქირავებული' && badgeFilter === 'rented_invest') ? color : '#f1f5f9' }}
           >
             <div className="flex items-center justify-between mb-2">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: bg }}>
@@ -1683,7 +1896,7 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
       </div>
 
       {/* Call-back reminder: rentals whose term ran out */}
-      {needsCall.length > 0 && lifecycleFilter !== 'new_r' && (
+      {mode === 'active' && needsCall.length > 0 && lifecycleFilter !== 'new_r' && (
         <div
           className="rounded-2xl border p-4 flex flex-wrap items-center gap-3"
           style={{ background: '#fef2f2', borderColor: '#fecaca' }}
@@ -1731,6 +1944,24 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
           </div>
           <button
             type="button"
+            onClick={() => {
+              setMode(m => (m === 'archive' ? 'active' : 'archive'));
+              setLifecycleFilter('all');
+              setOutcomeFilter('all');
+            }}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border flex-shrink-0 transition-colors"
+            style={
+              mode === 'archive'
+                ? { background: '#0f172a', borderColor: '#0f172a', color: '#fff' }
+                : { background: '#fff', borderColor: '#e2e8f0', color: '#334155' }
+            }
+          >
+            <Archive size={15} />
+            {mode === 'archive' ? 'აქტიური განცხადებები' : `არქივი (${archivedCount})`}
+          </button>
+          {mode === 'active' && (
+          <button
+            type="button"
             onClick={() => navigate('/admin/listings/new')}
             className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white flex-shrink-0"
             style={{ background: '#059669' }}
@@ -1738,16 +1969,17 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
             <Plus size={16} strokeWidth={2.5} />
             ახალი განცხადება
           </button>
+          )}
         </div>
 
         {/* Lifecycle: the client's own new → current → old → new R vocabulary */}
+        {mode === 'active' && (
         <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mr-1">სტატუსი</span>
           {([
             ['all', 'ყველა', '#64748b', stats.total],
             ['new', LIFECYCLE_META.new.label, LIFECYCLE_META.new.color, stats.new],
             ['current', LIFECYCLE_META.current.label, LIFECYCLE_META.current.color, stats.current],
-            ['old', LIFECYCLE_META.old.label, LIFECYCLE_META.old.color, stats.old],
             ['new_r', LIFECYCLE_META.new_r.label, LIFECYCLE_META.new_r.color, stats.newR],
           ] as const).map(([value, label, color, countValue]) => {
             const active = lifecycleFilter === value;
@@ -1775,6 +2007,7 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
             );
           })}
         </div>
+        )}
 
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center bg-slate-50 rounded-xl border border-slate-200 p-1 gap-0.5">
@@ -1833,7 +2066,7 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
           )}
 
           <span className="text-xs text-slate-400 ml-auto font-medium">
-            ნაჩვენებია <b className="text-slate-700">{filtered.length}</b> / {properties.length}
+            ნაჩვენებია <b className="text-slate-700">{filtered.length}</b> / {pool.length}
           </span>
         </div>
       </div>
@@ -1844,7 +2077,7 @@ export default function AdminPropertiesSection({ properties, onPatch, onDelete, 
           <table className="w-full text-sm min-w-[1340px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/80">
-                <th className="text-left py-3.5 pl-5 pr-2 w-[76px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ფოტო</th>
+                <th className="text-left py-3.5 pl-5 pr-2 w-[148px] min-w-[148px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ფოტო</th>
                 <th className="text-left py-3.5 px-2 w-[126px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ID / წყარო</th>
                 <th className="text-left py-3.5 px-2 w-[200px]">
                   <SortHeader label="მისამართი" sortKey="city" currentKey={sortKey} dir={sortDir} onSort={handleSort} />

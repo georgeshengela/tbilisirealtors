@@ -472,7 +472,11 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
 
     const id = await allocateListingId();
     const data = req.body;
-    const lifecycle = buildLifecycleFields(data);
+    const lifecycle = buildLifecycleFields({
+      ...data,
+      lifecycleState: 'current',
+      lifecycleOutcome: null,
+    });
     const canFlag = can(req.user, 'listings.flags');
 
     const [created] = await db
@@ -518,6 +522,7 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
         contracts: contractsFrom(data.contracts, editorName(req)),
         internalNotes: notesFrom(data.internalNotes, editorName(req)),
         showAddress: data.showAddress ?? true,
+        cadastralCode: typeof data.cadastralCode === 'string' ? data.cadastralCode.trim().slice(0, 80) || null : null,
         source: data.source || null,
         sourceUrl: data.sourceUrl || null,
         sourceId: data.sourceId ? String(data.sourceId) : null,
@@ -614,6 +619,9 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
           ? notesFrom(data.internalNotes, editorName(req))
           : existing.internalNotes,
         showAddress: data.showAddress ?? existing.showAddress,
+        cadastralCode: 'cadastralCode' in data
+          ? (typeof data.cadastralCode === 'string' ? data.cadastralCode.trim().slice(0, 80) || null : null)
+          : existing.cadastralCode,
         source: data.source ?? existing.source,
         sourceUrl: data.sourceUrl ?? existing.sourceUrl,
         sourceId: data.sourceId ? String(data.sourceId) : existing.sourceId,
@@ -822,7 +830,10 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
       priceChanged = true;
     }
 
-    const lifecycleKeys = ['lifecycleState', 'rentTermMonths', 'rentStartedAt', 'rentExpiresAt', 'lifecycleNote'];
+    const lifecycleKeys = [
+      'lifecycleState', 'rentTermMonths', 'rentStartedAt', 'rentExpiresAt',
+      'lifecycleNote', 'lifecycleOutcome', 'lifecycleDealPrice',
+    ];
     if (lifecycleKeys.some(key => key in req.body)) {
       if (!can(actor, 'listings.lifecycle')) {
         res.status(403).json({ error: 'სტატუსის შეცვლის უფლება არ გაქვთ' });

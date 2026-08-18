@@ -131,19 +131,25 @@ export const properties = pgTable('properties', {
 
   /* Paid listings may show the exact street number; ours stay approximate. */
   showAddress: boolean('show_address').default(true),
+  /** Cadastral / NAPR code — public page only for managers and admins. */
+  cadastralCode: varchar('cadastral_code', { length: 80 }),
 
   /* Where the listing came from, so admins can open the original ad. */
   source: varchar('source', { length: 30 }),
   sourceUrl: varchar('source_url', { length: 600 }),
   sourceId: varchar('source_id', { length: 100 }),
 
-  /* Lifecycle: new → current → old (rented out) → new_r (term expired, call back). */
+  /* Lifecycle: new → current → old (parked with an outcome) → new_r (call back). */
   lifecycleState: varchar('lifecycle_state', { length: 20 }).notNull().default('new'),
   rentTermMonths: integer('rent_term_months'),
   rentStartedAt: date('rent_started_at'),
   rentExpiresAt: date('rent_expires_at'),
   lifecycleNote: varchar('lifecycle_note', { length: 500 }),
   lifecycleUpdatedAt: timestamp('lifecycle_updated_at'),
+  /** Why it was parked: paused, sold_owner, sold, sold_us, withdrawn, rented_owner, rented_us. */
+  lifecycleOutcome: varchar('lifecycle_outcome', { length: 30 }),
+  /** Actual rent we closed at, for rented_us statistics. */
+  lifecycleDealPrice: numeric('lifecycle_deal_price'),
 
   /* Who owns this record — drives "own listings only" scope for brokers. */
   createdByUserId: integer('created_by_user_id'),

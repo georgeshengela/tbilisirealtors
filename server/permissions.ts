@@ -246,6 +246,11 @@ export function isAdminOrAbove(actor: Pick<PermissionActor, 'role'> | undefined)
   return Boolean(actor && isAtLeastRole(actor.role, 'admin'));
 }
 
+/** Cadastral code on the public listing page — managers and admins only. */
+export function canViewCadastral(role?: string): boolean {
+  return isAtLeastRole(role ?? '', 'manager');
+}
+
 /**
  * Permission check plus the admin floor. Use this instead of `can()` for the keys
  * in ADMIN_ONLY_PERMISSIONS so a stray grant cannot widen a manager's reach.

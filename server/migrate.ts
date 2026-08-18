@@ -79,7 +79,9 @@ async function migrate() {
         ADD COLUMN IF NOT EXISTS rent_started_at DATE,
         ADD COLUMN IF NOT EXISTS rent_expires_at DATE,
         ADD COLUMN IF NOT EXISTS lifecycle_note VARCHAR(500),
-        ADD COLUMN IF NOT EXISTS lifecycle_updated_at TIMESTAMP
+        ADD COLUMN IF NOT EXISTS lifecycle_updated_at TIMESTAMP,
+        ADD COLUMN IF NOT EXISTS lifecycle_outcome VARCHAR(30),
+        ADD COLUMN IF NOT EXISTS lifecycle_deal_price NUMERIC
     `;
 
     // Dual pricing, owner records, agreements, private notes and translations.
@@ -95,7 +97,8 @@ async function migrate() {
         ADD COLUMN IF NOT EXISTS owner JSONB,
         ADD COLUMN IF NOT EXISTS contracts JSONB DEFAULT '[]',
         ADD COLUMN IF NOT EXISTS internal_notes JSONB DEFAULT '[]',
-        ADD COLUMN IF NOT EXISTS show_address BOOLEAN DEFAULT true
+        ADD COLUMN IF NOT EXISTS show_address BOOLEAN DEFAULT true,
+        ADD COLUMN IF NOT EXISTS cadastral_code VARCHAR(80)
     `;
 
     await client`

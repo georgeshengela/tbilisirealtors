@@ -483,6 +483,7 @@ export const ka = {
     layout: 'განლაგება',
     cityLabel: 'ქალაქი',
     districtLabel: 'რაიონი',
+    cadastralCode: 'საკადასტრო კოდი (არ. სავ.)',
     areaFull: 'ფართობი',
     bedroomsFull: 'საძინებლები',
     similarShort: 'მსგავსი',

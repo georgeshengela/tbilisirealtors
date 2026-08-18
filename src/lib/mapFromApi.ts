@@ -87,6 +87,7 @@ export function mapPropertyFromApi(row: ApiPropertyRow): Property {
     coordinates: row.coordinates ?? DEFAULT_COORDS,
     viewCount: row.viewCount ?? 0,
     listedDate: row.listedDate || new Date().toISOString().split('T')[0],
+    cadastralCode: row.cadastralCode || undefined,
   };
 }
 

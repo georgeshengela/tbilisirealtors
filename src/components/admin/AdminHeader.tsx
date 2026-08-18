@@ -48,7 +48,7 @@ interface AdminHeaderProps {
   hideAddButton?: boolean;
 }
 
-export default function AdminHeader({ subtitle, activeSection = 'dashboard', hideAddButton = false }: AdminHeaderProps) {
+export default function AdminHeader({ subtitle, activeSection = 'properties', hideAddButton = false }: AdminHeaderProps) {
   const navigate = useNavigate();
   const { user, logout, can } = useAdminAuth();
   const api = useApiRequest();

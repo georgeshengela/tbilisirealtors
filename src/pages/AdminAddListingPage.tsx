@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -16,6 +16,10 @@ import LocationPickerMap, { type LocationValue } from '../components/LocationPic
 import AdminLayout from '../components/admin/AdminLayout';
 import { importFieldLabel } from '../lib/permissions';
 import type { ImportedListingData } from '../types/importListing';
+import {
+  LIFECYCLE_OUTCOMES,
+  LIFECYCLE_OUTCOME_META,
+} from '../lib/lifecycle';
 
 const SECTION_NAV = [
   { id: 'section-contact',  label: 'კონტაქტი',       icon: User       },
@@ -208,9 +212,10 @@ interface FormState {
   isPremium: boolean; isFeatured: boolean; isNew: boolean;
   /* origin of the listing */
   source: string; sourceUrl: string; sourceId: string;
-  /* lifecycle: new → current → old (rented for a term) → new R */
+  /* lifecycle: new → current → old (with a reason) → new R */
   lifecycleState: string; rentTermMonths: string;
   rentStartedAt: string; rentExpiresAt: string; lifecycleNote: string;
+  lifecycleOutcome: string; lifecycleDealPrice: string;
 }
 
 const defaultForm: FormState = {
@@ -237,17 +242,19 @@ const defaultForm: FormState = {
   agentCompany: '', agentTaxId: '', invoiceRef: '',
   isPremium: false, isFeatured: false, isNew: true,
   source: '', sourceUrl: '', sourceId: '',
-  lifecycleState: 'new', rentTermMonths: '', rentStartedAt: '', rentExpiresAt: '', lifecycleNote: '',
+  lifecycleState: 'current', rentTermMonths: '', rentStartedAt: '', rentExpiresAt: '', lifecycleNote: '',
+  lifecycleOutcome: '', lifecycleDealPrice: '',
 };
 
 const LIFECYCLE_OPTIONS = [
   { id: 'new',     label: 'new',     note: 'ახლად დამატებული',            color: '#2563eb' },
   { id: 'current', label: 'current', note: 'აქტიური განცხადება',           color: '#10b981' },
-  { id: 'old',     label: 'old',     note: 'გაქირავდა/გაიყიდა — ვადით',    color: '#64748b' },
+  { id: 'old',     label: 'old',     note: 'არქივი — გაიყიდა, გაქირავდა, შეჩერდა, აღარ იყიდება',    color: '#64748b' },
   { id: 'new_r',   label: 'new R',   note: 'ვადა გავიდა — დასარეკი',        color: '#ef4444' },
 ];
 
 const RENT_TERM_OPTIONS = [6, 12, 18, 24];
+const PAUSE_DAYS = [3, 7, 14];
 
 interface SavedNote { id: string; text: string; author?: string; createdAt: string }
 
@@ -272,6 +279,62 @@ function addMonthsISO(startedAt: string, months: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+function addDaysISO(startedAt: string, days: number): string {
+  const date = new Date(`${startedAt}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** Georgian locative: ვაკე → ვაკეში, საბურთალო → საბურთალოზე. */
+function locative(name: string): string {
+  const n = name.trim();
+  if (!n) return '';
+  const exceptions: Record<string, string> = {
+    საბურთალო: 'საბურთალოზე',
+    ნუცუბიძე: 'ნუცუბიძეზე',
+    მთაწმინდა: 'მთაწმინდაზე',
+    ლისი: 'ლისზე',
+    'ძველი თბილისი': 'ძველ თბილისში',
+    თბილისი: 'თბილისში',
+  };
+  if (exceptions[n]) return exceptions[n];
+  if (/ში$|ზე$/.test(n)) return n;
+  if (n.endsWith('ი')) return `${n.slice(0, -1)}ში`;
+  if (n.endsWith('ო') || n.endsWith('უ')) return `${n}ზე`;
+  return `${n}ში`;
+}
+
+function dealVerb(dealTypes: string[]): string {
+  if (dealTypes.includes('sale')) return 'იყიდება';
+  if (dealTypes.includes('rent')) return 'ქირავდება';
+  if (dealTypes.includes('daily_rent')) return 'ქირავდება დღიურად';
+  if (dealTypes.includes('pledge')) return 'გირავდება';
+  return '';
+}
+
+/** Title built from the fields the agent already filled — no extra typing. */
+function buildAutoTitle(form: Pick<FormState, 'type' | 'dealTypes' | 'rooms' | 'district' | 'city' | 'area' | 'buildingStatus'>): string {
+  const typeLabel = PROPERTY_TYPES.find(t => t.id === form.type)?.label ?? '';
+  const rooms = form.type !== 'land' && form.rooms ? `${form.rooms}-ოთახიანი` : '';
+  const built = form.buildingStatus === 'new'
+    ? 'ახალი აშენებული'
+    : form.buildingStatus === 'under'
+      ? 'მშენებარე'
+      : '';
+  const place = locative(form.district || form.city);
+  const area = form.area ? `${form.area} მ²` : '';
+  const head = [dealVerb(form.dealTypes), rooms, built, typeLabel, place].filter(Boolean).join(' ');
+  return area ? `${head}, ${area}` : head;
+}
+
+function pricePerSqmOf(price: string, area: string): string {
+  const p = Number(price);
+  const a = Number(area);
+  if (!Number.isFinite(p) || !Number.isFinite(a) || p <= 0 || a <= 0) return '';
+  return String(Math.round(p / a));
+}
+
 /* ─── Main component ─────────────────────────────────────── */
 export default function AdminAddListingPage() {
   const navigate = useNavigate();
@@ -293,6 +356,7 @@ export default function AdminAddListingPage() {
   const [saving, setSaving]   = useState(false);
   const [loading, setLoading] = useState(isEdit);
   const [error, setError]     = useState('');
+  const [titleManual, setTitleManual] = useState(isEdit);
   const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
   const [importError, setImportError] = useState('');
@@ -336,6 +400,7 @@ export default function AdminAddListingPage() {
           city:       data.city || 'თბილისი',
           district:   data.district || '',
           address:    data.address || '',
+          cadastralCode: data.cadastralCode || '',
           lat:        coords?.lat ?? 41.7151,
           lng:        coords?.lng ?? 44.8271,
           showAddress: data.showAddress !== false,
@@ -360,11 +425,13 @@ export default function AdminAddListingPage() {
           source:     data.source || '',
           sourceUrl:  data.sourceUrl || '',
           sourceId:   data.sourceId || '',
-          lifecycleState: data.lifecycleState || 'new',
+          lifecycleState: data.lifecycleOutcome === 'rented_owner' ? 'old' : (data.lifecycleState || 'new'),
           rentTermMonths: data.rentTermMonths ? String(data.rentTermMonths) : '',
           rentStartedAt:  data.rentStartedAt ? String(data.rentStartedAt).slice(0, 10) : '',
           rentExpiresAt:  data.rentExpiresAt ? String(data.rentExpiresAt).slice(0, 10) : '',
           lifecycleNote:  data.lifecycleNote || '',
+          lifecycleOutcome: data.lifecycleOutcome || '',
+          lifecycleDealPrice: data.lifecycleDealPrice != null ? String(data.lifecycleDealPrice) : '',
         }));
         setSavedNotes(Array.isArray(data.internalNotes) ? data.internalNotes : []);
       } catch { setError('განცხადების ჩატვირთვა ვერ მოხერხდა'); }
@@ -404,7 +471,7 @@ export default function AdminAddListingPage() {
       buildingStatus: data.buildingStatus || f.buildingStatus,
       condition: data.condition || f.condition,
       price: data.price || f.price,
-      pricePerSqm: data.pricePerSqm || f.pricePerSqm,
+      pricePerSqm: data.pricePerSqm || pricePerSqmOf(data.price || f.price, data.area || f.area) || f.pricePerSqm,
       currency: data.currency || f.currency,
       area: data.area || f.area,
       rooms: data.rooms || f.rooms,
@@ -450,8 +517,19 @@ export default function AdminAddListingPage() {
       sourceUrl: data.sourceUrl || f.sourceUrl,
       sourceId: data.sourceId || f.sourceId,
     }));
+    if (data.title) setTitleManual(true);
     setImportApplied(true);
   }
+
+  const autoTitle = useMemo(
+    () => buildAutoTitle(form),
+    [form.type, form.dealTypes, form.rooms, form.district, form.city, form.area, form.buildingStatus],
+  );
+
+  useEffect(() => {
+    if (isEdit || titleManual) return;
+    setForm(f => (f.title === autoTitle ? f : { ...f, title: autoTitle }));
+  }, [autoTitle, isEdit, titleManual]);
 
   async function handleImportListing() {
     if (!importUrl.trim()) return;
@@ -544,6 +622,11 @@ export default function AdminAddListingPage() {
       scrollToSection('section-type');
       return;
     }
+    if (isEdit && form.lifecycleState === 'old' && !form.lifecycleOutcome) {
+      setError('old სტატუსზე აირჩიე ქვეკატეგორია');
+      scrollToSection('section-type');
+      return;
+    }
     setSaving(true); setError('');
     if (publish) set('isNew', true);
     try {
@@ -571,13 +654,16 @@ export default function AdminAddListingPage() {
       const newNote = form.internalNote.trim();
 
       const payload = {
-        title:        form.title || `${form.type === 'apartment' ? 'ბინა' : 'ქონება'} ${form.rooms ? `${form.rooms}-ოთახ.` : ''} ${form.district}`.trim(),
+        title:        form.title.trim() || buildAutoTitle(form),
         description:  form.description,
         descriptionEn: form.descriptionEn,
         descriptionRu: form.descriptionRu,
         price:        parseFloat(form.price) || 0,
         rentPrice:    sells && rents && form.rentPrice ? parseFloat(form.rentPrice) : null,
-        pricePerSqm:  parseFloat(form.pricePerSqm) || null,
+        pricePerSqm:  parseFloat(form.pricePerSqm)
+          || (parseFloat(form.price) > 0 && parseFloat(form.area) > 0
+            ? Math.round(parseFloat(form.price) / parseFloat(form.area))
+            : null),
         area:         parseFloat(form.area) || null,
         type:         form.type,
         status:       sells && rents ? 'both' : sells ? 'sale' : 'rent',
@@ -589,6 +675,7 @@ export default function AdminAddListingPage() {
         district:     form.district,
         address:      [form.street, form.streetNumber, form.address].filter(Boolean).join(', ') || form.address,
         showAddress:  form.showAddress,
+        cadastralCode: form.cadastralCode.trim(),
         coordinates:  { lat: form.lat, lng: form.lng },
         images:       form.photos.filter(p => !p.hidden).map(p => p.url),
         hiddenImages: form.photos.filter(p => p.hidden).map(p => p.url),
@@ -621,11 +708,15 @@ export default function AdminAddListingPage() {
         source:       form.source || (form.sourceUrl ? 'manual' : ''),
         sourceUrl:    form.sourceUrl,
         sourceId:     form.sourceId,
-        lifecycleState: form.lifecycleState || 'new',
-        rentTermMonths: form.rentTermMonths ? parseInt(form.rentTermMonths) : null,
-        rentStartedAt:  form.rentStartedAt || null,
-        rentExpiresAt:  form.rentExpiresAt || null,
-        lifecycleNote:  form.lifecycleNote,
+        lifecycleState: isEdit ? (form.lifecycleState || 'current') : 'current',
+        rentTermMonths: isEdit && form.rentTermMonths ? parseInt(form.rentTermMonths) : null,
+        rentStartedAt:  isEdit ? (form.rentStartedAt || null) : null,
+        rentExpiresAt:  isEdit ? (form.rentExpiresAt || null) : null,
+        lifecycleNote:  isEdit ? form.lifecycleNote : '',
+        lifecycleOutcome: isEdit && (form.lifecycleState === 'old' || form.lifecycleState === 'new_r')
+          ? (form.lifecycleOutcome || null)
+          : null,
+        lifecycleDealPrice: isEdit && form.lifecycleOutcome === 'rented_us' ? (form.lifecycleDealPrice || null) : null,
         priceSource:    form.sourceUrl && !isEdit ? 'import' : 'admin',
       };
 
@@ -1051,11 +1142,12 @@ export default function AdminAddListingPage() {
                   </div>
                 </div>
 
-                {/* Lifecycle + rental term: what makes a parked rental resurface as "new R" */}
-                <div className={`pt-5 border-t border-slate-100 ${canLifecycle ? '' : 'hidden'}`}>
+                {/* Lifecycle + why a listing left the live table */}
+                <div className={`pt-5 border-t border-slate-100 ${isEdit && canLifecycle ? '' : 'hidden'}`}>
                   <h3 className="font-bold text-slate-800 text-sm mb-1">განცხადების სტატუსი</h3>
                   <p className="text-slate-500 text-xs mb-4">
-                    გაქირავებულ ობიექტს მიუთითე ვადა — ვადის გასვლის შემდეგ ავტომატურად გახდება <b>new R</b> და გამოჩნდება დასარეკებში.
+                    old-ზე აირჩიე მიზეზი. დროებით შეჩერებული და „გავაქირავეთ“ ვადის გასვლის შემდეგ ავტომატურად გახდება <b>new R</b>.
+                    „გაქირავდა“ რჩება გაყიდვაზე შიდა ნიშნით.
                   </p>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -1067,14 +1159,7 @@ export default function AdminAddListingPage() {
                           type="button"
                           onClick={() => {
                             set('lifecycleState', opt.id);
-                            if ((opt.id === 'old' || opt.id === 'new_r') && !form.rentStartedAt) {
-                              const start = new Date().toISOString().slice(0, 10);
-                              set('rentStartedAt', start);
-                              if (!form.rentTermMonths) {
-                                set('rentTermMonths', '12');
-                                set('rentExpiresAt', addMonthsISO(start, 12));
-                              }
-                            }
+                            if (opt.id !== 'old' && opt.id !== 'new_r') set('lifecycleOutcome', '');
                           }}
                           className={`p-3 rounded-xl border-2 text-left transition-all ${on ? 'shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
                           style={on ? { background: `${opt.color}10`, borderColor: opt.color } : {}}
@@ -1088,57 +1173,142 @@ export default function AdminAddListingPage() {
                     })}
                   </div>
 
+                  {(form.lifecycleState === 'new' || form.lifecycleState === 'current') && (
+                    <label className="block mt-4">
+                      <span className="block text-xs font-bold text-slate-600 mb-1.5">კომენტარი</span>
+                      <input
+                        value={form.lifecycleNote}
+                        onChange={e => set('lifecycleNote', e.target.value)}
+                        placeholder="დამატებითი კომენტარი ხელით…"
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-400 bg-white"
+                      />
+                    </label>
+                  )}
+
                   {(form.lifecycleState === 'old' || form.lifecycleState === 'new_r') && (
                     <div className="mt-4 p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-4">
                       <div>
-                        <p className="text-xs font-bold text-slate-600 mb-2">გაქირავების ვადა</p>
-                        <div className="flex flex-wrap gap-2">
-                          {RENT_TERM_OPTIONS.map(months => chip(
-                            `${months} თვე`,
-                            form.rentTermMonths === String(months),
-                            () => {
-                              const start = form.rentStartedAt || new Date().toISOString().slice(0, 10);
-                              set('rentTermMonths', String(months));
-                              set('rentStartedAt', start);
-                              set('rentExpiresAt', addMonthsISO(start, months));
-                            },
-                            '#0f172a',
-                          ))}
+                        <p className="text-xs font-bold text-slate-600 mb-2">ქვეკატეგორია</p>
+                        <div className="grid sm:grid-cols-2 gap-2">
+                          {LIFECYCLE_OUTCOMES.map(id => {
+                            const item = LIFECYCLE_OUTCOME_META[id];
+                            const on = form.lifecycleOutcome === id;
+                            return (
+                              <button
+                                key={id}
+                                type="button"
+                                onClick={() => {
+                                  set('lifecycleOutcome', id);
+                                  if (id === 'paused' && !form.rentExpiresAt) {
+                                    set('rentExpiresAt', addDaysISO(new Date().toISOString().slice(0, 10), 7));
+                                  }
+                                  if (id === 'rented_us' && !form.rentStartedAt) {
+                                    const start = new Date().toISOString().slice(0, 10);
+                                    set('rentStartedAt', start);
+                                    set('rentTermMonths', '12');
+                                    set('rentExpiresAt', addMonthsISO(start, 12));
+                                  }
+                                }}
+                                className={`p-3 rounded-xl border-2 text-left transition-all ${on ? 'border-slate-700 bg-white shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'}`}
+                              >
+                                <span className="block text-xs font-extrabold text-slate-800">{item.label}</span>
+                                <span className="block text-[11px] text-slate-500 mt-0.5 leading-snug">{item.hint}</span>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <label className="block">
-                          <span className="block text-xs font-bold text-slate-600 mb-1.5">დაწყების თარიღი</span>
-                          <input
-                            type="date"
-                            value={form.rentStartedAt}
-                            onChange={e => {
-                              set('rentStartedAt', e.target.value);
-                              if (form.rentTermMonths) {
-                                set('rentExpiresAt', addMonthsISO(e.target.value, parseInt(form.rentTermMonths)));
-                              }
-                            }}
-                            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:border-blue-400 bg-white"
-                          />
-                        </label>
-                        <label className="block">
-                          <span className="block text-xs font-bold text-slate-600 mb-1.5">თავისუფლდება</span>
-                          <input
-                            type="date"
-                            value={form.rentExpiresAt}
-                            onChange={e => { set('rentExpiresAt', e.target.value); set('rentTermMonths', ''); }}
-                            className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:border-blue-400 bg-white"
-                          />
-                        </label>
-                      </div>
+                      {form.lifecycleOutcome === 'paused' && (
+                        <div className="space-y-3">
+                          <p className="text-xs font-bold text-slate-600">როდის დაბრუნდეს New R-ში</p>
+                          <div className="flex flex-wrap gap-2">
+                            {PAUSE_DAYS.map(days => chip(
+                              `${days} დღე`,
+                              form.rentExpiresAt === addDaysISO(new Date().toISOString().slice(0, 10), days),
+                              () => set('rentExpiresAt', addDaysISO(new Date().toISOString().slice(0, 10), days)),
+                              '#0f172a',
+                            ))}
+                          </div>
+                          <label className="block">
+                            <span className="block text-xs font-bold text-slate-600 mb-1.5">თარიღი</span>
+                            <input
+                              type="date"
+                              value={form.rentExpiresAt}
+                              onChange={e => set('rentExpiresAt', e.target.value)}
+                              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:border-blue-400 bg-white"
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      {form.lifecycleOutcome === 'rented_us' && (
+                        <div className="space-y-3">
+                          <p className="text-xs font-bold text-slate-600">ქირავნობის ვადა და ფასი</p>
+                          <div className="flex flex-wrap gap-2">
+                            {RENT_TERM_OPTIONS.map(months => chip(
+                              `${months} თვე`,
+                              form.rentTermMonths === String(months),
+                              () => {
+                                const start = form.rentStartedAt || new Date().toISOString().slice(0, 10);
+                                set('rentTermMonths', String(months));
+                                set('rentStartedAt', start);
+                                set('rentExpiresAt', addMonthsISO(start, months));
+                              },
+                              '#0f172a',
+                            ))}
+                          </div>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <label className="block">
+                              <span className="block text-xs font-bold text-slate-600 mb-1.5">დაწყების თარიღი</span>
+                              <input
+                                type="date"
+                                value={form.rentStartedAt}
+                                onChange={e => {
+                                  set('rentStartedAt', e.target.value);
+                                  if (form.rentTermMonths) {
+                                    set('rentExpiresAt', addMonthsISO(e.target.value, parseInt(form.rentTermMonths)));
+                                  }
+                                }}
+                                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:border-blue-400 bg-white"
+                              />
+                            </label>
+                            <label className="block">
+                              <span className="block text-xs font-bold text-slate-600 mb-1.5">თავისუფლდება</span>
+                              <input
+                                type="date"
+                                value={form.rentExpiresAt}
+                                onChange={e => { set('rentExpiresAt', e.target.value); set('rentTermMonths', ''); }}
+                                className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:border-blue-400 bg-white"
+                              />
+                            </label>
+                          </div>
+                          <label className="block">
+                            <span className="block text-xs font-bold text-slate-600 mb-1.5">ქირის ფასი (₾)</span>
+                            <input
+                              type="number"
+                              min={0}
+                              value={form.lifecycleDealPrice}
+                              onChange={e => set('lifecycleDealPrice', e.target.value)}
+                              placeholder="მაგ. 1200"
+                              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-400 bg-white"
+                            />
+                          </label>
+                        </div>
+                      )}
+
+                      {form.lifecycleOutcome === 'rented_owner' && (
+                        <p className="text-xs text-teal-800 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5 leading-snug">
+                          განცხადება რჩება გაყიდვაზე და აქტიურ ცხრილში. შიდა ნიშანია, რომ გაქირავებულია — ინვესტიციის ფილტრისთვის.
+                        </p>
+                      )}
 
                       <label className="block">
-                        <span className="block text-xs font-bold text-slate-600 mb-1.5">შენიშვნა</span>
+                        <span className="block text-xs font-bold text-slate-600 mb-1.5">კომენტარი</span>
                         <input
                           value={form.lifecycleNote}
                           onChange={e => set('lifecycleNote', e.target.value)}
-                          placeholder="მოიჯარე, ხელშეკრულება, შეთანხმებული პირობები..."
+                          placeholder="დამატებითი კომენტარი ხელით…"
                           className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 placeholder-slate-400 focus:outline-none focus:border-blue-400 bg-white"
                         />
                       </label>
@@ -1183,10 +1353,33 @@ export default function AdminAddListingPage() {
                   <input
                     type="text"
                     value={form.title}
-                    onChange={e => set('title', e.target.value)}
+                    onChange={e => {
+                      const value = e.target.value;
+                      setTitleManual(value.trim().length > 0);
+                      set('title', value);
+                    }}
                     className={inputCls}
-                    placeholder="მაგ: 3-ოთახიანი ბინა ვაკეში"
+                    placeholder="ივსება ავტომატურად — მაგ: 3-ოთახიანი ბინა ვაკეში"
                   />
+                  <p className="mt-1.5 text-[11px] text-slate-400">
+                    {isEdit
+                      ? 'არსებული სათაური. შეგიძლია ხელით შეცვალო.'
+                      : titleManual
+                        ? 'ხელით შეცვლილია.'
+                        : 'ივსება ტიპიდან, ოთახებიდან, რაიონიდან და გარიგების ტიპიდან.'}
+                    {!isEdit && titleManual && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setTitleManual(false);
+                          set('title', autoTitle);
+                        }}
+                        className="ml-1 font-bold text-blue-600 hover:underline"
+                      >
+                        ავტომატურზე დაბრუნება
+                      </button>
+                    )}
+                  </p>
                 </div>
 
                 <div>
@@ -1207,7 +1400,16 @@ export default function AdminAddListingPage() {
                         {sellsAndRents ? 'გასაყიდი ფასი' : form.dealTypes.includes('sale') ? 'სრული ფასი' : 'ქირა (თვეში)'}
                       </label>
                       <div className="relative">
-                        <input type="number" value={form.price} onChange={e => set('price', e.target.value)}
+                        <input
+                          type="number"
+                          value={form.price}
+                          onChange={e => {
+                            const price = e.target.value;
+                            setForm(f => {
+                              const sqm = pricePerSqmOf(price, f.area);
+                              return { ...f, price, pricePerSqm: sqm || f.pricePerSqm };
+                            });
+                          }}
                           className={`${inputCls} pr-8`} placeholder="250000" />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">{form.currency}</span>
                       </div>
@@ -1231,6 +1433,7 @@ export default function AdminAddListingPage() {
                           className={`${inputCls} pr-8`} placeholder="1800" />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">{form.currency}</span>
                       </div>
+                      <p className="mt-1.5 text-[11px] text-slate-400">ითვლება ავტომატურად: სრული ფასი ÷ ფართი</p>
                     </div>
                   </div>
                 </div>
@@ -1241,7 +1444,16 @@ export default function AdminAddListingPage() {
                       <div>
                         <label className={labelCls}><MoveHorizontal size={13} /> ფართი <span className="text-red-500">*</span></label>
                         <div className="relative max-w-[200px]">
-                          <input type="number" value={form.area} onChange={e => set('area', e.target.value)}
+                          <input
+                            type="number"
+                            value={form.area}
+                            onChange={e => {
+                              const area = e.target.value;
+                              setForm(f => {
+                                const sqm = pricePerSqmOf(f.price, area);
+                                return { ...f, area, pricePerSqm: sqm || f.pricePerSqm };
+                              });
+                            }}
                             className={`${inputCls} pr-10`} placeholder="85" />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">მ²</span>
                         </div>
@@ -1663,7 +1875,7 @@ export default function AdminAddListingPage() {
                       <p className="text-sm font-semibold text-slate-400">ფოტო ჯერ არ არის</p>
                     </div>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-2.5">
                       {form.photos.map((photo, index) => (
                         <div
                           key={photo.url}
@@ -1672,20 +1884,22 @@ export default function AdminAddListingPage() {
                           onDragOver={e => e.preventDefault()}
                           onDrop={() => { if (dragIndex !== null) movePhoto(dragIndex, index); setDragIndex(null); }}
                           onDragEnd={() => setDragIndex(null)}
-                          className={`relative rounded-2xl overflow-hidden border-2 bg-slate-50 cursor-grab active:cursor-grabbing transition-all ${
-                            dragIndex === index ? 'opacity-40' : ''
+                          className={`group relative overflow-hidden rounded-2xl border-2 bg-slate-100 cursor-grab active:cursor-grabbing transition-all ${
+                            dragIndex === index ? 'opacity-40 scale-[0.98]' : 'hover:-translate-y-0.5 hover:shadow-md'
                           }`}
                           style={{ borderColor: photo.hidden ? '#fca5a5' : '#bbf7d0' }}
                         >
-                          <img
-                            src={photo.url}
-                            alt=""
-                            className="w-full h-28 object-cover"
-                            style={photo.hidden ? { filter: 'grayscale(1)', opacity: 0.55 } : undefined}
-                          />
+                          <div className="relative aspect-[3/4] w-full">
+                            <img
+                              src={photo.url}
+                              alt=""
+                              className="absolute inset-0 h-full w-full object-cover"
+                              style={photo.hidden ? { filter: 'grayscale(1)', opacity: 0.55 } : undefined}
+                            />
+                          </div>
 
                           {index === 0 && !photo.hidden && (
-                            <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-blue-600 text-white text-[9px] font-extrabold">
+                            <span className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-blue-600 text-white text-[10px] font-extrabold shadow-sm">
                               მთავარი
                             </span>
                           )}
@@ -1697,41 +1911,41 @@ export default function AdminAddListingPage() {
                               photos: f.photos.map((p, i) => (i === index ? { ...p, hidden: !p.hidden } : p)),
                             }))}
                             title={photo.hidden ? 'საიტზე გამოჩენა' : 'ჩამალვა საიტიდან'}
-                            className="absolute top-1.5 right-1.5 w-6 h-6 rounded-lg flex items-center justify-center text-white"
+                            className="absolute top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm"
                             style={{ background: photo.hidden ? '#ef4444' : '#10b981' }}
                           >
-                            <CheckCircle size={13} />
+                            <CheckCircle size={14} />
                           </button>
 
-                          <div className="absolute bottom-0 inset-x-0 flex items-center gap-1 p-1.5 bg-black/70">
+                          <div className="absolute bottom-0 inset-x-0 flex items-center gap-1 p-2 bg-gradient-to-t from-black/80 via-black/55 to-transparent pt-8">
                             <button
                               type="button"
                               onClick={() => movePhoto(index, index - 1)}
                               disabled={index === 0}
-                              className="w-6 h-6 rounded-lg bg-white/90 text-slate-700 flex items-center justify-center disabled:opacity-30"
+                              className="w-7 h-7 rounded-lg bg-white/95 text-slate-700 flex items-center justify-center disabled:opacity-30"
                               title="წინ"
                             >
-                              <ArrowLeft size={12} />
+                              <ArrowLeft size={13} />
                             </button>
                             <button
                               type="button"
                               onClick={() => movePhoto(index, index + 1)}
                               disabled={index === form.photos.length - 1}
-                              className="w-6 h-6 rounded-lg bg-white/90 text-slate-700 flex items-center justify-center disabled:opacity-30"
+                              className="w-7 h-7 rounded-lg bg-white/95 text-slate-700 flex items-center justify-center disabled:opacity-30"
                               title="უკან"
                             >
-                              <ArrowLeft size={12} className="rotate-180" />
+                              <ArrowLeft size={13} className="rotate-180" />
                             </button>
-                            <span className="ml-auto px-1.5 rounded-md bg-black/50 text-white text-[9px] font-bold">
+                            <span className="ml-auto px-1.5 py-0.5 rounded-md bg-black/50 text-white text-[10px] font-bold tabular-nums">
                               {index + 1}
                             </span>
                             <button
                               type="button"
                               onClick={() => setForm(f => ({ ...f, photos: f.photos.filter((_, i) => i !== index) }))}
-                              className="w-6 h-6 rounded-lg bg-white/90 text-red-500 flex items-center justify-center"
+                              className="w-7 h-7 rounded-lg bg-white/95 text-red-500 flex items-center justify-center"
                               title="წაშლა"
                             >
-                              <X size={12} />
+                              <X size={13} />
                             </button>
                           </div>
                         </div>

@@ -45,7 +45,7 @@ export function useProperties(): AsyncState<Property[]> {
   return { data, loading, error };
 }
 
-export function useProperty(id: string | undefined): AsyncState<Property | null> {
+export function useProperty(id: string | undefined, authToken?: string | null): AsyncState<Property | null> {
   const [data, setData] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +58,7 @@ export function useProperty(id: string | undefined): AsyncState<Property | null>
     }
     let cancelled = false;
     setLoading(true);
-    fetchPropertyById(id)
+    fetchPropertyById(id, authToken)
       .then(result => {
         if (!cancelled) {
           setData(result);
@@ -75,7 +75,7 @@ export function useProperty(id: string | undefined): AsyncState<Property | null>
         if (!cancelled) setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, authToken]);
 
   return { data, loading, error };
 }

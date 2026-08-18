@@ -33,6 +33,7 @@ import {
   inputCls,
   selectCls,
 } from './ui';
+import { LIFECYCLE_OUTCOMES, LIFECYCLE_OUTCOME_META } from '../../../lib/lifecycle';
 import { relativeDays } from './format';
 
 type Filter = 'all' | 'expired' | 'followUpDue' | 'expiringSoon' | 'neverCalled';
@@ -293,7 +294,7 @@ export default function CallbackBoard({ api, showToast, onCountsChanged }: DeskB
 const NEXT_STATE_OPTIONS: { value: string; label: string }[] = [
   { value: '', label: 'სტატუსი უცვლელი' },
   { value: 'current', label: 'აქტიური — ხელახლა გამოქვეყნება' },
-  { value: 'old', label: 'გაქირავებული — ვადის დაფიქსირება' },
+  { value: 'old', label: 'old — აირჩიე მიზეზი (გაიყიდა / გაქირავდა / შეჩერდა)' },
   { value: 'new_r', label: 'დასარეკია — გადავდოთ' },
   { value: 'new', label: 'ახალი — თავიდან დამუშავება' },
 ];
@@ -319,8 +320,11 @@ function CallModal({
   const [note, setNote] = useState('');
   const [followUpAt, setFollowUpAt] = useState('');
   const [lifecycleState, setLifecycleState] = useState('');
+  const [lifecycleOutcome, setLifecycleOutcome] = useState('');
   const [rentTermMonths, setRentTermMonths] = useState('');
   const [rentStartedAt, setRentStartedAt] = useState('');
+  const [rentExpiresAt, setRentExpiresAt] = useState('');
+  const [lifecycleDealPrice, setLifecycleDealPrice] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -340,8 +344,11 @@ function CallModal({
       const payload: Record<string, unknown> = { outcome, note, followUpAt: followUpAt || null };
       if (lifecycleState) {
         payload.lifecycleState = lifecycleState;
+        if (lifecycleOutcome) payload.lifecycleOutcome = lifecycleOutcome;
         if (rentTermMonths) payload.rentTermMonths = Number(rentTermMonths);
         if (rentStartedAt) payload.rentStartedAt = rentStartedAt;
+        if (rentExpiresAt) payload.rentExpiresAt = rentExpiresAt;
+        if (lifecycleDealPrice) payload.lifecycleDealPrice = Number(lifecycleDealPrice);
       }
 
       const result = await api(`/desk/listings/${listing.id}/calls`, {
@@ -369,6 +376,11 @@ function CallModal({
       setNote('');
       setFollowUpAt('');
       setLifecycleState('');
+      setLifecycleOutcome('');
+      setRentTermMonths('');
+      setRentStartedAt('');
+      setRentExpiresAt('');
+      setLifecycleDealPrice('');
       showToast('ზარი დაფიქსირდა');
     } catch (err) {
       showToast(err instanceof Error ? err.message : 'შეცდომა', 'error');
@@ -378,6 +390,7 @@ function CallModal({
   }
 
   const parked = lifecycleState === 'old' || lifecycleState === 'new_r';
+  const outcomeMeta = lifecycleOutcome ? LIFECYCLE_OUTCOME_META[lifecycleOutcome as keyof typeof LIFECYCLE_OUTCOME_META] : null;
 
   return (
     <DeskModal
@@ -454,25 +467,65 @@ function CallModal({
             </select>
           </Field>
           {parked && (
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="ვადა (თვე)">
-                <input
-                  type="number"
-                  min={1}
-                  value={rentTermMonths}
-                  onChange={event => setRentTermMonths(event.target.value)}
-                  className={inputCls}
-                />
+            <>
+              <Field label="ქვეკატეგორია">
+                <select
+                  value={lifecycleOutcome}
+                  onChange={event => setLifecycleOutcome(event.target.value)}
+                  className={selectCls}
+                >
+                  <option value="">აირჩიე…</option>
+                  {LIFECYCLE_OUTCOMES.map(id => (
+                    <option key={id} value={id}>{LIFECYCLE_OUTCOME_META[id].label}</option>
+                  ))}
+                </select>
               </Field>
-              <Field label="დაიწყო">
-                <input
-                  type="date"
-                  value={rentStartedAt}
-                  onChange={event => setRentStartedAt(event.target.value)}
-                  className={inputCls}
-                />
-              </Field>
-            </div>
+              {lifecycleOutcome === 'paused' && (
+                <Field label="დაბრუნდება New R">
+                  <input type="date" value={rentExpiresAt} onChange={event => setRentExpiresAt(event.target.value)} className={inputCls} />
+                </Field>
+              )}
+              {lifecycleOutcome === 'rented_us' && (
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Field label="ვადა (თვე)">
+                      <input
+                        type="number"
+                        min={1}
+                        value={rentTermMonths}
+                        onChange={event => setRentTermMonths(event.target.value)}
+                        className={inputCls}
+                      />
+                    </Field>
+                    <Field label="დაიწყო">
+                      <input
+                        type="date"
+                        value={rentStartedAt}
+                        onChange={event => setRentStartedAt(event.target.value)}
+                        className={inputCls}
+                      />
+                    </Field>
+                  </div>
+                  <Field label="თავისუფლდება">
+                    <input type="date" value={rentExpiresAt} onChange={event => setRentExpiresAt(event.target.value)} className={inputCls} />
+                  </Field>
+                  <Field label="ქირის ფასი (₾)">
+                    <input
+                      type="number"
+                      min={0}
+                      value={lifecycleDealPrice}
+                      onChange={event => setLifecycleDealPrice(event.target.value)}
+                      className={inputCls}
+                    />
+                  </Field>
+                </>
+              )}
+              {outcomeMeta?.staysLive && (
+                <p className="sm:col-span-2 text-[11px] text-teal-700 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2">
+                  რჩება გაყიდვაზე და აქტიურ ცხრილში — შიდა ნიშანი ინვესტიციის ფილტრისთვის.
+                </p>
+              )}
+            </>
           )}
         </div>
 
