@@ -180,6 +180,69 @@ function streetOf(p: AdminPropertyRow): string {
   return parts.filter(part => !skip.has(part)).join(', ');
 }
 
+/** Split a long imported address into 3–4 short lines for the table. */
+function addressLines(p: AdminPropertyRow): string[] {
+  const chunks = (p.address || '').split(',').map(s => s.trim()).filter(Boolean);
+  const lines: string[] = [];
+  const seen = new Set<string>();
+
+  const add = (value?: string | null) => {
+    const text = (value || '').replace(/\s+/g, ' ').trim();
+    if (!text) return;
+    const key = text.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    lines.push(text);
+  };
+
+  if (chunks.length > 0) {
+    const first = chunks[0].toLowerCase();
+    const district = (p.district || '').trim();
+    const districtKey = district.toLowerCase();
+    if (district && !first.includes(districtKey) && !districtKey.includes(first.replace(/რაიონი/g, '').trim())) {
+      add(district);
+    }
+    chunks.forEach(add);
+  } else {
+    add(p.district);
+  }
+  add(p.city);
+  return lines.slice(0, 4);
+}
+
+function AddressCell({ p }: { p: AdminPropertyRow }) {
+  const lines = addressLines(p);
+  if (lines.length === 0) return <span className="text-slate-300">—</span>;
+
+  return (
+    <div className="min-w-[196px] max-w-[248px]" title={p.address || undefined}>
+      {lines.map((line, index) => {
+        const isFirst = index === 0;
+        const isLast = index === lines.length - 1 && lines.length > 1;
+        return (
+          <p
+            key={`${line}-${index}`}
+            className={
+              isFirst
+                ? 'text-[13px] font-bold text-slate-800 leading-[1.35]'
+                : isLast
+                  ? 'mt-0.5 text-[11px] font-medium text-slate-400 leading-[1.35]'
+                  : 'mt-0.5 text-[12px] font-medium text-slate-600 leading-[1.35]'
+            }
+          >
+            {isFirst ? (
+              <span className="inline-flex items-start gap-1">
+                <MapPin size={11} className="mt-[3px] flex-shrink-0 text-blue-500" />
+                <span>{line}</span>
+              </span>
+            ) : line}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 /** Whole days from today; negative once the date is in the past. */
 function daysUntil(dateStr?: string | null): number | null {
   if (!dateStr) return null;
@@ -2054,7 +2117,7 @@ export default function AdminPropertiesSection({
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/80">
                 <th className="text-left py-3.5 pl-5 pr-2 w-[176px] min-w-[176px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ფოტო</th>
-                <th className="text-left py-3.5 px-2 w-[200px]">
+                <th className="text-left py-3.5 px-2 w-[248px]">
                   <SortHeader label="მისამართი" sortKey="city" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
                 <th className="text-left py-3.5 px-2 w-[172px]">
@@ -2128,15 +2191,7 @@ export default function AdminPropertiesSection({
                     />
                   </td>
                   <td className="py-3 px-2">
-                    <div className="min-w-0">
-                      <p className="font-bold text-slate-800 text-[13px] leading-snug truncate" title={p.address || undefined}>
-                        {[p.district, streetOf(p)].filter(Boolean).join(', ') || p.city || '—'}
-                      </p>
-                      <p className="text-[11px] text-slate-400 mt-0.5 flex items-center gap-1 truncate" title={p.title}>
-                        <MapPin size={10} className="flex-shrink-0 text-blue-400" />
-                        {p.city || '—'}{p.title ? ` · ${p.title}` : ''}
-                      </p>
-                    </div>
+                    <AddressCell p={p} />
                   </td>
                   <td className="py-3 px-2">
                     {canPrice
