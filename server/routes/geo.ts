@@ -277,6 +277,62 @@ interface NominatimPlace {
   display_name?: string;
   name?: string;
   geojson?: unknown;
+  lat?: string;
+  lon?: string;
+  address?: {
+    road?: string;
+    house_number?: string;
+    suburb?: string;
+    neighbourhood?: string;
+    city?: string;
+    town?: string;
+    village?: string;
+    state?: string;
+  };
+}
+
+interface GeocodingPayload {
+  lat: number;
+  lng: number;
+  displayName: string;
+  address: string;
+  city: string;
+  district: string;
+}
+
+function parseNominatimAddress(addr?: NominatimPlace['address']): Pick<GeocodingPayload, 'address' | 'city' | 'district'> {
+  if (!addr) return { address: '', city: '', district: '' };
+  const street = [addr.road, addr.house_number].filter(Boolean).join(' ');
+  const city = addr.city || addr.town || addr.village || 'თბილისი';
+  const district = addr.suburb || addr.neighbourhood || addr.state || '';
+  return { address: street, city, district };
+}
+
+function toGeocodingResult(place: NominatimPlace): GeocodingPayload | null {
+  const lat = Number(place.lat);
+  const lng = Number(place.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  const parsed = parseNominatimAddress(place.address);
+  return {
+    lat,
+    lng,
+    displayName: place.display_name || place.name || '',
+    ...parsed,
+  };
+}
+
+async function nominatimAddress(path: 'search' | 'reverse', params: Record<string, string>): Promise<NominatimPlace | NominatimPlace[]> {
+  const url = new URL(`https://nominatim.openstreetmap.org/${path}`);
+  url.searchParams.set('format', 'json');
+  url.searchParams.set('addressdetails', '1');
+  url.searchParams.set('accept-language', 'ka,en');
+  for (const [key, value] of Object.entries(params)) url.searchParams.set(key, value);
+
+  const upstream = await fetch(url, {
+    headers: { 'User-Agent': USER_AGENT, Accept: 'application/json' },
+  });
+  if (!upstream.ok) throw new Error(`nominatim ${path} ${upstream.status}`);
+  return (await upstream.json()) as NominatimPlace | NominatimPlace[];
 }
 
 function toBoundary(results: NominatimPlace[], fallbackName: string): BoundaryPayload | null {
@@ -391,6 +447,52 @@ router.get('/buildings', async (req, res) => {
   } catch (error) {
     console.error('[geo] buildings lookup failed:', error);
     res.json({ buildings: [], reason: 'error' });
+  }
+});
+
+/**
+ * Forward geocode for the admin location picker — proxied through the server
+ * so Nominatim gets a proper User-Agent and rate limits stay predictable.
+ */
+router.get('/address-search', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  if (!q) {
+    res.json([]);
+    return;
+  }
+
+  try {
+    const results = await nominatimAddress('search', {
+      q,
+      limit: '6',
+      countrycodes: 'ge',
+    }) as NominatimPlace[];
+    res.json(results.map(r => toGeocodingResult(r)).filter(Boolean));
+  } catch (error) {
+    console.error('[geo] address-search failed:', error);
+    res.json([]);
+  }
+});
+
+/** Reverse geocode lat/lng for map pin placement. */
+router.get('/address-reverse', async (req, res) => {
+  const lat = Number(req.query.lat);
+  const lng = Number(req.query.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+    res.status(400).json({ error: 'lat and lng are required' });
+    return;
+  }
+
+  try {
+    const result = await nominatimAddress('reverse', {
+      lat: String(lat),
+      lon: String(lng),
+    }) as NominatimPlace;
+    const payload = toGeocodingResult(result);
+    res.json(payload);
+  } catch (error) {
+    console.error('[geo] address-reverse failed:', error);
+    res.json(null);
   }
 });
 

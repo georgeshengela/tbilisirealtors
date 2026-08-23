@@ -51,6 +51,11 @@ export default function LocationPickerMap({ value, onChange, height = 420 }: Loc
   const markerIcon = createPropertyIcon('#2563eb');
 
   useEffect(() => {
+    const label = [value.address, value.district, value.city].filter(Boolean).join(', ');
+    if (label) setQuery(label);
+  }, [value.address, value.district, value.city, value.lat, value.lng]);
+
+  useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
         setShowResults(false);

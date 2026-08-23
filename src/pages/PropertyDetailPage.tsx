@@ -3,7 +3,7 @@ import { useParams, Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight, ArrowUpRight, Bath, Bed, Building2, Calendar, CheckCircle2, ChevronLeft, ChevronRight,
-  Copy, Eye, Hash, Heart, Home, Layers, Mail, MapPin, Maximize2, Phone, Ruler, Share2, Sparkles, Square, Star, X,
+  Copy, Eye, ExternalLink, Hash, Heart, Home, Layers, Mail, MapPin, Maximize2, Phone, Ruler, Share2, Sparkles, Square, Star, X,
 } from 'lucide-react';
 import { useProperty, useProperties } from '../hooks/usePublicData';
 import PropertyMap from '../components/PropertyMap';
@@ -423,6 +423,18 @@ export default function PropertyDetailPage() {
                 <span className="pdp-chip__id">{property.id}</span>
                 {idCopied ? <CheckCircle2 size={11} strokeWidth={2.4} /> : <Copy size={10} strokeWidth={2.4} />}
               </button>
+              {property.sourceUrl ? (
+                <a
+                  href={property.sourceUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="pdp-chip pdp-chip--link"
+                  title={property.sourceUrl}
+                >
+                  <ExternalLink size={11} strokeWidth={2.4} />
+                  {t('property.externalWebsite')}
+                </a>
+              ) : null}
               <span className={`pdp-chip ${isSale ? 'is-sale' : 'is-rent'}`}>
                 {isSale ? t('propertyStatus.sale') : t('propertyStatus.rent')}
               </span>

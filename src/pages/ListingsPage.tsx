@@ -8,7 +8,7 @@ import {
 import ListingMapRow from '../components/ListingMapRow';
 import ListingsMap from '../components/ListingsMap';
 import { useLocale, useTranslation } from '../i18n/LocaleContext';
-import { useCurrency } from '../contexts/CurrencyContext';
+import { useCurrency, readStoredCurrency, FALLBACK_USD_RATE } from '../contexts/CurrencyContext';
 import { useProperties } from '../hooks/usePublicData';
 import { fetchAreaBoundary, type AreaBoundary, type Ring } from '../lib/geoApi';
 import { pointInRing, pointInRings, ringsBbox } from '../lib/geoMath';
@@ -29,7 +29,7 @@ export default function ListingsPage() {
   const { t } = useTranslation();
   const { locale } = useLocale();
   const navigate = useNavigate();
-  const { currencySymbol, formatMoney } = useCurrency();
+  const { currencySymbol, formatMoney, displayToGel, gelToDisplay } = useCurrency();
   const [searchParams] = useSearchParams();
 
   const [showFilters, setShowFilters] = useState(false);
@@ -57,6 +57,15 @@ export default function ListingsPage() {
     const districtParam = searchParams.get('district') || '';
     const city = findCityArea(cityParam);
     const district = findDistrictArea(city, districtParam);
+    const storedCurrency = readStoredCurrency();
+    const usdRate = FALLBACK_USD_RATE;
+    const priceFromUrl = (param: string | null) => {
+      if (!param) return '';
+      const gel = parseFloat(param);
+      if (!gel) return '';
+      if (storedCurrency === 'USD') return String(Math.round(gel / usdRate));
+      return param;
+    };
 
     return {
       status: searchParams.get('status') || '',
@@ -64,8 +73,8 @@ export default function ListingsPage() {
       district: district?.ka ?? districtParam,
       type: searchParams.get('type') || '',
       bedrooms: searchParams.get('bedrooms') || '',
-      priceMin: searchParams.get('priceMin') || '',
-      priceMax: searchParams.get('priceMax') || '',
+      priceMin: priceFromUrl(searchParams.get('priceMin')),
+      priceMax: priceFromUrl(searchParams.get('priceMax')),
       areaMin: searchParams.get('areaMin') || '',
       isPremium: searchParams.get('premium') === 'true',
       isNew: searchParams.get('new') === 'true',
@@ -136,14 +145,16 @@ export default function ListingsPage() {
       if (filters.status && p.status !== filters.status && p.status !== 'both') return false;
       if (filters.type && p.type !== filters.type) return false;
       if (filters.bedrooms && p.bedrooms < parseInt(filters.bedrooms)) return false;
-      if (filters.priceMin && p.price < parseInt(filters.priceMin)) return false;
-      if (filters.priceMax && p.price > parseInt(filters.priceMax)) return false;
+      const gelMin = filters.priceMin ? displayToGel(parseFloat(filters.priceMin)) : null;
+      const gelMax = filters.priceMax ? displayToGel(parseFloat(filters.priceMax)) : null;
+      if (gelMin && p.price < gelMin) return false;
+      if (gelMax && p.price > gelMax) return false;
       if (filters.areaMin && p.area < parseInt(filters.areaMin)) return false;
       if (filters.isPremium && !p.isPremium) return false;
       if (filters.isNew && !p.isNew) return false;
       return true;
     },
-    [filters, search, districtArea, districtPolygon, drawnArea],
+    [filters, search, districtArea, districtPolygon, drawnArea, displayToGel],
   );
 
   /** Everything matching the filter form — this is what the map draws. */

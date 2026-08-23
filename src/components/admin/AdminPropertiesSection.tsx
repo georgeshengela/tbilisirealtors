@@ -82,6 +82,8 @@ export interface AdminPropertyRow {
   isNew: boolean;
   isPremium: boolean;
   viewCount: number;
+  offersLast30Days?: number;
+  offersLast60Days?: number;
   listedDate: string;
   createdAt: string;
   agentName: string;
@@ -243,8 +245,8 @@ function Toggle({ on, onToggle, label, color = '#10B981' }: { on: boolean; onTog
 
 function ImgThumb({ src, large }: { src?: string; large?: boolean }) {
   const size = large
-    ? { width: 128, height: 96, minWidth: 128 }
-    : { width: 96, height: 72, minWidth: 96 };
+    ? { width: 144, height: 108, minWidth: 144 }
+    : { width: 108, height: 81, minWidth: 108 };
   const cls = 'rounded-xl object-cover flex-shrink-0 bg-slate-100 border border-slate-200/80';
   if (!src) {
     return (
@@ -665,7 +667,7 @@ function IdCell({ p }: { p: AdminPropertyRow }) {
             href={p.sourceUrl}
             target="_blank"
             rel="noreferrer"
-            title={`ორიგინალი განცხადება: ${p.sourceUrl}`}
+            title={`გარე საიტი: ${p.sourceUrl}`}
             className="p-1 rounded-md text-blue-500 hover:text-white hover:bg-blue-500 transition-colors"
           >
             <ExternalLink size={12} />
@@ -1677,7 +1679,7 @@ export default function AdminPropertiesSection({
   const [workPanel, setWorkPanel] = useState<AdminPropertyRow | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>('all');
+  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>('current');
   const [typeFilter, setTypeFilter] = useState('all');
   const [badgeFilter, setBadgeFilter] = useState<BadgeFilter>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all');
@@ -2109,7 +2111,7 @@ export default function AdminPropertiesSection({
                   <SortHeader label="აგენტი" sortKey="agentName" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
                 <th className="text-left py-3.5 px-2 hidden xl:table-cell">
-                  <SortHeader label="ნახვა" sortKey="viewCount" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">აქტივობა</span>
                 </th>
                 <th className="text-left py-3.5 px-2 hidden xl:table-cell">
                   <SortHeader label="თარიღი" sortKey="createdAt" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
@@ -2235,11 +2237,15 @@ export default function AdminPropertiesSection({
                       <span className="text-xs text-slate-300">—</span>
                     )}
                   </td>
-                  <td className="py-3 px-2 hidden xl:table-cell whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-slate-600">
-                      <Eye size={11} className="text-slate-400" />
-                      {(p.viewCount ?? 0).toLocaleString('ka-GE')}
-                    </span>
+                  <td className="py-3 px-2 hidden xl:table-cell">
+                    <div className="text-[10px] leading-relaxed text-slate-600 font-medium space-y-0.5">
+                      <p>30დ: <b className="text-slate-800">{p.offersLast30Days ?? 0}</b> კლიენტი</p>
+                      <p>60დ: <b className="text-slate-800">{p.offersLast60Days ?? 0}</b> კლიენტი</p>
+                      <p className="inline-flex items-center gap-1">
+                        <Eye size={10} className="text-slate-400" />
+                        საიტზე: <b className="text-slate-800">{(p.viewCount ?? 0).toLocaleString('ka-GE')}</b>
+                      </p>
+                    </div>
                   </td>
                   <td className="py-3 px-2 hidden xl:table-cell whitespace-nowrap">
                     <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">

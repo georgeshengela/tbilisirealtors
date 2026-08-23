@@ -12,7 +12,7 @@ export default function BlogDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 page-under-header flex items-center justify-center">
         <p className="text-slate-500">{t('common.loading')}</p>
       </div>
     );
@@ -58,7 +58,7 @@ export default function BlogDetailPage() {
   `.trim();
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px]">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 page-under-header">
       {/* Hero */}
       <div className="relative h-80 lg:h-96">
         <img src={post.image} alt={post.title} className="w-full h-full object-cover" />

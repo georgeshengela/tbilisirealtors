@@ -76,7 +76,7 @@ export default function ContactPage() {
   ];
 
   return (
-    <div className="min-h-screen pt-14 lg:pt-[106px]" style={{ background: '#f7f9fb' }}>
+    <div className="min-h-screen page-under-header" style={{ background: '#f7f9fb' }}>
       {/* Hero */}
       <section
         className="relative overflow-hidden border-b"

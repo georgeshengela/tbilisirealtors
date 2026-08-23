@@ -26,7 +26,7 @@ export default function AgentsPage() {
   const totalShown = filtered.length + filteredTeam.length;
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px]">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 page-under-header">
       <div className="bg-gradient-to-br from-slate-900 to-blue-900 py-20">
         <div className="container-xl text-center">
           <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>

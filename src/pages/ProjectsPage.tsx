@@ -21,7 +21,7 @@ export default function ProjectsPage() {
   const { t } = useTranslation();
 
   return (
-    <div className="min-h-screen pt-[56px] lg:pt-[106px] bg-white">
+    <div className="min-h-screen page-under-header bg-white">
       <div className="container-xl py-8 sm:py-10">
         <SectionTitle title={t('home.sections.projects')} linkLabel={`${constructionProjects.length} ${t('home.projectDetail.allProjects').toLowerCase()}`} />
         <p className="text-[14px] mb-6 -mt-2" style={{ color: '#6b7280' }}>{t('home.sections.projectsSubtitle')}</p>

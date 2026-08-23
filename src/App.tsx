@@ -1,4 +1,5 @@
 import { useState, useEffect, type ReactNode } from 'react';
+
 import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Header from './components/Header';
@@ -20,6 +21,7 @@ import ProjectsPage from './pages/ProjectsPage';
 import ServicesPage from './pages/ServicesPage';
 import InternationalPage from './pages/InternationalPage';
 import ProjectDetailPage from './pages/ProjectDetailPage';
+import UpdatesPage from './pages/UpdatesPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPage from './pages/AdminPage';
 import AdminAddListingPage from './pages/AdminAddListingPage';
@@ -104,6 +106,7 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
               <Route path="/contact" element={<ContactPage />} />
               <Route path="/services" element={<ServicesPage />} />
               <Route path="/international" element={<InternationalPage />} />
+              <Route path="/updates" element={<UpdatesPage />} />
             </Routes>
           </motion.div>
         </AnimatePresence>

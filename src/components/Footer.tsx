@@ -5,7 +5,7 @@ import {
   Building, Home, Star, Key, Layers, Tag,
   Users, BookOpen, Info, MessageSquare, Briefcase,
   ArrowUpRight, CheckCircle, Globe,
-  Shield, type LucideIcon,
+  Shield, Rocket, type LucideIcon,
 } from 'lucide-react';
 import { CONTACT } from '../data/contactInfo';
 import BusinessHours from './BusinessHours';
@@ -81,6 +81,7 @@ export default function Footer() {
     { label: t('footer.agents'), href: '/agents', icon: Users },
     { label: t('footer.blog'), href: '/blog', icon: BookOpen },
     { label: t('footer.contact'), href: '/contact', icon: MessageSquare },
+    { label: t('footer.updates'), href: '/updates', icon: Rocket },
     { label: t('footer.careers'), href: '#', icon: Briefcase },
   ], [t]);
 

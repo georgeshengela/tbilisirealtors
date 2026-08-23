@@ -17,7 +17,7 @@ export default function ServicesPage() {
   const { t } = useLocale();
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-[122px] lg:pt-[122px] pb-20">
+    <div className="min-h-screen bg-slate-50 page-under-header pb-20">
       <div className="container-xl px-4 sm:px-6">
         <motion.header
           initial={{ opacity: 0, y: 14 }}

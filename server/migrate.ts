@@ -330,6 +330,23 @@ async function migrate() {
         ON property_views (property_id, session_key, viewed_at DESC)
     `;
 
+    await client`
+      CREATE TABLE IF NOT EXISTS property_offers (
+        id SERIAL PRIMARY KEY,
+        property_id VARCHAR(50) NOT NULL REFERENCES properties(id) ON DELETE CASCADE,
+        broker_user_id INTEGER,
+        lead_id INTEGER,
+        client_name VARCHAR(255),
+        client_phone VARCHAR(50),
+        offered_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        notes TEXT
+      )
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS property_offers_property_idx
+        ON property_offers (property_id, offered_at DESC)
+    `;
+
     // Listing ownership + moderation of member submissions.
     await client`
       ALTER TABLE properties

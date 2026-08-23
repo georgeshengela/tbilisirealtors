@@ -11,6 +11,13 @@ import {
   Languages, MessageSquare, X, Upload,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
+import { useCurrency, FALLBACK_USD_RATE } from '../contexts/CurrencyContext';
+import {
+  convertEntryAmount,
+  entryAmountToGel,
+  formCurrencyToEntry,
+  gelToEntryAmount,
+} from '../lib/moneyEntry';
 import { useFileUpload } from '../hooks/useFileUpload';
 import LocationPickerMap, { type LocationValue } from '../components/LocationPickerMap';
 import AdminLayout from '../components/admin/AdminLayout';
@@ -222,7 +229,7 @@ const defaultForm: FormState = {
   title: '', description: '', descriptionEn: '', descriptionRu: '',
   type: 'apartment', dealTypes: ['sale'],
   buildingStatus: '', condition: '',
-  price: '', rentPrice: '', pricePerSqm: '', currency: '₾',
+  price: '', rentPrice: '', pricePerSqm: '', currency: '$',
   area: '', rooms: '', bedrooms: '', bathrooms: '',
   floor: '', totalFloors: '',
   projectType: '', ceilingHeight: '', wetPoint: '',
@@ -342,6 +349,8 @@ export default function AdminAddListingPage() {
   const isEdit   = Boolean(id);
   const { user, can, loading: authLoading } = useAdminAuth();
   const api = useApiRequest();
+  const { formatMoney, rates } = useCurrency();
+  const usdRate = rates.USD ?? FALLBACK_USD_RATE;
 
   // Field groups the account is not cleared for never render, and never ship
   // in the payload — the server rejects private writes from anyone else.
@@ -387,9 +396,12 @@ export default function AdminAddListingPage() {
           description: data.description || '',
           descriptionEn: data.descriptionEn || '',
           descriptionRu: data.descriptionRu || '',
-          price:      String(data.price || ''),
-          rentPrice:  data.rentPrice ? String(data.rentPrice) : '',
-          pricePerSqm: String(data.pricePerSqm || ''),
+          price:      data.price ? String(gelToEntryAmount(Number(data.price), formCurrencyToEntry('$'), usdRate)) : '',
+          rentPrice:  data.rentPrice ? String(gelToEntryAmount(Number(data.rentPrice), formCurrencyToEntry('$'), usdRate)) : '',
+          pricePerSqm: data.pricePerSqm
+            ? String(gelToEntryAmount(Number(data.pricePerSqm), formCurrencyToEntry('$'), usdRate))
+            : '',
+          currency: '$',
           area:       String(data.area || ''),
           type:       data.type || 'apartment',
           dealTypes:  data.status === 'both' ? ['sale', 'rent'] : [data.status || 'sale'],
@@ -431,13 +443,15 @@ export default function AdminAddListingPage() {
           rentExpiresAt:  data.rentExpiresAt ? String(data.rentExpiresAt).slice(0, 10) : '',
           lifecycleNote:  data.lifecycleNote || '',
           lifecycleOutcome: data.lifecycleOutcome || '',
-          lifecycleDealPrice: data.lifecycleDealPrice != null ? String(data.lifecycleDealPrice) : '',
+          lifecycleDealPrice: data.lifecycleDealPrice != null
+            ? String(gelToEntryAmount(Number(data.lifecycleDealPrice), formCurrencyToEntry('$'), usdRate))
+            : '',
         }));
         setSavedNotes(Array.isArray(data.internalNotes) ? data.internalNotes : []);
       } catch { setError('განცხადების ჩატვირთვა ვერ მოხერხდა'); }
       finally  { setLoading(false); }
     })();
-  }, [isEdit, id, user, api]);
+  }, [isEdit, id, user, api, usdRate]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm(f => ({ ...f, [key]: value }));
@@ -462,6 +476,11 @@ export default function AdminAddListingPage() {
   }
 
   function applyImportedData(data: ImportedListingData) {
+    const entry = formCurrencyToEntry('$');
+    const gelPrice = Number(data.price) || 0;
+    const gelPerSqm = Number(data.pricePerSqm) || 0;
+    const areaNum = Number(data.area) || 0;
+
     setForm(f => ({
       ...f,
       title: data.title || f.title,
@@ -470,9 +489,13 @@ export default function AdminAddListingPage() {
       dealTypes: data.dealType ? [data.dealType] : f.dealTypes,
       buildingStatus: data.buildingStatus || f.buildingStatus,
       condition: data.condition || f.condition,
-      price: data.price || f.price,
-      pricePerSqm: data.pricePerSqm || pricePerSqmOf(data.price || f.price, data.area || f.area) || f.pricePerSqm,
-      currency: data.currency || f.currency,
+      price: gelPrice ? String(gelToEntryAmount(gelPrice, entry, usdRate)) : f.price,
+      pricePerSqm: gelPerSqm
+        ? String(gelToEntryAmount(gelPerSqm, entry, usdRate))
+        : (gelPrice && areaNum > 0
+          ? String(gelToEntryAmount(Math.round(gelPrice / areaNum), entry, usdRate))
+          : f.pricePerSqm),
+      currency: '$',
       area: data.area || f.area,
       rooms: data.rooms || f.rooms,
       bedrooms: data.bedrooms || f.bedrooms,
@@ -653,17 +676,21 @@ export default function AdminAddListingPage() {
       const rents = form.dealTypes.some(d => d !== 'sale');
       const newNote = form.internalNote.trim();
 
+      const entry = formCurrencyToEntry(form.currency);
+      const priceGel = entryAmountToGel(parseFloat(form.price) || 0, entry, usdRate);
+      const rentGel = form.rentPrice ? entryAmountToGel(parseFloat(form.rentPrice), entry, usdRate) : null;
+      const areaNum = parseFloat(form.area) || 0;
+
       const payload = {
         title:        form.title.trim() || buildAutoTitle(form),
         description:  form.description,
         descriptionEn: form.descriptionEn,
         descriptionRu: form.descriptionRu,
-        price:        parseFloat(form.price) || 0,
-        rentPrice:    sells && rents && form.rentPrice ? parseFloat(form.rentPrice) : null,
+        price:        priceGel,
+        rentPrice:    sells && rents && form.rentPrice ? rentGel : null,
         pricePerSqm:  parseFloat(form.pricePerSqm)
-          || (parseFloat(form.price) > 0 && parseFloat(form.area) > 0
-            ? Math.round(parseFloat(form.price) / parseFloat(form.area))
-            : null),
+          ? entryAmountToGel(parseFloat(form.pricePerSqm), entry, usdRate)
+          : (priceGel > 0 && areaNum > 0 ? Math.round(priceGel / areaNum) : null),
         area:         parseFloat(form.area) || null,
         type:         form.type,
         status:       sells && rents ? 'both' : sells ? 'sale' : 'rent',
@@ -716,7 +743,9 @@ export default function AdminAddListingPage() {
         lifecycleOutcome: isEdit && (form.lifecycleState === 'old' || form.lifecycleState === 'new_r')
           ? (form.lifecycleOutcome || null)
           : null,
-        lifecycleDealPrice: isEdit && form.lifecycleOutcome === 'rented_us' ? (form.lifecycleDealPrice || null) : null,
+        lifecycleDealPrice: isEdit && form.lifecycleOutcome === 'rented_us' && form.lifecycleDealPrice
+          ? entryAmountToGel(parseFloat(form.lifecycleDealPrice), entry, usdRate)
+          : null,
         priceSource:    form.sourceUrl && !isEdit ? 'import' : 'admin',
       };
 
@@ -920,11 +949,17 @@ export default function AdminAddListingPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-extrabold text-slate-800">
-                            {Number(importPreview.price).toLocaleString()} {importPreview.currency}
+                            ₾{Number(importPreview.price).toLocaleString()}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            საიტზე: {formatMoney(Number(importPreview.price))}
+                          </p>
+                          <p className="text-[10px] text-blue-600 font-semibold mt-0.5">
+                            ფორმაში ($): {gelToEntryAmount(Number(importPreview.price), 'USD', usdRate).toLocaleString()}
                           </p>
                           {importPreview.pricePerSqm && (
                             <p className="text-xs text-slate-400">
-                              {Number(importPreview.pricePerSqm).toLocaleString()} {importPreview.currency}/მ²
+                              ₾{Number(importPreview.pricePerSqm).toLocaleString()}/მ² · საიტზე {formatMoney(Number(importPreview.pricePerSqm), { perSqm: true })}
                             </p>
                           )}
                         </div>
@@ -989,7 +1024,7 @@ export default function AdminAddListingPage() {
                         <a href={importPreview.sourceUrl} target="_blank" rel="noreferrer"
                           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50">
                           <ExternalLink size={15} />
-                          ორიგინალი
+                          გარე საიტი
                         </a>
                       </div>
                     </motion.div>
@@ -1284,7 +1319,7 @@ export default function AdminAddListingPage() {
                             </label>
                           </div>
                           <label className="block">
-                            <span className="block text-xs font-bold text-slate-600 mb-1.5">ქირის ფასი (₾)</span>
+                            <span className="block text-xs font-bold text-slate-600 mb-1.5">ქირის ფასი ({form.currency})</span>
                             <input
                               type="number"
                               min={0}
@@ -1320,7 +1355,7 @@ export default function AdminAddListingPage() {
                 <div className="pt-5 border-t border-slate-100">
                   <h3 className="font-bold text-slate-800 text-sm mb-1">წყარო</h3>
                   <p className="text-slate-500 text-xs mb-3">
-                    ორიგინალი განცხადების ბმული — ადმინის სიაში ID-ს გვერდით გამოჩნდება გადასვლის იკონკა.
+                    გარე ვებსაიტის ბმული — საჯარო გვერდზე და ადმინის სიაში Property ID-ს გვერდით გამოჩნდება გადასვლის ქმედება.
                   </p>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input
@@ -1386,18 +1421,45 @@ export default function AdminAddListingPage() {
                   <h3 className="font-bold text-slate-800 text-sm mb-4">ფასი <span className="text-red-500">*</span></h3>
                   <div className="flex items-center gap-2 mb-4">
                     {['₾', '$'].map(c => (
-                      <button key={c} type="button" onClick={() => set('currency', c)}
+                      <button key={c} type="button"
+                        onClick={() => {
+                          if (form.currency === c) return;
+                          const from = formCurrencyToEntry(form.currency);
+                          const to = formCurrencyToEntry(c);
+                          const conv = (v: string) => {
+                            const n = parseFloat(v);
+                            if (!n) return v;
+                            return String(convertEntryAmount(n, from, to, usdRate));
+                          };
+                          setForm(f => ({
+                            ...f,
+                            currency: c,
+                            price: conv(f.price),
+                            rentPrice: conv(f.rentPrice),
+                            pricePerSqm: conv(f.pricePerSqm),
+                            lifecycleDealPrice: conv(f.lifecycleDealPrice),
+                          }));
+                        }}
                         className={`w-10 h-10 rounded-xl border-2 font-bold text-base transition-all ${
                           form.currency === c ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 bg-white text-slate-600'
                         }`}
                       >{c}</button>
                     ))}
+                    <p className="text-[11px] text-slate-400 ml-1">
+                      იმპორტი ₾-ში · DB-ში ₾ · საიტზე {form.currency === '$' ? `$ (1 USD = ${usdRate.toFixed(2)} ₾)` : '₾'}
+                    </p>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <label className={labelCls}>
                         <DollarSign size={13} />
-                        {sellsAndRents ? 'გასაყიდი ფასი' : form.dealTypes.includes('sale') ? 'სრული ფასი' : 'ქირა (თვეში)'}
+                        {sellsAndRents
+                          ? 'გასაყიდი ფასი'
+                          : form.dealTypes.includes('sale')
+                            ? 'სრული ფასი'
+                            : form.dealTypes.includes('daily_rent')
+                              ? 'ქირა (დღიურად)'
+                              : 'ქირა (თვეში)'}
                       </label>
                       <div className="relative">
                         <input

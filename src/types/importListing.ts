@@ -9,7 +9,9 @@ export interface ImportedListingData {
   buildingStatus: string;
   condition: string;
   price: string;
+  /** Always GEL after import — use for DB storage. */
   pricePerSqm: string;
+  /** Source currency hint only; normalized to GEL on server before response. */
   currency: string;
   area: string;
   rooms: string;

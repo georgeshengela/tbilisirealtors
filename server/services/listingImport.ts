@@ -1,3 +1,5 @@
+import { usdToGel } from './currency.js';
+
 export interface ImportedListingData {
   source: 'ss.ge' | 'myhome.ge';
   sourceUrl: string;
@@ -234,9 +236,17 @@ function detectSource(url: string): 'ss.ge' | 'myhome.ge' {
 }
 
 function extractMyHomeId(url: string): string {
-  const match = url.match(/myhome\.ge\/(?:[^/?#]+\/)*(\d{5,})(?:\/|$|\?)/i);
-  if (!match) throw new ImportError('id_not_found', 'myhome.ge ბმულიდან ID ვერ მოიძებნა', 'myhome.ge');
-  return match[1];
+  const path = new URL(url).pathname;
+
+  // Numeric path segment: .../25675411/
+  const segmentMatch = path.match(/\/(\d{5,})(?:\/|$)/);
+  if (segmentMatch) return segmentMatch[1];
+
+  // ID embedded in slug: ...-25675411/
+  const slugMatch = path.match(/-(\d{5,})(?:\/|$)/);
+  if (slugMatch) return slugMatch[1];
+
+  throw new ImportError('id_not_found', 'myhome.ge ბმულიდან ID ვერ მოიძებნა', 'myhome.ge');
 }
 
 async function fetchMyHomeStatement(id: string): Promise<Record<string, unknown>> {
@@ -322,6 +332,59 @@ function mapMyhomeStatus(id: number): string {
   if (id === 2) return 'new';
   if (id === 1) return 'old';
   return '';
+}
+
+/** MyHome TNET enum IDs → admin chip values (rooms / bedrooms / wet point). */
+const MYHOME_ROOM_TYPE: Record<number, string> = {
+  1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6', 7: '7', 8: '8', 9: '9', 10: '10+',
+  11: '10+', 12: '10+',
+};
+
+const MYHOME_BEDROOM_TYPE: Record<number, string> = {
+  1: '1', 2: '2', 3: '3', 4: '4', 5: '5', 6: '6+',
+};
+
+const MYHOME_BATHROOM_TYPE: Record<number, string> = {
+  1: '1', 2: '2', 3: '3+', 4: 'საერთო', 5: 'საერთო',
+};
+
+function mapMyhomeChip(
+  enumId: unknown,
+  map: Record<number, string>,
+  rawCount?: unknown,
+  maxChip = 10,
+): string {
+  const count = Number(rawCount);
+  if (Number.isFinite(count) && count > 0) {
+    if (count > maxChip) return maxChip === 6 ? '6+' : '10+';
+    return String(count);
+  }
+  const id = Number(enumId);
+  return map[id] || '';
+}
+
+function splitStreetAddress(full: string): { street: string; streetNumber: string } {
+  const trimmed = full.trim();
+  if (!trimmed) return { street: '', streetNumber: '' };
+  const m = trimmed.match(/^(.+?)\s+(\d[\w/-]*)$/u);
+  if (m) return { street: m[1].trim(), streetNumber: m[2].trim() };
+  return { street: trimmed, streetNumber: '' };
+}
+
+async function normalizeImportedPrices(data: ImportedListingData): Promise<ImportedListingData> {
+  const rate = await usdToGel();
+  const toGel = (value: string, fromUsd: boolean) => {
+    const n = Number(value);
+    if (!n) return value;
+    return fromUsd ? String(Math.round(n * rate)) : String(Math.round(n));
+  };
+  const fromUsd = data.currency === '$';
+  return {
+    ...data,
+    price: toGel(data.price, fromUsd),
+    pricePerSqm: toGel(data.pricePerSqm, fromUsd),
+    currency: '₾',
+  };
 }
 
 function normalizePhone(raw: string): string {
@@ -460,10 +523,18 @@ function parseMyHomeStatement(statement: Record<string, unknown>, sourceUrl: str
 
   const dealType = mapMyhomeDeal(Number(statement.deal_type_id ?? 0), title);
   const currency = Number(statement.currency_id ?? 1) === 2 ? '$' : '₾';
-  const gelPrice = statement.price as Record<string, { price_total?: number; price_square?: number }> | undefined;
-  const priceBlock = gelPrice?.['1'];
+  const priceBlocks = statement.price as Record<string, { price_total?: number; price_square?: number }> | undefined;
+  const gelBlock = priceBlocks?.['1'];
+  const usdBlock = priceBlocks?.['2'];
+  const priceBlock = currency === '$' ? usdBlock ?? gelBlock : gelBlock ?? usdBlock;
   const totalPrice = statement.total_price ?? priceBlock?.price_total;
   const sqmPrice = priceBlock?.price_square;
+
+  const fullAddress = String(statement.address ?? '').trim();
+  const { street, streetNumber } = splitStreetAddress(fullAddress);
+  const rooms = mapMyhomeChip(statement.room_type_id, MYHOME_ROOM_TYPE, statement.rooms);
+  const bedrooms = mapMyhomeChip(statement.bedroom_type_id, MYHOME_BEDROOM_TYPE, statement.bedrooms, 6);
+  const wetPoint = mapMyhomeChip(statement.bathroom_type_id, MYHOME_BATHROOM_TYPE, statement.bathrooms);
 
   const parking: string[] = [];
   const heating: string[] = [];
@@ -493,16 +564,16 @@ function parseMyHomeStatement(statement: Record<string, unknown>, sourceUrl: str
     pricePerSqm: sqmPrice != null ? String(sqmPrice) : '',
     currency,
     area: statement.area != null ? String(statement.area) : '',
-    rooms: statement.room_type_id != null ? String(statement.room_type_id) : '',
-    bedrooms: statement.bedroom_type_id != null ? String(statement.bedroom_type_id) : '',
-    bathrooms: statement.bathroom_type_id != null ? String(statement.bathroom_type_id) : '',
+    rooms,
+    bedrooms,
+    bathrooms: wetPoint === 'საერთო' ? '0' : wetPoint.replace('+', '') || '',
     floor: statement.floor != null ? String(statement.floor) : '',
     totalFloors: statement.total_floors != null ? String(statement.total_floors) : '',
     city: String(statement.city_name ?? ''),
     district: String(statement.district_name ?? statement.urban_name ?? ''),
-    address: String(statement.address ?? ''),
-    street: String(statement.address ?? ''),
-    streetNumber: '',
+    address: fullAddress,
+    street,
+    streetNumber,
     cadastralCode: String(statement.rs_code ?? ''),
     lat: Number(statement.lat) || TBILISI_CENTER.lat,
     lng: Number(statement.lng) || TBILISI_CENTER.lng,
@@ -513,7 +584,7 @@ function parseMyHomeStatement(statement: Record<string, unknown>, sourceUrl: str
     agentPhone: normalizePhone(String(statement.user_phone_number ?? statement.additional_phone_number ?? '')),
     agentEmail: '',
     projectType: '',
-    wetPoint: statement.bathroom_type_id != null ? String(statement.bathroom_type_id) : '',
+    wetPoint,
     balconyCount: statement.balconies != null ? String(statement.balconies) : '',
     balconyArea: statement.balcony_area != null ? String(statement.balcony_area) : '',
     verandaArea: statement.porch_area != null ? String(statement.porch_area) : '',
@@ -631,5 +702,5 @@ export async function importListingFromUrl(rawUrl: string): Promise<ImportedList
   data.meta.missingFields = audit.missingFields;
   data.meta.warnings = audit.warnings;
   data.meta.coordsFallback = audit.warnings.includes('coords_defaulted');
-  return data;
+  return await normalizeImportedPrices(data);
 }

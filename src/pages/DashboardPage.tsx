@@ -18,6 +18,7 @@ import { useAccountRequest, useUserAuth } from '../contexts/UserAuthContext';
 import { useFavorites } from '../lib/favorites';
 import { MODERATION_COLOR, MODERATION_LABEL } from '../lib/permissions';
 import { useTranslation } from '../i18n/LocaleContext';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { formatShortDate } from '../lib/dateFormat';
 
 type Tab = 'overview' | 'favorites' | 'listings' | 'searches' | 'profile';
@@ -83,6 +84,7 @@ function EmptyState({ icon: Icon, title, hint, action }: {
 
 export default function DashboardPage() {
   const { t, locale } = useTranslation();
+  const { formatMoney } = useCurrency();
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const { user, logout, updateProfile } = useUserAuth();
@@ -215,7 +217,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px]">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 page-under-header">
       <div className="container-xl py-8">
         {/* Greeting */}
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
@@ -441,7 +443,7 @@ export default function DashboardPage() {
 
                         <div className="flex flex-wrap items-center gap-4 mt-2 text-sm">
                           <span className="font-bold text-blue-600">
-                            {listing.price ? `${Number(listing.price).toLocaleString('ka-GE')} ₾` : '—'}
+                            {listing.price ? formatMoney(Number(listing.price)) : '—'}
                           </span>
                           <span className="inline-flex items-center gap-1.5 text-slate-500">
                             <Eye size={14} />

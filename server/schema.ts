@@ -413,6 +413,21 @@ export const leadEvents = pgTable('lead_events', {
   createdAt: timestamp('created_at').defaultNow(),
 });
 
+/**
+ * Broker offered a listing to a client — foundation for Broker Desk / Orders.
+ * Counts drive the admin activity column; leadId links to the enquiry funnel.
+ */
+export const propertyOffers = pgTable('property_offers', {
+  id: serial('id').primaryKey(),
+  propertyId: varchar('property_id', { length: 50 }).notNull(),
+  brokerUserId: integer('broker_user_id'),
+  leadId: integer('lead_id'),
+  clientName: varchar('client_name', { length: 255 }),
+  clientPhone: varchar('client_phone', { length: 50 }),
+  offeredAt: timestamp('offered_at').notNull().defaultNow(),
+  notes: text('notes'),
+});
+
 export type User = typeof users.$inferSelect;
 export type AdminUser = typeof users.$inferSelect;
 export type RolePermissionRow = typeof rolePermissions.$inferSelect;

@@ -57,7 +57,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
       onMouseLeave={() => setHovered(false)}
     >
       {/* ── Image area ── */}
-      <Link to={`/property/${property.id}`} className="relative block overflow-hidden" style={{ aspectRatio: '4/3' }}>
+      <Link to={`/property/${property.id}`} className="relative block overflow-hidden" style={{ aspectRatio: '5/4' }}>
         {/* Skeleton */}
         {!imgLoaded && <div className="absolute inset-0 skeleton" />}
 

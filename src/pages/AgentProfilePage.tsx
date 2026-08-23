@@ -17,7 +17,7 @@ export default function AgentProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 page-under-header flex items-center justify-center">
         <p className="text-slate-500">{t('common.loading')}</p>
       </div>
     );
@@ -36,7 +36,7 @@ export default function AgentProfilePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px]">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 page-under-header">
       {/* Profile Header */}
       <div className="bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10"

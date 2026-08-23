@@ -63,7 +63,7 @@ export default function ProjectDetailPage() {
   ];
 
   return (
-    <div className="min-h-screen pt-[56px] lg:pt-[106px]" style={{ background: '#f7f9fb' }}>
+    <div className="min-h-screen page-under-header" style={{ background: '#f7f9fb' }}>
       <div className="bg-white" style={{ borderBottom: '1px solid #eceef0' }}>
         <div className="container-xl py-3">
           <div className="flex items-center gap-2 text-sm flex-wrap" style={{ color: '#76777d' }}>

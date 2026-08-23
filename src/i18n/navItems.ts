@@ -1,6 +1,6 @@
 import {
-  Users, Info, MessageSquare, Sparkles,
-  HardHat, Calculator, Globe2, Wrench, Ruler, Hammer, Landmark,
+  Users, Sparkles, Building2, Briefcase, Scale, Phone,
+  Award, Ruler, Hammer, Landmark,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -45,18 +45,13 @@ export function buildNavItems(t: TFn): NavItem[] {
     {
       label: t('nav.newProjects'),
       href: '/listings?new=true',
-      icon: HardHat,
+      icon: Building2,
       badge: 'NEW',
-    },
-    {
-      label: t('nav.international'),
-      href: '/international',
-      icon: Globe2,
     },
     {
       label: t('nav.services'),
       href: '/services',
-      icon: Wrench,
+      icon: Briefcase,
       mega: {
         title: t('nav.servicesMega.title'),
         columns: [
@@ -76,10 +71,10 @@ export function buildNavItems(t: TFn): NavItem[] {
     {
       label: t('nav.valuation'),
       href: '/contact',
-      icon: Calculator,
+      icon: Scale,
     },
     { label: t('nav.team'), href: '/agents', icon: Users },
-    { label: t('nav.about'), href: '/about', icon: Info },
-    { label: t('nav.contact'), href: '/contact', icon: MessageSquare },
+    { label: t('nav.about'), href: '/about', icon: Award },
+    { label: t('nav.contact'), href: '/contact', icon: Phone },
   ];
 }

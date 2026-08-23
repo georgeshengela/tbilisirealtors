@@ -55,6 +55,7 @@ import {
   refreshExpiredRentals,
   type PriceSource,
 } from '../services/listingLifecycle.js';
+import { offerCountsForProperties } from '../services/propertyOffers.js';
 import { buildDisplayName, profileFieldsFromBody } from '../utils/adminProfile.js';
 
 const router = Router();
@@ -371,11 +372,14 @@ router.get('/properties', requirePermission('listings.view'), async (req: AuthRe
 
     // Handed-over listings come back read-only, so the table can grey out its controls.
     const editable = new Map(all.map(row => [row.id, canEditListing(req.user!, row)]));
+    const offerCounts = await offerCountsForProperties(all.map(row => row.id));
 
     res.json({
       data: cleanAll(req, await withPriceHistory(all)).map(row => ({
         ...row,
         canEdit: editable.get(row.id as string) ?? true,
+        offersLast30Days: offerCounts.get(row.id)?.offersLast30Days ?? 0,
+        offersLast60Days: offerCounts.get(row.id)?.offersLast60Days ?? 0,
       })),
       total: Number(total.count),
       page,

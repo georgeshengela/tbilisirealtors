@@ -20,7 +20,7 @@ export const CONTACT = {
   address: 'ეროსი მანჯგალაძის 81',
   googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(MAPS_QUERY)}`,
   coordinates: { lat: 41.7336823, lng: 44.7974868 },
-  hoursShort: 'ორშ–პარ 10:00–18:00 · შაბ 10:00–16:00',
+  hoursShort: 'ორშ–პარ 10:00–18:00 · შაბ 11:00–15:00',
 } as const;
 
 export type BusinessHourRow = {
@@ -32,7 +32,7 @@ export type BusinessHourRow = {
 
 export const BUSINESS_HOURS: BusinessHourRow[] = [
   { id: 'weekdays', label: 'ორშაბათი – პარასკევი', time: '10:00 – 18:00' },
-  { id: 'saturday', label: 'შაბათი', time: '10:00 – 16:00' },
+  { id: 'saturday', label: 'შაბათი', time: '11:00 – 15:00' },
   { id: 'sunday', label: 'კვირა', time: null, closed: true },
 ];
 
@@ -45,6 +45,6 @@ export function isBusinessOpenNow(date = new Date()): boolean {
   const day = date.getDay(); // 0 Sun … 6 Sat
   const mins = date.getHours() * 60 + date.getMinutes();
   if (day === 0) return false;
-  if (day === 6) return mins >= 10 * 60 && mins < 16 * 60;
+  if (day === 6) return mins >= 11 * 60 && mins < 15 * 60;
   return mins >= 10 * 60 && mins < 18 * 60;
 }

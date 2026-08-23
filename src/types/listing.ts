@@ -48,6 +48,7 @@ export interface Property {
   viewCount: number;
   listedDate: string;
   cadastralCode?: string | null;
+  sourceUrl?: string | null;
 }
 
 export interface Agent {
@@ -126,6 +127,7 @@ export type ApiPropertyRow = {
   agentPhone: string | null;
   agentEmail: string | null;
   cadastralCode?: string | null;
+  sourceUrl?: string | null;
 };
 
 export type ApiAgentRow = {

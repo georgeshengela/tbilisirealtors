@@ -185,14 +185,14 @@ export default function SubmitListingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 page-under-header flex items-center justify-center">
         <Loader2 size={24} className="animate-spin text-slate-400" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 pt-14 lg:pt-[106px]">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 page-under-header">
       <div className="container-xl py-8 max-w-3xl">
         <Link
           to="/dashboard?tab=listings"

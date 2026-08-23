@@ -56,6 +56,19 @@ function uploadPhoto(file: Express.Multer.File): Promise<{
         resource_type: 'image',
         overwrite: false,
         access_mode: 'public',
+        transformation: [
+          {
+            overlay: {
+              font_family: 'Arial',
+              font_size: 48,
+              font_weight: 'bold',
+              text: 'Tbilisi Realtors',
+            },
+            color: '#ffffff',
+            opacity: 55,
+            gravity: 'center',
+          },
+        ],
       },
       (err, result) => {
         if (err || !result?.secure_url) {
