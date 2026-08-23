@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -6,6 +7,7 @@ import {
 } from 'lucide-react';
 import { useAgent, useProperties } from '../hooks/usePublicData';
 import { useTranslation } from '../i18n/LocaleContext';
+import { applySeo, clipMeta, pageUrl, setJsonLd, SITE_NAME, absoluteImage } from '../lib/seo';
 
 import PropertyCard from '../components/PropertyCard';
 
@@ -14,6 +16,44 @@ export default function AgentProfilePage() {
   const { id } = useParams();
   const { data: agent, loading } = useAgent(id);
   const { data: properties } = useProperties();
+
+  useEffect(() => {
+    if (!agent) return;
+    const path = `/agent/${agent.id}`;
+    const place = agent.company || 'თბილისი';
+    applySeo({
+      title: `${agent.name} | ${SITE_NAME}`,
+      description: clipMeta(
+        [agent.name, t('seo.agent.description'), place, agent.bio].filter(Boolean).join(' · '),
+      ),
+      path,
+      image: agent.photo,
+    });
+    setJsonLd('page', {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'RealEstateAgent',
+          name: agent.name,
+          description: clipMeta(agent.bio || agent.name, 240),
+          image: absoluteImage(agent.photo),
+          telephone: agent.phone || undefined,
+          email: agent.email || undefined,
+          url: pageUrl(path),
+          worksFor: agent.company ? { '@type': 'Organization', name: agent.company } : undefined,
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: SITE_NAME, item: pageUrl('/') },
+            { '@type': 'ListItem', position: 2, name: t('seo.agents.title').split(' | ')[0], item: pageUrl('/agents') },
+            { '@type': 'ListItem', position: 3, name: agent.name, item: pageUrl(path) },
+          ],
+        },
+      ],
+    });
+    return () => setJsonLd('page', null);
+  }, [agent, t]);
 
   if (loading) {
     return (

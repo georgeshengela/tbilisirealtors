@@ -1,14 +1,52 @@
+import { useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Clock, Tag, ArrowLeft, Share2, ArrowRight, Link2, MessageSquare } from 'lucide-react';
 import { useBlogPost, useBlogPosts } from '../hooks/usePublicData';
 import { useTranslation } from '../i18n/LocaleContext';
+import { applySeo, clipMeta, pageUrl, setJsonLd, SITE_NAME, absoluteImage } from '../lib/seo';
 
 export default function BlogDetailPage() {
   const { t } = useTranslation();
   const { id } = useParams();
   const { data: post, loading } = useBlogPost(id);
   const { data: blogPosts } = useBlogPosts();
+
+  useEffect(() => {
+    if (!post) return;
+    const path = `/blog/${post.id}`;
+    applySeo({
+      title: `${post.title} | ${SITE_NAME}`,
+      description: clipMeta(post.excerpt || post.title),
+      path,
+      image: post.image,
+      type: 'article',
+    });
+    setJsonLd('page', {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Article',
+          headline: post.title,
+          description: clipMeta(post.excerpt || post.title, 240),
+          image: absoluteImage(post.image),
+          datePublished: post.publishDate,
+          author: { '@type': 'Person', name: post.author?.name || SITE_NAME },
+          publisher: { '@type': 'Organization', name: SITE_NAME, url: pageUrl('/') },
+          mainEntityOfPage: pageUrl(path),
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: SITE_NAME, item: pageUrl('/') },
+            { '@type': 'ListItem', position: 2, name: t('seo.blog.title').split(' | ')[0], item: pageUrl('/blog') },
+            { '@type': 'ListItem', position: 3, name: post.title, item: pageUrl(path) },
+          ],
+        },
+      ],
+    });
+    return () => setJsonLd('page', null);
+  }, [post, t]);
 
   if (loading) {
     return (
@@ -89,7 +127,7 @@ export default function BlogDetailPage() {
             <img src={post.author.photo} alt={post.author.name} className="w-11 h-11 rounded-full object-cover" />
             <div>
               <p className="font-semibold text-slate-800 dark:text-white text-sm">{post.author.name}</p>
-              <p className="text-xs text-slate-500">TbilisiRealtor.GE</p>
+              <p className="text-xs text-slate-500">TBILISIREALTOR.GE</p>
             </div>
           </div>
           <div className="flex items-center gap-1.5 text-sm text-slate-500">

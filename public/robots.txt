@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /login
+Disallow: /register
+Disallow: /favorites
+
+Sitemap: https://tbilisirealtors.ge/sitemap.xml

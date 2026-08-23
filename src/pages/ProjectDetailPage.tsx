@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, Navigate } from 'react-router-dom';
 import {
   MapPin, Home, Phone, Building2, Car, Layers, TreePine,
@@ -10,6 +10,7 @@ import { useTranslation } from '../i18n/LocaleContext';
 import { projectStatusLabels } from '../i18n/labels';
 import BuildingUnitPicker from '../components/BuildingUnitPicker';
 import PropertyMap from '../components/PropertyMap';
+import { applySeo, clipMeta, pageUrl, setJsonLd, SITE_NAME, absoluteImage } from '../lib/seo';
 
 function DetailRow({ label, value }: { label: string; value: string }) {
   return (
@@ -43,6 +44,48 @@ export default function ProjectDetailPage() {
   const { formatMoney } = useCurrency();
   const [showPhone, setShowPhone] = useState(false);
   const [renderIndex, setRenderIndex] = useState(0);
+
+  useEffect(() => {
+    if (!project) return;
+    const path = `/project/${project.slug}`;
+    const place = [project.district, project.city].filter(Boolean).join(', ');
+    applySeo({
+      title: `${project.name} | ${SITE_NAME}`,
+      description: clipMeta(
+        [project.name, place, project.description].filter(Boolean).join(' · '),
+      ),
+      path,
+      image: project.image || project.images[0],
+    });
+    setJsonLd('page', {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'Residence',
+          name: project.name,
+          description: clipMeta(project.description || project.name, 240),
+          url: pageUrl(path),
+          image: absoluteImage(project.image || project.images[0]),
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: project.address || undefined,
+            addressLocality: project.city || undefined,
+            addressRegion: project.district || undefined,
+            addressCountry: 'GE',
+          },
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: SITE_NAME, item: pageUrl('/') },
+            { '@type': 'ListItem', position: 2, name: t('seo.projects.title').split(' | ')[0], item: pageUrl('/projects') },
+            { '@type': 'ListItem', position: 3, name: project.name, item: pageUrl(path) },
+          ],
+        },
+      ],
+    });
+    return () => setJsonLd('page', null);
+  }, [project, t]);
 
   if (!project) return <Navigate to="/projects" replace />;
 

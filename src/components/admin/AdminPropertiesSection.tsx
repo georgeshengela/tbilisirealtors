@@ -163,12 +163,6 @@ const LIFECYCLE_META: Record<string, { label: string; note: string; color: strin
 const RENT_TERMS = [6, 12, 18, 24];
 const PAUSE_DAYS = [3, 7, 14];
 
-const SOURCE_LABEL: Record<string, string> = {
-  'myhome.ge': 'myhome.ge',
-  'ss.ge': 'ss.ge',
-  manual: 'ხელით',
-};
-
 const PRICE_SOURCE_LABEL: Record<string, string> = {
   admin: 'ადმინ პანელი',
   import: 'იმპორტი',
@@ -240,29 +234,6 @@ function Toggle({ on, onToggle, label, color = '#10B981' }: { on: boolean; onTog
     >
       <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
     </button>
-  );
-}
-
-function ImgThumb({ src, large }: { src?: string; large?: boolean }) {
-  const size = large
-    ? { width: 144, height: 108, minWidth: 144 }
-    : { width: 108, height: 81, minWidth: 108 };
-  const cls = 'rounded-xl object-cover flex-shrink-0 bg-slate-100 border border-slate-200/80';
-  if (!src) {
-    return (
-      <div className={`${cls} flex items-center justify-center`} style={size}>
-        <ImageIcon size={20} className="text-slate-300" />
-      </div>
-    );
-  }
-  return (
-    <img
-      src={src}
-      alt=""
-      className={cls}
-      style={size}
-      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-    />
   );
 }
 
@@ -617,11 +588,11 @@ function AnchoredPopover({
   );
 }
 
-/* ── ID + link to the original ad it was imported from ── */
-function IdCell({ p }: { p: AdminPropertyRow }) {
+/* Photo, listing ID and public URL as one compact tile. */
+function ListingLeadCell({ p, onOpen }: { p: AdminPropertyRow; onOpen: () => void }) {
   const [copied, setCopied] = useState(false);
-  const sourceLabel = p.source ? SOURCE_LABEL[p.source] ?? p.source : null;
-  const numeric = /^\d{8}$/.test(p.id);
+  const viewHref = `/property/${encodeURIComponent(p.id)}`;
+  const photo = p.images?.[0];
 
   async function copyId() {
     try {
@@ -634,50 +605,53 @@ function IdCell({ p }: { p: AdminPropertyRow }) {
   }
 
   return (
-    <div className="min-w-0">
-      <div className="flex items-center gap-1.5">
+    <div className="relative h-[112px] w-[160px] overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+      <button
+        type="button"
+        onClick={onOpen}
+        title="რედაქტირება"
+        className="absolute inset-0 block"
+      >
+        {photo ? (
+          <img
+            src={photo}
+            alt=""
+            className="h-full w-full object-cover"
+            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+          />
+        ) : (
+          <span className="flex h-full w-full items-center justify-center">
+            <ImageIcon size={18} className="text-slate-300" />
+          </span>
+        )}
+      </button>
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-1 bg-gradient-to-b from-black/70 to-transparent px-1.5 pt-1.5 pb-5">
         <button
           type="button"
           onClick={copyId}
-          title="ID-ის კოპირება"
-          className="group/id inline-flex items-center gap-1.5 rounded-lg px-1.5 py-1 -ml-1.5 transition-all hover:bg-blue-50"
+          title={copied ? 'დაკოპირდა' : 'ID-ის კოპირება'}
+          className="pointer-events-auto inline-flex max-w-[118px] items-center gap-1 rounded-md bg-white/95 px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-slate-800 shadow-sm"
         >
-          <span
-            className="inline-flex items-center justify-center w-5 h-5 rounded-md text-[9px] font-extrabold tracking-tight"
-            style={{
-              background: numeric ? '#2563eb' : '#e2e8f0',
-              color: numeric ? '#fff' : '#64748b',
-            }}
-          >
-            #
-          </span>
-          <span
-            className="font-mono text-[13px] font-extrabold tracking-wide tabular-nums transition-colors"
-            style={{ color: copied ? '#059669' : '#0f172a', letterSpacing: '0.04em' }}
-          >
-            {p.id}
-          </span>
-          {copied
-            ? <Check size={12} className="text-emerald-500" />
-            : <Copy size={11} className="opacity-30 group-hover/id:opacity-70 text-slate-500" />}
+          <span className="truncate">{p.id}</span>
+          {copied ? <Check size={9} className="text-emerald-600" /> : <Copy size={9} className="text-slate-400" />}
         </button>
-
-        {p.sourceUrl ? (
-          <a
-            href={p.sourceUrl}
-            target="_blank"
-            rel="noreferrer"
-            title={`გარე საიტი: ${p.sourceUrl}`}
-            className="p-1 rounded-md text-blue-500 hover:text-white hover:bg-blue-500 transition-colors"
-          >
-            <ExternalLink size={12} />
-          </a>
-        ) : null}
+        <a
+          href={viewHref}
+          target="_blank"
+          rel="noreferrer"
+          title="საიტზე ნახვა"
+          className="pointer-events-auto inline-flex h-[22px] w-[22px] items-center justify-center rounded-md bg-white/95 text-slate-700 shadow-sm hover:bg-blue-600 hover:text-white"
+        >
+          <ExternalLink size={11} />
+        </a>
       </div>
 
-      <p className="text-[10px] font-semibold text-slate-400 mt-0.5 truncate pl-0.5">
-        {copied ? 'დაკოპირდა' : sourceLabel ?? (p.sourceId ? `#${p.sourceId}` : 'ხელით დამატებული')}
-      </p>
+      {p.images?.length > 1 && (
+        <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1 py-px text-[9px] font-bold text-white">
+          {p.images.length}
+        </span>
+      )}
     </div>
   );
 }
@@ -2079,8 +2053,7 @@ export default function AdminPropertiesSection({
           <table className="w-full text-sm min-w-[1340px]">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50/80">
-                <th className="text-left py-3.5 pl-5 pr-2 w-[148px] min-w-[148px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ფოტო</th>
-                <th className="text-left py-3.5 px-2 w-[126px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ID / წყარო</th>
+                <th className="text-left py-3.5 pl-5 pr-2 w-[176px] min-w-[176px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ფოტო</th>
                 <th className="text-left py-3.5 px-2 w-[200px]">
                   <SortHeader label="მისამართი" sortKey="city" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
@@ -2128,7 +2101,7 @@ export default function AdminPropertiesSection({
             <tbody className="divide-y divide-slate-50">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={15} className="py-16 text-center">
+                  <td colSpan={14} className="py-16 text-center">
                     <Building2 size={32} className="mx-auto text-slate-200 mb-3" />
                     <p className="text-slate-500 font-semibold text-sm">
                       {hasFilters ? 'ფილტრებით ვერაფერი მოიძებნა' : 'განცხადება ჯერ არ არის'}
@@ -2149,22 +2122,10 @@ export default function AdminPropertiesSection({
                   style={state === 'new_r' ? { background: 'rgba(239,68,68,0.045)' } : undefined}
                 >
                   <td className="py-3 pl-5 pr-2">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/admin/listings/${p.id}/edit`)}
-                      className="relative block rounded-xl overflow-hidden hover:ring-2 hover:ring-blue-300 transition-all"
-                      title="რედაქტირება"
-                    >
-                      <ImgThumb src={p.images?.[0]} large />
-                      {p.images?.length > 1 && (
-                        <span className="absolute bottom-0.5 right-0.5 px-1 rounded-md bg-black/60 text-white text-[9px] font-bold">
-                          {p.images.length}
-                        </span>
-                      )}
-                    </button>
-                  </td>
-                  <td className="py-3 px-2">
-                    <IdCell p={p} />
+                    <ListingLeadCell
+                      p={p}
+                      onOpen={() => navigate(`/admin/listings/${p.id}/edit`)}
+                    />
                   </td>
                   <td className="py-3 px-2">
                     <div className="min-w-0">

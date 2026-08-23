@@ -317,7 +317,7 @@ export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps)
         </div>
         <div className="relative z-10 max-w-md">
           <div className="mb-8">
-            <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">TbilisiRealtor.GE</span>
+            <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">TBILISIREALTOR.GE</span>
             <h2 className="text-3xl lg:text-4xl font-bold text-white mt-2 mb-4">
               {t('auth.benefitsTitle')}
             </h2>

@@ -42,6 +42,81 @@ export const en = {
     currency: 'Currency',
     nbgRates: 'NBG rate',
   },
+  seo: {
+    home: {
+      title: 'TBILISIREALTOR.GE | Real Estate in Tbilisi',
+      description: 'Apartments, houses and commercial space in Tbilisi and Georgia. Buy or rent on TBILISIREALTOR.GE.',
+    },
+    listings: {
+      title: 'Listings — apartments and houses | TBILISIREALTOR.GE',
+      description: 'Search apartments, houses and commercial space in Tbilisi. Filter by city, price, rooms and map.',
+      filteredDescription: '{summary} — photos, prices and map on TBILISIREALTOR.GE.',
+    },
+    property: {
+      title: 'Listing | TBILISIREALTOR.GE',
+      description: 'Real estate listing in Tbilisi — photos, price, location and contact.',
+    },
+    agents: {
+      title: 'Brokers | TBILISIREALTOR.GE',
+      description: 'Experienced real estate brokers in Tbilisi for buying, selling and renting.',
+    },
+    agent: {
+      title: 'Broker profile | TBILISIREALTOR.GE',
+      description: 'Real estate broker in Tbilisi — listings and contact details.',
+    },
+    projects: {
+      title: 'New projects | TBILISIREALTOR.GE',
+      description: 'New residential complexes in Tbilisi and Batumi — pre-sale and under construction.',
+    },
+    project: {
+      title: 'Residential project | TBILISIREALTOR.GE',
+      description: 'New residential project in Georgia — units, prices and delivery date.',
+    },
+    blog: {
+      title: 'Blog and buying guides | TBILISIREALTOR.GE',
+      description: 'Advice on buying a home, mortgages and the Tbilisi real estate market.',
+    },
+    blogPost: {
+      title: 'Article | TBILISIREALTOR.GE',
+      description: 'Real estate article and guide for the Tbilisi market.',
+    },
+    about: {
+      title: 'About us | TBILISIREALTOR.GE',
+      description: 'TBILISIREALTOR.GE — real estate platform in Tbilisi. Trusted listings and brokers.',
+    },
+    contact: {
+      title: 'Contact | TBILISIREALTOR.GE',
+      description: 'Contact us: 81 Erosi Manjgaladze St, Tbilisi. Tel. +995 323 33 33 77.',
+    },
+    services: {
+      title: 'Services | TBILISIREALTOR.GE',
+      description: 'Real estate services in Tbilisi — valuation, sale, rent and legal support.',
+    },
+    international: {
+      title: 'International real estate | TBILISIREALTOR.GE',
+      description: 'International property listings on TBILISIREALTOR.GE.',
+    },
+    updates: {
+      title: 'Updates | TBILISIREALTOR.GE',
+      description: 'Platform news and updates from TBILISIREALTOR.GE.',
+    },
+    favorites: {
+      title: 'Favorites | TBILISIREALTOR.GE',
+      description: 'Your saved real estate listings.',
+    },
+    login: {
+      title: 'Sign in | TBILISIREALTOR.GE',
+      description: 'Sign in to manage listings and favorites on TBILISIREALTOR.GE.',
+    },
+    register: {
+      title: 'Register | TBILISIREALTOR.GE',
+      description: 'Create an account on TBILISIREALTOR.GE and publish a listing.',
+    },
+    dashboard: {
+      title: 'Account | TBILISIREALTOR.GE',
+      description: 'Your TBILISIREALTOR.GE account.',
+    },
+  },
   locale: {
     ka: 'Georgian',
     en: 'English',
@@ -221,7 +296,7 @@ export const en = {
     cities: 'Cities',
     contactUs: 'Contact us',
     workingHours: 'Business hours',
-    rights: '© {year} TbilisiRealtor.GE. All rights reserved.',
+    rights: '© {year} TBILISIREALTOR.GE. All rights reserved.',
     privacyShort: 'Privacy',
     termsShort: 'Terms of use',
     cookies: 'Cookies',
@@ -289,10 +364,6 @@ export const en = {
       vipAll: 'All VIP',
       newListings: 'New listings',
       newAll: 'All new',
-      premiumRentals: 'Premium rentals',
-      premiumRentalsAll: 'All rentals',
-      vakeSales: 'Vake sales',
-      vakeSalesAll: 'All in Vake',
       projects: 'Projects',
       projectsAll: 'All projects',
       projectsSubtitle: 'New residential complexes in Tbilisi and Batumi — pre-sale, 0% commission and free consultation',
@@ -567,10 +638,10 @@ export const en = {
   },
   about: {
     badge: 'About us',
-    title: 'TbilisiRealtor.GE',
+    title: 'TBILISIREALTOR.GE',
     subtitle: "Georgia's leading real estate platform",
     missionTitle: 'Our mission',
-    missionText: 'TbilisiRealtor.GE was created so everyone has access to a reliable, transparent, and accessible real estate market.',
+    missionText: 'TBILISIREALTOR.GE was created so everyone has access to a reliable, transparent, and accessible real estate market.',
     stats: {
       listings: 'Active listings',
       agents: 'Pro brokers',
@@ -603,7 +674,7 @@ export const en = {
     registerTitle: 'Create account',
     forgotTitle: 'Reset password',
     loginSubtitle: 'Sign in to your account',
-    registerSubtitle: 'Join TbilisiRealtor.GE',
+    registerSubtitle: 'Join TBILISIREALTOR.GE',
     forgotSubtitle: 'Enter your email to reset',
     email: 'Email',
     password: 'Password',
@@ -618,12 +689,12 @@ export const en = {
     facebook: 'With Facebook',
     noAccount: "Don't have an account?",
     hasAccount: 'Already have an account?',
-    benefitsTitle: 'Why TbilisiRealtor.GE?',
+    benefitsTitle: 'Why TBILISIREALTOR.GE?',
     benefit1: '12,400+ listings',
     benefit2: '350+ verified brokers',
     benefit3: 'Free consultation',
     benefitsSubtitle: 'Join 8,200+ clients who choose our platform every day.',
-    testimonial: 'With TbilisiRealtor.GE I found my dream home in Vake. The service is simple and fast.',
+    testimonial: 'With TBILISIREALTOR.GE I found my dream home in Vake. The service is simple and fast.',
     testimonialAuthor: 'Eka Japaridze',
     testimonialRole: 'Apartment buyer, Vake',
     resetSent: 'If that email exists, we have sent a reset link',

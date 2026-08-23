@@ -71,8 +71,8 @@ export function BrandWordmark({
         marginRight: `-${TRACKING}`,
       }}
     >
-      <span style={{ color: nameColor }}>TbilisiRealtor</span>
-      <span style={{ color: tldColor }}>.ge</span>
+      <span style={{ color: nameColor }}>TBILISIREALTOR</span>
+      <span style={{ color: tldColor }}>.GE</span>
     </span>
   );
 }
@@ -150,14 +150,14 @@ export default function BrandLogo({
 
   if (href != null) {
     return (
-      <Link to={href} className={classes} style={style} aria-label="TbilisiRealtor.GE">
+      <Link to={href} className={classes} style={style} aria-label="TBILISIREALTOR.GE">
         {content}
       </Link>
     );
   }
 
   return (
-    <span className={classes} style={style} aria-label="TbilisiRealtor.GE">
+    <span className={classes} style={style} aria-label="TBILISIREALTOR.GE">
       {content}
     </span>
   );

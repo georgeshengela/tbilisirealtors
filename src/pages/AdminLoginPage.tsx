@@ -120,7 +120,7 @@ export default function AdminLoginPage() {
         </div>
 
         <p className="text-center text-slate-500 text-xs mt-6">
-          © {new Date().getFullYear()} TbilisiRealtor.GE · ადმინ სისტემა
+          © {new Date().getFullYear()} TBILISIREALTOR.GE · ადმინ სისტემა
         </p>
       </div>
     </div>

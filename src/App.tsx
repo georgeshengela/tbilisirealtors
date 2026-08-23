@@ -30,6 +30,7 @@ import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
 import { UserAuthProvider, useUserAuth } from './contexts/UserAuthContext';
 import { LocaleProvider } from './i18n/LocaleContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
+import SeoManager from './components/SeoManager';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -63,13 +64,17 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
 
   if (isAdminPage) {
     return (
-      <Routes>
-        <Route path="/admin/login" element={<AdminLoginPage />} />
-        <Route path="/admin/profile" element={<ProtectedAdminRoute><AdminProfilePage /></ProtectedAdminRoute>} />
-        <Route path="/admin/listings/new" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
-        <Route path="/admin/listings/:id/edit" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
-        <Route path="/admin/*" element={<ProtectedAdminRoute><AdminPage /></ProtectedAdminRoute>} />
-      </Routes>
+      <>
+        <ScrollToTop />
+        <SeoManager />
+        <Routes>
+          <Route path="/admin/login" element={<AdminLoginPage />} />
+          <Route path="/admin/profile" element={<ProtectedAdminRoute><AdminProfilePage /></ProtectedAdminRoute>} />
+          <Route path="/admin/listings/new" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
+          <Route path="/admin/listings/:id/edit" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
+          <Route path="/admin/*" element={<ProtectedAdminRoute><AdminPage /></ProtectedAdminRoute>} />
+        </Routes>
+      </>
     );
   }
 
@@ -77,6 +82,7 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
     <div className={darkMode ? 'dark' : ''}>
       <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
         <ScrollToTop />
+        <SeoManager />
         {!isAuthPage && <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />}
 
         <AnimatePresence mode="wait">

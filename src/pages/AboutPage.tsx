@@ -33,7 +33,7 @@ export default function AboutPage() {
   ];
 
   const milestones = [
-    { year: '2018', title: 'დასაბამი', desc: 'TbilisiRealtor.GE-ის დაარსება თბილისში.' },
+    { year: '2018', title: 'დასაბამი', desc: 'TBILISIREALTOR.GE-ის დაარსება თბილისში.' },
     { year: '2020', title: 'გაფართოება', desc: 'ბათუმი, ქუთაისი და სხვა ქალაქების დამატება.' },
     { year: '2022', title: 'მობაილ აპი', desc: 'iOS და Android აპლიკაციის გამოშვება.' },
     { year: '2024', title: 'AI ანალიტიკა', desc: 'ხელოვნური ინტელექტის ჩართვა ბაზრის ანალიზში.' },
@@ -82,7 +82,7 @@ export default function AboutPage() {
                 ჩვენი მისიაა<br />სახლის პოვნის<br />გამარტივება
               </h2>
               <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed mb-6">
-                TbilisiRealtor.GE შექმნილია იმისთვის, რომ ყველა ადამიანს ჰქონდეს 
+                TBILISIREALTOR.GE შექმნილია იმისთვის, რომ ყველა ადამიანს ჰქონდეს 
                 თანაბარი წვდომა განცხადების ბაზარზე. ჩვენ ვაერთიანებთ ტექნოლოგიებს, 
                 გამოცდილ პროფესიონალებს და გამჭვირვალე პროცესებს.
               </p>

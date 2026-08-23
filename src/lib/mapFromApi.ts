@@ -30,7 +30,7 @@ export function mapAgentFromApi(row: ApiAgentRow): Agent {
     yearsExperience: row.yearsExperience ?? 0,
     specialization: row.specialization ?? [],
     bio: row.bio || '',
-    company: row.company || 'TbilisiRealtor.GE',
+    company: row.company || 'TBILISIREALTOR.GE',
     verified: row.verified ?? false,
     languages: row.languages?.length ? row.languages : ['ქართული'],
   };
@@ -39,7 +39,7 @@ export function mapAgentFromApi(row: ApiAgentRow): Agent {
 function agentFromPropertyRow(row: ApiPropertyRow): Agent {
   return {
     id: row.agentId || 'agency',
-    name: row.agentName || 'TbilisiRealtor.GE',
+    name: row.agentName || 'TBILISIREALTOR.GE',
     photo: PLACEHOLDER_AGENT,
     phone: row.agentPhone || '',
     email: row.agentEmail || '',
@@ -49,7 +49,7 @@ function agentFromPropertyRow(row: ApiPropertyRow): Agent {
     yearsExperience: 0,
     specialization: [],
     bio: '',
-    company: 'TbilisiRealtor.GE',
+    company: 'TBILISIREALTOR.GE',
     verified: true,
     languages: ['ქართული'],
   };
@@ -95,7 +95,7 @@ export function mapPropertyFromApi(row: ApiPropertyRow): Property {
 export function mapBlogFromApi(row: ApiBlogRow, author?: Agent): BlogPost {
   const fallbackAuthor: Agent = {
     id: row.authorId || 'editor',
-    name: row.authorName || 'TbilisiRealtor.GE',
+    name: row.authorName || 'TBILISIREALTOR.GE',
     photo: PLACEHOLDER_AGENT,
     phone: '',
     email: '',
@@ -105,7 +105,7 @@ export function mapBlogFromApi(row: ApiBlogRow, author?: Agent): BlogPost {
     yearsExperience: 0,
     specialization: [],
     bio: '',
-    company: 'TbilisiRealtor.GE',
+    company: 'TBILISIREALTOR.GE',
     verified: true,
     languages: ['ქართული'],
   };

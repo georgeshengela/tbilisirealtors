@@ -391,7 +391,7 @@ export default function AdminBrokersSection({
                           {broker.verified && <BadgeCheck size={13} className="text-emerald-500 flex-shrink-0" />}
                         </div>
                         <p className="text-[11px] text-slate-400 mt-0.5 truncate">
-                          {broker.company || 'TbilisiRealtor.GE'}
+                          {broker.company || 'TBILISIREALTOR.GE'}
                           {broker.yearsExperience > 0 ? ` · ${broker.yearsExperience} წ.` : ''}
                         </p>
                       </div>
@@ -589,7 +589,7 @@ function BrokerDetailModal({
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-amber-300/90 mb-1.5">ბროკერის პროფილი</p>
               <h3 className="text-xl sm:text-2xl font-extrabold tracking-tight">{broker.name}</h3>
               <p className="text-slate-400 text-sm mt-1">
-                {broker.company || 'TbilisiRealtor.GE'}
+                {broker.company || 'TBILISIREALTOR.GE'}
                 {broker.yearsExperience > 0 ? ` · ${broker.yearsExperience} წლის გამოცდილება` : ''}
               </p>
             </div>
@@ -824,7 +824,7 @@ function BrokerFormModal({
     phone: String(data.phone || ''),
     photo: String(data.photo || ''),
     bio: String(data.bio || ''),
-    company: String(data.company || 'TbilisiRealtor.GE'),
+    company: String(data.company || 'TBILISIREALTOR.GE'),
     yearsExperience: String(data.yearsExperience || ''),
     rating: String(data.rating ?? '5.0'),
     reviewCount: String(data.reviewCount ?? '0'),
@@ -852,7 +852,7 @@ function BrokerFormModal({
         phone: form.phone.trim() || null,
         photo: form.photo.trim() || null,
         bio: form.bio.trim() || null,
-        company: form.company.trim() || 'TbilisiRealtor.GE',
+        company: form.company.trim() || 'TBILISIREALTOR.GE',
         yearsExperience: parseInt(form.yearsExperience, 10) || 0,
         rating: form.rating || '5.0',
         reviewCount: parseInt(form.reviewCount, 10) || 0,

@@ -42,6 +42,81 @@ export const ka = {
     currency: 'ვალუგა',
     nbgRates: 'NBG კურსი',
   },
+  seo: {
+    home: {
+      title: 'TBILISIREALTOR.GE | უძრავი ქონება თბილისში',
+      description: 'ბინები, სახლები და კომერციული ფართი თბილისსა და საქართველოში. იყიდება და ქირავდება — TBILISIREALTOR.GE.',
+    },
+    listings: {
+      title: 'განცხადებები — ბინები და სახლები | TBILISIREALTOR.GE',
+      description: 'მოძებნეთ ბინა, სახლი ან კომერციული ფართი თბილისში. ფილტრი ქალაქის, ფასის, ოთახების და რუკის მიხედვით.',
+      filteredDescription: '{summary} — ფოტოები, ფასები და რუკა. TBILISIREALTOR.GE.',
+    },
+    property: {
+      title: 'განცხადება | TBILISIREALTOR.GE',
+      description: 'უძრავი ქონების განცხადება თბილისში — ფოტოები, ფასი, მდებარეობა და კონტაქტი.',
+    },
+    agents: {
+      title: 'ბროკერები | TBILISIREALTOR.GE',
+      description: 'გამოცდილი უძრავი ქონების ბროკერები თბილისში. აირჩიეთ სპეციალისტი ყიდვის, გაყიდვის ან ქირისთვის.',
+    },
+    agent: {
+      title: 'ბროკერის პროფილი | TBILISIREALTOR.GE',
+      description: 'უძრავი ქონების ბროკერი თბილისში — განცხადებები და საკონტაქტო ინფორმაცია.',
+    },
+    projects: {
+      title: 'ახალი პროექტები | TBILISIREALTOR.GE',
+      description: 'ახალი საცხოვრებელი კომპლექსები თბილისსა და ბათუმში — პრე-გაყიდვა და მშენებარე პროექტები.',
+    },
+    project: {
+      title: 'საცხოვრებელი პროექტი | TBILISIREALTOR.GE',
+      description: 'ახალი საცხოვრებელი პროექტი საქართველოში — ბინები, ფასები და ჩაბარების ვადა.',
+    },
+    blog: {
+      title: 'ბლოგი და გზამკვლევები | TBILISIREALTOR.GE',
+      description: 'რჩევები ბინის ყიდვაზე, იპოთეკაზე და თბილისის უძრავი ქონების ბაზარზე.',
+    },
+    blogPost: {
+      title: 'სტატია | TBILISIREALTOR.GE',
+      description: 'უძრავი ქონების სტატია და გზამკვლევი თბილისის ბაზარზე.',
+    },
+    about: {
+      title: 'ჩვენს შესახებ | TBILISIREALTOR.GE',
+      description: 'TBILISIREALTOR.GE — უძრავი ქონების პლატფორმა თბილისში. სანდო განცხადებები და ბროკერები.',
+    },
+    contact: {
+      title: 'კონტაქტი | TBILISIREALTOR.GE',
+      description: 'დაგვიკავშირდით: ეროსი მანჯგალაძის 81, თბილისი. ტელ. +995 323 33 33 77.',
+    },
+    services: {
+      title: 'სერვისები | TBILISIREALTOR.GE',
+      description: 'უძრავი ქონების სერვისები თბილისში — შეფასება, გაყიდვა, ქირა და იურიდიული მხარდაჭერა.',
+    },
+    international: {
+      title: 'უცხოეთის უძრავი ქონება | TBILISIREALTOR.GE',
+      description: 'საერთაშორისო უძრავი ქონების განცხადებები TBILISIREALTOR.GE-ზე.',
+    },
+    updates: {
+      title: 'განახლებები | TBILISIREALTOR.GE',
+      description: 'პლატფორმის სიახლეები და განახლებები — TBILISIREALTOR.GE.',
+    },
+    favorites: {
+      title: 'ფავორიტები | TBILISIREALTOR.GE',
+      description: 'თქვენი შენახული უძრავი ქონების განცხადებები.',
+    },
+    login: {
+      title: 'შესვლა | TBILISIREALTOR.GE',
+      description: 'შედით TBILISIREALTOR.GE ანგარიშში განცხადებების და ფავორიტების სამართავად.',
+    },
+    register: {
+      title: 'რეგისტრაცია | TBILISIREALTOR.GE',
+      description: 'შექმენით ანგარიში TBILISIREALTOR.GE-ზე და გამოაქვეყნეთ განცხადება.',
+    },
+    dashboard: {
+      title: 'კაბინეტი | TBILISIREALTOR.GE',
+      description: 'თქვენი TBILISIREALTOR.GE კაბინეტი.',
+    },
+  },
   locale: {
     ka: 'ქართული',
     en: 'English',
@@ -148,7 +223,7 @@ export const ka = {
     cities: 'ქალაქები',
     contactUs: 'დაგვიკავშირდით',
     workingHours: 'სამუშაო საათები',
-    rights: '© {year} TbilisiRealtor.GE. ყველა უფლება დაცულია.',
+    rights: '© {year} TBILISIREALTOR.GE. ყველა უფლება დაცულია.',
     privacyShort: 'კონფ. პოლიტიკა',
     termsShort: 'გამოყ. წესები',
     cookies: 'Cookies',
@@ -216,10 +291,6 @@ export const ka = {
       vipAll: 'ყველა VIP',
       newListings: 'ახალი განცხადებები',
       newAll: 'ყველა ახალი',
-      premiumRentals: 'პრემიუმ ქირები',
-      premiumRentalsAll: 'ყველა ქირა',
-      vakeSales: 'ვაკის გაყიდვები',
-      vakeSalesAll: 'ყველა ვაკეში',
       projects: 'პროექტები',
       projectsAll: 'ყველა პროექტი',
       projectsSubtitle: 'ახალი საცხოვრებელი კომპლექსები თბილისსა და ბათუმში — პრე-გაყიდვა, 0% საკომისიო და უფასო კონსულტაცია',
@@ -567,10 +638,10 @@ export const ka = {
   },
   about: {
     badge: 'ჩვენს შესახებ',
-    title: 'TbilisiRealtor.GE',
+    title: 'TBILISIREALTOR.GE',
     subtitle: 'საქართველოს წამყვანი უძრავი ქონების პლატფორმა',
     missionTitle: 'ჩვენი მისია',
-    missionText: 'TbilisiRealtor.GE შექმნილია იმისთვის, რომ ყველა ადამიანს ჰქონდეს წვდომა სანდო, გამჭვირვალე და ხელმისაწვდომ უძრავი ქონების ბაზარზე.',
+    missionText: 'TBILISIREALTOR.GE შექმნილია იმისთვის, რომ ყველა ადამიანს ჰქონდეს წვდომა სანდო, გამჭვირვალე და ხელმისაწვდომ უძრავი ქონების ბაზარზე.',
     stats: {
       listings: 'აქტიური განცხადება',
       agents: 'პროფ. ბროკერი',
@@ -603,7 +674,7 @@ export const ka = {
     registerTitle: 'ანგარიშის შექმნა',
     forgotTitle: 'პაროლის აღდგენა',
     loginSubtitle: 'შედით თქვენს ანგარიშში',
-    registerSubtitle: 'შეუერთდით TbilisiRealtor.GE-ს',
+    registerSubtitle: 'შეუერთდით TBILISIREALTOR.GE-ს',
     forgotSubtitle: 'შეიყვანეთ ელ-ფოსტა აღსადგენად',
     email: 'ელ-ფოსტა',
     password: 'პაროლი',
@@ -618,12 +689,12 @@ export const ka = {
     facebook: 'Facebook-ით',
     noAccount: 'არ გაქვთ ანგარიში?',
     hasAccount: 'უკვე გაქვთ ანგარიში?',
-    benefitsTitle: 'რატომ TbilisiRealtor.GE?',
+    benefitsTitle: 'რატომ TBILISIREALTOR.GE?',
     benefit1: '12,400+ განცხადება',
     benefit2: '350+ ვერიფიც. ბროკერი',
     benefit3: 'უფასო კონსულტაცია',
     benefitsSubtitle: 'შეუერთდით 8,200+ კლიენტს, ვინც ჩვენს პლატფორმას ყოველდღე ირჩევს.',
-    testimonial: 'TbilisiRealtor.GE-ს დახმარებით ვიპოვე ჩემი სოციუმი ვაკეში. სერვისი ძალიან მარტივი და სწრაფია.',
+    testimonial: 'TBILISIREALTOR.GE-ს დახმარებით ვიპოვე ჩემი სოციუმი ვაკეში. სერვისი ძალიან მარტივი და სწრაფია.',
     testimonialAuthor: 'ეკა ჯაფარიძე',
     testimonialRole: 'ბინის მყიდველი, ვაკე',
     resetSent: 'თუ ასეთი Email არსებობს, აღდგენის ბმულს გამოგიგზავნით',

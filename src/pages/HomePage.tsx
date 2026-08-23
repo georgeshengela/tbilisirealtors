@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   MapPin, ChevronLeft, ChevronRight, ChevronDown, ArrowRight,
   Sparkles, Bed, Bath,
-  Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent, Key,
+  Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent,
 } from 'lucide-react';
 import { constructionProjects, faqItems } from '../data/mockData';
 import type { Property, BlogPost } from '../types/listing';
@@ -628,19 +628,6 @@ export default function HomePage() {
   const [openFaq, setOpenFaq] = useState<string | null>(faqItems[0]?.id ?? null);
   const featured = useMemo(() => properties.filter(p => p.isFeatured).slice(0, 12), [properties]);
   const newest = useMemo(() => properties.filter(p => p.isNew).slice(0, 12), [properties]);
-  /* Curated rows the office asked for: premium rentals and Vake sales. */
-  const premiumRentals = useMemo(
-    () => properties
-      .filter(p => (p.status === 'rent' || p.status === 'both') && (p.isPremium || p.isFeatured))
-      .slice(0, 12),
-    [properties],
-  );
-  const vakeSales = useMemo(
-    () => properties
-      .filter(p => (p.status === 'sale' || p.status === 'both') && /ვაკე|vake/i.test(p.district ?? ''))
-      .slice(0, 12),
-    [properties],
-  );
   return (
     <div className="min-h-screen" style={{ background: '#f7f9fb' }}>
 
@@ -694,48 +681,9 @@ export default function HomePage() {
       </section>
       )}
 
-      {/* ══════════════════════════════════════════════════════
-          PREMIUM RENTALS
-      ══════════════════════════════════════════════════════ */}
-      {premiumRentals.length > 0 && (
-      <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#fff' }}>
-        <div className="container-xl">
-          <InViewFade>
-            <SectionTitle
-              icon={Key}
-              title={t('home.sections.premiumRentals')}
-              linkTo="/listings?status=rent&vip=true"
-              linkLabel={t('home.sections.premiumRentalsAll')}
-            />
-          </InViewFade>
-          <ListingSlider items={premiumRentals} badge="vip" />
-        </div>
-      </section>
-      )}
-
-      {/* ══════════════════════════════════════════════════════
-          VAKE SALES
-      ══════════════════════════════════════════════════════ */}
-      {vakeSales.length > 0 && (
-      <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#f7f9fb' }}>
-        <div className="container-xl">
-          <InViewFade>
-            <SectionTitle
-              icon={MapPin}
-              title={t('home.sections.vakeSales')}
-              accent="green"
-              linkTo="/listings?status=sale&district=ვაკე"
-              linkLabel={t('home.sections.vakeSalesAll')}
-            />
-          </InViewFade>
-          <ListingSlider items={vakeSales} />
-        </div>
-      </section>
-      )}
-
       <AdStrip bg="#fff">
         <AdBanner
-          sponsor="TbilisiRealtor.GE"
+          sponsor="TBILISIREALTOR.GE"
           title={t('home.ads.vipTitle')}
           subtitle={t('home.ads.vipSubtitle')}
           ctaLabel={t('home.ads.vipCta')}

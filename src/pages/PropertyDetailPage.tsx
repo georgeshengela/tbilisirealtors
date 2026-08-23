@@ -14,6 +14,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useLocale, useTranslation } from '../i18n/LocaleContext';
 import BookViewingModal from '../components/BookViewingModal';
 import { submitLead } from '../lib/leads';
+import { applySeo, clipMeta, pageUrl, setJsonLd, SITE_NAME, absoluteImage } from '../lib/seo';
 
 /** Long descriptions collapse to a few lines until the reader asks for more. */
 const CLAMP_AT_CHARS = 460;
@@ -148,10 +149,57 @@ export default function PropertyDetailPage() {
 
   useEffect(() => {
     if (!property) return;
-    const previous = document.title;
-    document.title = `${property.title} — TBILISIREALTOR.GE`;
-    return () => { document.title = previous; };
-  }, [property]);
+    const statusKey = property.status === 'rent' || property.status === 'daily_rent' ? 'rent' : 'sale';
+    const status = t(`propertyStatus.${statusKey}`);
+    const typeKey = property.type === 'hotel' ? 'home.propertyTypes.hotel' : `propertyTypes.${property.type}`;
+    const typeLabel = t(typeKey);
+    const place = [property.district, property.city].filter(Boolean).join(', ');
+    const area = property.area ? `${property.area} მ²` : '';
+    applySeo({
+      title: `${property.title} | ${SITE_NAME}`,
+      description: clipMeta(
+        [status, typeLabel, area, place, property.description].filter(Boolean).join(' · '),
+      ),
+      path: `/property/${property.id}`,
+      image: property.images[0],
+    });
+    const url = pageUrl(`/property/${property.id}`);
+    setJsonLd('page', {
+      '@context': 'https://schema.org',
+      '@graph': [
+        {
+          '@type': 'RealEstateListing',
+          name: property.title,
+          description: clipMeta(property.description || property.title, 240),
+          url,
+          image: property.images.slice(0, 8).map(absoluteImage),
+          datePosted: property.listedDate,
+          address: {
+            '@type': 'PostalAddress',
+            streetAddress: property.address || undefined,
+            addressLocality: property.city || undefined,
+            addressRegion: property.district || undefined,
+            addressCountry: 'GE',
+          },
+          offers: {
+            '@type': 'Offer',
+            price: String(property.status === 'rent' && property.rentPrice ? property.rentPrice : property.price),
+            priceCurrency: 'GEL',
+            availability: 'https://schema.org/InStock',
+          },
+        },
+        {
+          '@type': 'BreadcrumbList',
+          itemListElement: [
+            { '@type': 'ListItem', position: 1, name: SITE_NAME, item: pageUrl('/') },
+            { '@type': 'ListItem', position: 2, name: t('common.listings'), item: pageUrl('/listings') },
+            { '@type': 'ListItem', position: 3, name: property.title, item: url },
+          ],
+        },
+      ],
+    });
+    return () => setJsonLd('page', null);
+  }, [property, t, locale]);
 
   /* Lightbox: arrow keys, Escape, and no page scrolling behind it. */
   useEffect(() => {
