@@ -29,7 +29,7 @@ export default function ListingsPage() {
   const { t } = useTranslation();
   const { locale } = useLocale();
   const navigate = useNavigate();
-  const { currencySymbol, formatMoney, displayToGel, gelToDisplay } = useCurrency();
+  const { currencySymbol, formatMoney, displayToGel } = useCurrency();
   const [searchParams] = useSearchParams();
 
   const [showFilters, setShowFilters] = useState(false);

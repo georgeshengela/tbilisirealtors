@@ -156,7 +156,7 @@ export default function UpdatesPage() {
 
         {/* Timeline */}
         <div className="space-y-10">
-          {grouped.map(({ phase, items }, groupIndex) => (
+          {grouped.map(({ phase, items }) => (
             <section key={phase}>
               <div className="flex items-center gap-3 mb-5">
                 <div className="h-px flex-1" style={{ background: '#e4e6ea' }} />
