@@ -35,7 +35,7 @@ export const users = pgTable('users', {
   isActive: boolean('is_active').notNull().default(true),
   /** Per-user grants/revokes layered over the role template. */
   permissions: jsonb('permissions').$type<Record<string, boolean>>().default({}),
-  /** 'own' limits a staff member to listings they created; 'all' sees everything. */
+  /** 'own' sees the full listing base but owner contacts only on their portfolio; 'all' sees contacts too. */
   scope: varchar('scope', { length: 10 }).notNull().default('all'),
   /** Bumped on role / permission / password change so live tokens stop working. */
   tokenVersion: integer('token_version').notNull().default(1),
@@ -138,6 +138,10 @@ export const properties = pgTable('properties', {
   source: varchar('source', { length: 30 }),
   sourceUrl: varchar('source_url', { length: 600 }),
   sourceId: varchar('source_id', { length: 100 }),
+
+  /* უფასო = we work it; ფასიანი = paid placement, optional package name. */
+  placement: varchar('placement', { length: 20 }).notNull().default('free'),
+  placementPackage: varchar('placement_package', { length: 80 }),
 
   /* Lifecycle: new → current → old (parked with an outcome) → new_r (call back). */
   lifecycleState: varchar('lifecycle_state', { length: 20 }).notNull().default('new'),

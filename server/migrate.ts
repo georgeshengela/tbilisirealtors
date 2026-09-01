@@ -579,6 +579,9 @@ async function migrate() {
     }
     console.log('✅ Role templates topped up with new permissions');
 
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS placement VARCHAR(20) NOT NULL DEFAULT 'free'`;
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS placement_package VARCHAR(80)`;
+
     console.log('✅ All tables created successfully');
   } catch (err) {
     console.error('❌ Migration error:', err);

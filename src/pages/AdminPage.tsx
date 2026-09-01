@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import AdminPropertiesSection, {
-  type AdminPropertyRow, type PropertyPatch,
+  type AdminPropertyRow, type ListingsSummary, type ListingStaffOption, type PropertyPatch,
 } from '../components/admin/AdminPropertiesSection';
 import AdminBrokersSection, { type BrokerRow } from '../components/admin/AdminBrokersSection';
 import AdminDeskSection, { type DeskTab } from '../components/admin/desk/AdminDeskSection';
@@ -375,6 +375,14 @@ export default function AdminPage() {
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [propList, setPropList] = useState<PropertyRow[]>([]);
+  const [propTotal, setPropTotal] = useState(0);
+  const [propLimit, setPropLimit] = useState(20);
+  const [propSummary, setPropSummary] = useState<ListingsSummary | null>(null);
+  const [listingStaff, setListingStaff] = useState<ListingStaffOption[]>([]);
+  const listPage = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+  const staffFilter = searchParams.get('staff') || '';
+  const memberFilter = searchParams.get('member') || '';
+  const listQ = searchParams.get('q') || '';
   const [agentList, setAgentList] = useState<BrokerAdminRow[]>([]);
   const [blogList, setBlogList] = useState<BlogRow[]>([]);
   const [staffList, setStaffList] = useState<AdminUserRow[]>([]);
@@ -420,8 +428,19 @@ export default function AdminPage() {
         setStats(statsData);
         setPropList(propsData.data ?? []);
       } else if (s === 'properties') {
-        const data = await api('/properties?limit=200');
-        setPropList(data.data);
+        const qs = new URLSearchParams({ limit: '20', page: String(listPage) });
+        if (staffFilter) qs.set('staffId', staffFilter);
+        if (memberFilter) qs.set('member', memberFilter);
+        if (listQ) qs.set('q', listQ);
+        const [data, staff] = await Promise.all([
+          api(`/properties?${qs}`),
+          api('/listing-staff').catch(() => []),
+        ]);
+        setPropList(data.data ?? []);
+        setPropTotal(Number(data.total) || 0);
+        setPropLimit(Number(data.limit) || 20);
+        setPropSummary(data.summary ?? null);
+        if (Array.isArray(staff)) setListingStaff(staff);
       } else if (s === 'agents') {
         const data = await api('/agents');
         setAgentList(data);
@@ -443,7 +462,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, api, can, showToast]);
+  }, [user, api, can, showToast, listPage, staffFilter, memberFilter, listQ]);
 
   useEffect(() => {
     if (user) loadSection(section);
@@ -731,7 +750,7 @@ export default function AdminPage() {
                 <div className="hidden lg:block min-w-0 max-w-[140px] text-left">
                   <p className="text-white text-xs font-bold truncate leading-tight">{user.name}</p>
                   <p className="text-slate-500 text-[10px] truncate">
-                    {roleLabel(user.role)}{user.scope === 'own' ? ' · საკუთარი' : ''}
+                    {roleLabel(user.role)}{user.scope === 'own' ? ' · კონტაქტი საკუთარზე' : ''}
                   </p>
                 </div>
               </button>
@@ -870,7 +889,7 @@ export default function AdminPage() {
                     </h2>
                     <p className="text-slate-400 text-sm sm:text-[15px] leading-relaxed max-w-xl">
                       {roleLabel(user.role)} · {user.scope === 'own'
-                        ? 'თქვენი განცხადებები და აქტივობა'
+                        ? 'მთელი ბაზა, კონტაქტი საკუთარ პორტფოლიოში'
                         : 'პორტფოლიო, ბროკერები და კონტენტი ერთ ადგილას'}
                     </p>
                     <div className="flex flex-wrap items-center gap-2.5 mt-7">
@@ -1183,6 +1202,11 @@ export default function AdminPage() {
           {section === 'properties' && (
             <AdminPropertiesSection
               properties={propList}
+              total={propTotal}
+              page={listPage}
+              limit={propLimit}
+              summary={propSummary}
+              staffOptions={listingStaff}
               onPatch={patchProp}
               onDelete={id => setConfirmDelete({ type: 'properties', id })}
               showToast={showToast}
@@ -1321,7 +1345,7 @@ export default function AdminPage() {
                         >
                           {roleLabel(u.role)}
                         </span>
-                        {u.scope === 'own' && <Badge label="მხოლოდ საკუთარი" color="#b45309" />}
+                        {u.scope === 'own' && <Badge label="კონტაქტი საკუთარზე" color="#b45309" />}
                         <Badge label={`${u.effectivePermissions?.length ?? 0} უფლება`} color="#64748b" />
                         <Badge label={u.isActive ? 'აქტ.' : 'დაბლ.'} color={u.isActive ? '#10B981' : '#ef4444'} />
                         {u.showOnFrontend && <Badge label="საიტზე ჩანს" color="#0ea5e9" />}
@@ -1655,10 +1679,10 @@ function StaffModal({ mode, data, actorRole, isSelf, onClose, onSave }: {
               )}
             </select>
           </Field>
-          <Field label="ხედვის არეალი" hint={form.scope === 'own' ? 'მხოლოდ თავისი განცხადებები' : 'ყველა განცხადება'}>
+          <Field label="ხედვის არეალი" hint={form.scope === 'own' ? 'ხედავს მთელ ბაზას. ტელეფონი და მეილი მხოლოდ საკუთარ პორტფოლიოში.' : 'ყველა განცხადება და მესაკუთრის კონტაქტი'}>
             <select value={form.scope} onChange={e => set('scope', e.target.value)} className={selectCls}>
-              <option value="all">ყველა განცხადება</option>
-              <option value="own">მხოლოდ საკუთარი</option>
+              <option value="all">სრული წვდომა</option>
+              <option value="own">ბაზა ღიაა · კონტაქტი საკუთარზე</option>
             </select>
           </Field>
         </div>

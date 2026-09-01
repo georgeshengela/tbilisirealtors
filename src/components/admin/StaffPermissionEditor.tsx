@@ -216,8 +216,8 @@ export default function StaffPermissionEditor({ target, onClose, onSaveUser, onS
                   onChange={e => setScope(e.target.value === 'own' ? 'own' : 'all')}
                   className="px-3 py-1.5 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 focus:outline-none"
                 >
-                  <option value="all">ყველა განცხადება</option>
-                  <option value="own">მხოლოდ საკუთარი</option>
+                  <option value="all">სრული წვდომა</option>
+                  <option value="own">ბაზა ღიაა · კონტაქტი საკუთარზე</option>
                 </select>
               </label>
               <span className="text-xs text-slate-500 ml-auto">

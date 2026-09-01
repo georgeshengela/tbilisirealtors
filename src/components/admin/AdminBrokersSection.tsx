@@ -708,7 +708,7 @@ function BrokerDetailModal({
                     <span className="text-sm font-bold text-slate-900">{broker.linkedStaff.name}</span>
                   </div>
                   <p>{broker.linkedStaff.email}</p>
-                  <p>როლი: {broker.linkedStaff.role} · სკოპი: {broker.linkedStaff.scope === 'own' ? 'საკუთარი' : 'ყველა'}</p>
+                  <p>როლი: {broker.linkedStaff.role} · სკოპი: {broker.linkedStaff.scope === 'own' ? 'კონტაქტი საკუთარზე' : 'სრული'}</p>
                   <p>
                     სტატუსი:{' '}
                     <span className={broker.linkedStaff.isActive ? 'text-emerald-700 font-semibold' : 'text-red-600 font-semibold'}>

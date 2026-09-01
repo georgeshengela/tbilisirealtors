@@ -1,6 +1,13 @@
 import { Router } from 'express';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import {
+  CITY_AREAS,
+  canonicalCityName,
+  canonicalDistrictName,
+  cityViewbox,
+  findCityArea,
+} from '../../src/data/districts.js';
 
 const router = Router();
 
@@ -313,13 +320,272 @@ function toGeocodingResult(place: NominatimPlace): GeocodingPayload | null {
   const lng = Number(place.lon);
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
   const parsed = parseNominatimAddress(place.address);
+  const city = canonicalCityName(parsed.city) || parsed.city;
+  const district = canonicalDistrictName(city, parsed.district);
   return {
     lat,
     lng,
     displayName: place.display_name || place.name || '',
-    ...parsed,
+    address: parsed.address,
+    city,
+    district,
   };
 }
+
+interface StreetHit {
+  street: string;
+  streetNumber: string;
+  city: string;
+  district: string;
+  lat: number;
+  lng: number;
+  label: string;
+  sublabel: string;
+}
+
+interface IndexedStreet {
+  name: string;
+  lat: number;
+  lng: number;
+}
+
+const STREET_SEED: Record<string, string[]> = {
+  თბილისი: [
+    'ილია ჭავჭავაძის გამზირი',
+    'ალექსანდრე ყაზბეგის გამზირი',
+    'ვაჟა-ფშაველას გამზირი',
+    'მერაბ კოსტავას ქუჩა',
+    'შოთა რუსთაველის გამზირი',
+    'დავით აღმაშენებლის გამზირი',
+    'პეკინის გამზირი',
+    'ბერბუკის ქუჩა',
+    'ელიზბარ მინდელის ქუჩა',
+    'შარტავას ქუჩა',
+    'დავით თავხელიძის ქუჩა',
+    'ანა პოლიტკოვსკაიას ქუჩა',
+    'თამარ იოსებიძის ქუჩა',
+    'ნუცუბიძის ქუჩა',
+    'უნივერსიტეტის ქუჩა',
+    'აკაკი წერეთლის გამზირი',
+    'ალექსანდრე გრიბოედოვის ქუჩა',
+    'ლადო ასათიანის ქუჩა',
+    'კოტე აფხაზის ქუჩა',
+    'სულხან-საბას ქუჩა',
+  ],
+};
+
+const streetIndex = new Map<string, IndexedStreet[]>();
+const streetIndexBusy = new Map<string, Promise<IndexedStreet[]>>();
+const STREET_INDEX_TTL = 30 * 24 * 60 * 60 * 1000;
+
+function streetKey(name: string): string {
+  return name.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+function splitStreetQuery(query: string): { street: string; number: string } {
+  const trimmed = query.trim();
+  const match = trimmed.match(/^(.*?)[\s,]+(\d+[ა-ჰa-zA-Z]?[-/]?\d*[ა-ჰa-zA-Z]?)$/u);
+  if (match?.[1]?.trim()) return { street: match[1].trim(), number: match[2] };
+  return { street: trimmed, number: '' };
+}
+
+function filterStreets(streets: IndexedStreet[], query: string): IndexedStreet[] {
+  const key = streetKey(query);
+  if (key.length < 2) return [];
+  const starts: IndexedStreet[] = [];
+  const includes: IndexedStreet[] = [];
+  for (const street of streets) {
+    const name = streetKey(street.name);
+    if (name.startsWith(key)) starts.push(street);
+    else if (name.includes(key)) includes.push(street);
+  }
+  return [...starts, ...includes].slice(0, 10);
+}
+
+function seedStreets(cityKa: string): IndexedStreet[] {
+  const city = findCityArea(cityKa);
+  const center = city?.center ?? { lat: 41.7151, lng: 44.8271 };
+  return (STREET_SEED[cityKa] ?? []).map(name => ({ name, lat: center.lat, lng: center.lng }));
+}
+
+function parseOverpassStreets(body: string): IndexedStreet[] {
+  const data = JSON.parse(body) as {
+    elements?: Array<{ tags?: { name?: string }; center?: { lat: number; lon: number }; lat?: number; lon?: number }>;
+  };
+  const byName = new Map<string, IndexedStreet>();
+  for (const element of data.elements ?? []) {
+    const name = String(element.tags?.name || '').trim();
+    if (name.length < 2) continue;
+    const lat = element.center?.lat ?? element.lat;
+    const lng = element.center?.lon ?? element.lon;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+    const key = streetKey(name);
+    if (!byName.has(key)) byName.set(key, { name, lat: lat as number, lng: lng as number });
+  }
+  return [...byName.values()];
+}
+
+async function loadStreetIndex(cityKa: string): Promise<IndexedStreet[]> {
+  const cached = streetIndex.get(cityKa);
+  if (cached) return cached;
+
+  const busy = streetIndexBusy.get(cityKa);
+  if (busy) return busy;
+
+  const job = (async () => {
+    const city = findCityArea(cityKa);
+    const file = path.join(CACHE_DIR, `streets-${cityKa}.json`);
+    try {
+      const raw = JSON.parse(await readFile(file, 'utf8')) as { savedAt: number; streets: IndexedStreet[] };
+      if (Date.now() - raw.savedAt < STREET_INDEX_TTL && raw.streets?.length) {
+        streetIndex.set(cityKa, raw.streets);
+        return raw.streets;
+      }
+    } catch { /* build below */ }
+
+    const rel = city?.osm?.replace(/^R/i, '');
+    if (!rel) return seedStreets(cityKa);
+
+    const query = `[out:json][timeout:50];rel(${rel});map_to_area;way["highway"~"^(residential|living_street|primary|secondary|tertiary|unclassified|pedestrian|trunk)$"]["name"](area);out tags center;`;
+    const body = await queryOverpass(query);
+    if (!body) return seedStreets(cityKa);
+
+    const streets = parseOverpassStreets(body);
+    if (streets.length) {
+      streetIndex.set(cityKa, streets);
+      try {
+        await mkdir(CACHE_DIR, { recursive: true });
+        await writeFile(file, JSON.stringify({ savedAt: Date.now(), streets }));
+      } catch { /* ignore disk errors */ }
+    }
+    return streets.length ? streets : seedStreets(cityKa);
+  })().finally(() => streetIndexBusy.delete(cityKa));
+
+  streetIndexBusy.set(cityKa, job);
+  return job;
+}
+
+async function searchNominatim(q: string, cityName = ''): Promise<GeocodingPayload[]> {
+  const city = findCityArea(cityName);
+  const query = city && !q.toLowerCase().includes(city.ka.toLowerCase())
+    ? `${q}, ${city.ka}, Georgia`
+    : q;
+  const params: Record<string, string> = {
+    q: query,
+    limit: '8',
+    countrycodes: 'ge',
+  };
+  if (city) {
+    const box = cityViewbox(city);
+    params.viewbox = `${box.left},${box.top},${box.right},${box.bottom}`;
+  }
+  const results = await nominatimAddress('search', params) as NominatimPlace[];
+  const seen = new Set<string>();
+  const out: GeocodingPayload[] = [];
+  for (const place of results) {
+    const row = toGeocodingResult(place);
+    if (!row) continue;
+    const key = `${streetKey(row.address)}|${row.lat.toFixed(4)}|${row.lng.toFixed(4)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(row);
+  }
+  return out;
+}
+
+function toStreetHit(row: {
+  street: string;
+  streetNumber?: string;
+  city: string;
+  district: string;
+  lat: number;
+  lng: number;
+}): StreetHit {
+  const city = canonicalCityName(row.city) || row.city;
+  const district = canonicalDistrictName(city, row.district);
+  const parsed = splitStreetQuery(row.street);
+  const street = parsed.street || row.street;
+  const streetNumber = row.streetNumber || parsed.number || '';
+  return {
+    street,
+    streetNumber,
+    city,
+    district,
+    lat: row.lat,
+    lng: row.lng,
+    label: [street, streetNumber].filter(Boolean).join(' '),
+    sublabel: [district, city].filter(Boolean).join(' · '),
+  };
+}
+
+async function suggestStreets(q: string, cityName: string): Promise<StreetHit[]> {
+  const city = findCityArea(cityName);
+  const cityKa = city?.ka || cityName || 'თბილისი';
+  const { street: streetQuery, number: typedNumber } = splitStreetQuery(q);
+  const queryKey = streetKey(streetQuery);
+
+  const index = await Promise.race([
+    loadStreetIndex(cityKa),
+    new Promise<IndexedStreet[]>(resolve => setTimeout(() => resolve(seedStreets(cityKa)), 180)),
+  ]);
+  const local = filterStreets([...seedStreets(cityKa), ...index], streetQuery);
+  const uniqueStarts = local.filter(row => streetKey(row.name).startsWith(queryKey));
+
+  const nominatimQuery = uniqueStarts.length === 1
+    ? `${uniqueStarts[0].name}${typedNumber ? ` ${typedNumber}` : ''}`
+    : q;
+
+  const remote = await searchNominatim(nominatimQuery, cityKa).catch(() => [] as GeocodingPayload[]);
+
+  const merged = new Map<string, StreetHit>();
+  for (const row of remote) {
+    const raw = row.address || row.displayName.split(',')[0] || '';
+    if (!raw) continue;
+    const hit = toStreetHit({
+      street: raw,
+      streetNumber: typedNumber,
+      city: row.city,
+      district: row.district,
+      lat: row.lat,
+      lng: row.lng,
+    });
+    merged.set(streetKey(hit.street), hit);
+  }
+  for (const row of local) {
+    const key = streetKey(row.name);
+    if (merged.has(key)) continue;
+    const isSeedCenter = STREET_SEED[cityKa]?.includes(row.name)
+      && Math.abs(row.lat - (city?.center.lat ?? 0)) < 1e-6;
+    if (isSeedCenter) continue;
+    merged.set(key, toStreetHit({
+      street: row.name,
+      streetNumber: typedNumber,
+      city: cityKa,
+      district: '',
+      lat: row.lat,
+      lng: row.lng,
+    }));
+  }
+
+  if (uniqueStarts.length === 1 && remote[0]?.district) {
+    const hit = merged.get(streetKey(uniqueStarts[0].name));
+    if (hit && !hit.district) {
+      hit.district = canonicalDistrictName(cityKa, remote[0].district);
+      hit.sublabel = [hit.district, hit.city].filter(Boolean).join(' · ');
+    }
+  }
+
+  return [...merged.values()]
+    .sort((a, b) => {
+      const aStart = streetKey(a.street).startsWith(queryKey) ? 0 : 1;
+      const bStart = streetKey(b.street).startsWith(queryKey) ? 0 : 1;
+      if (aStart !== bStart) return aStart - bStart;
+      return a.street.localeCompare(b.street, 'ka');
+    })
+    .slice(0, 8);
+}
+
+void loadStreetIndex('თბილისი').catch(() => undefined);
 
 async function nominatimAddress(path: 'search' | 'reverse', params: Record<string, string>): Promise<NominatimPlace | NominatimPlace[]> {
   const url = new URL(`https://nominatim.openstreetmap.org/${path}`);
@@ -462,14 +728,30 @@ router.get('/address-search', async (req, res) => {
   }
 
   try {
-    const results = await nominatimAddress('search', {
-      q,
-      limit: '6',
-      countrycodes: 'ge',
-    }) as NominatimPlace[];
-    res.json(results.map(r => toGeocodingResult(r)).filter(Boolean));
+    res.json(await searchNominatim(q, String(req.query.city || '')));
   } catch (error) {
     console.error('[geo] address-search failed:', error);
+    res.json([]);
+  }
+});
+
+/**
+ * Live street suggestions for the listing form. Prefix matches come from a
+ * cached OSM street index (so „ბერ“ finds ბერბუკის ქუჩა); Nominatim fills
+ * in house numbers and the district name in Georgian.
+ */
+router.get('/street-suggest', async (req, res) => {
+  const q = String(req.query.q || '').trim();
+  const cityName = String(req.query.city || 'თბილისი');
+  if (q.length < 2) {
+    res.json([]);
+    return;
+  }
+
+  try {
+    res.json(await suggestStreets(q, cityName));
+  } catch (error) {
+    console.error('[geo] street-suggest failed:', error);
     res.json([]);
   }
 });

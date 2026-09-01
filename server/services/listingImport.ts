@@ -505,7 +505,7 @@ function parseSsGe(html: string, sourceUrl: string): ImportedListingData {
     badges: app.isUrgent ? ['urgent'] : [],
     isPremium,
     isFeatured,
-    isNew: true,
+    isNew: false,
     meta: {
       viewCount: Number(app.viewCount ?? 0) || undefined,
       vipLabel: vip || undefined,
@@ -605,7 +605,7 @@ function parseMyHomeStatement(statement: Record<string, unknown>, sourceUrl: str
     badges: [],
     isPremium,
     isFeatured,
-    isNew: true,
+    isNew: false,
     meta: {
       viewCount: Number(statement.views ?? 0) || undefined,
       vipLabel: isPremium ? 'VIP' : undefined,

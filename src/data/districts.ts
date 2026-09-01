@@ -18,8 +18,9 @@ export interface DistrictArea {
 export interface CityArea {
   ka: string;
   en: string;
-  osm: string;
+  osm?: string;
   labelKey: string;
+  center: { lat: number; lng: number };
   districts: DistrictArea[];
 }
 
@@ -29,6 +30,7 @@ export const CITY_AREAS: CityArea[] = [
     en: 'Tbilisi',
     osm: 'R1996871',
     labelKey: 'listings.cities.tbilisi',
+    center: { lat: 41.7151, lng: 44.8271 },
     districts: [
       // The ten official city districts
       { ka: 'ვაკე', en: 'Vake', osm: 'R11300449', aliases: ['ვაკის რაიონი', 'ვაკე-საბურთალო'] },
@@ -59,6 +61,11 @@ export const CITY_AREAS: CityArea[] = [
       { ka: 'ზღვისუბანი', en: 'Zghvisubani', osm: 'R14154210' },
       { ka: 'ორთაჭალა', en: 'Ortachala', osm: 'R18467370' },
       { ka: 'ფონიჭალა', en: 'Ponichala', osm: 'R18467459' },
+      { ka: 'შანხაი', en: 'Shanghai' },
+      { ka: 'ავჭალა', en: 'Avchala' },
+      { ka: 'კუკია', en: 'Kukia' },
+      { ka: 'ნავთლუღი', en: 'Navtlughi' },
+      { ka: 'წყნეთი', en: 'Tskneti' },
     ],
   },
   {
@@ -66,6 +73,7 @@ export const CITY_AREAS: CityArea[] = [
     en: 'Batumi',
     osm: 'R2009237',
     labelKey: 'listings.cities.batumi',
+    center: { lat: 41.6168, lng: 41.6367 },
     districts: [
       { ka: 'ძველი ბათუმი', en: 'Old Batumi', osm: 'R12695439', aliases: ['ცენტრი'] },
       { ka: 'რუსთაველი', en: 'Rustaveli', osm: 'R12695438', aliases: ['ბულვარი', 'ნიუ ბულვარი'] },
@@ -87,6 +95,7 @@ export const CITY_AREAS: CityArea[] = [
     en: 'Kutaisi',
     osm: 'R2024547',
     labelKey: 'listings.cities.kutaisi',
+    center: { lat: 42.2679, lng: 42.6946 },
     districts: [{ ka: 'ცენტრი', en: 'Centre' }],
   },
   {
@@ -94,6 +103,7 @@ export const CITY_AREAS: CityArea[] = [
     en: 'Mtskheta',
     osm: 'R8374155',
     labelKey: 'listings.cities.mtskheta',
+    center: { lat: 41.8451, lng: 44.7188 },
     districts: [{ ka: 'ცენტრი', en: 'Centre' }],
   },
   {
@@ -101,6 +111,7 @@ export const CITY_AREAS: CityArea[] = [
     en: 'Sighnaghi',
     osm: 'R16768135',
     labelKey: 'listings.cities.sighnaghi',
+    center: { lat: 41.6103, lng: 45.9219 },
     districts: [{ ka: 'ცენტრი', en: 'Centre' }],
   },
   {
@@ -108,6 +119,35 @@ export const CITY_AREAS: CityArea[] = [
     en: 'Gori',
     osm: 'R8374250',
     labelKey: 'listings.cities.gori',
+    center: { lat: 41.9842, lng: 44.1158 },
+    districts: [{ ka: 'ცენტრი', en: 'Centre' }],
+  },
+  {
+    ka: 'რუსთავი',
+    en: 'Rustavi',
+    labelKey: 'listings.cities.rustavi',
+    center: { lat: 41.5495, lng: 44.9932 },
+    districts: [{ ka: 'ცენტრი', en: 'Centre' }],
+  },
+  {
+    ka: 'ზუგდიდი',
+    en: 'Zugdidi',
+    labelKey: 'listings.cities.zugdidi',
+    center: { lat: 42.5088, lng: 41.8709 },
+    districts: [{ ka: 'ცენტრი', en: 'Centre' }],
+  },
+  {
+    ka: 'ფოთი',
+    en: 'Poti',
+    labelKey: 'listings.cities.poti',
+    center: { lat: 42.1462, lng: 41.6719 },
+    districts: [{ ka: 'ცენტრი', en: 'Centre' }],
+  },
+  {
+    ka: 'ბორჯომი',
+    en: 'Borjomi',
+    labelKey: 'listings.cities.borjomi',
+    center: { lat: 41.8395, lng: 43.3869 },
     districts: [{ ka: 'ცენტრი', en: 'Centre' }],
   },
 ];
@@ -118,6 +158,29 @@ export function findCityArea(name: string | undefined): CityArea | undefined {
   if (!name) return undefined;
   const key = normalise(name);
   return CITY_AREAS.find(city => normalise(city.ka) === key || normalise(city.en) === key);
+}
+
+/** Canonical Georgian city name, or the original spelling if unknown. */
+export function canonicalCityName(name: string | undefined): string {
+  return findCityArea(name)?.ka || (name ?? '').trim();
+}
+
+/** Canonical Georgian district for that city — aliases like „საბურთალოს რაიონი“ resolve here. */
+export function canonicalDistrictName(cityName: string | undefined, districtName: string | undefined): string {
+  if (!districtName?.trim()) return '';
+  const match = findDistrictArea(findCityArea(cityName), districtName);
+  return match?.ka || districtName.trim();
+}
+
+export function cityViewbox(city: CityArea): { left: number; top: number; right: number; bottom: number } {
+  const dLat = 0.14;
+  const dLng = 0.18;
+  return {
+    left: city.center.lng - dLng,
+    top: city.center.lat + dLat,
+    right: city.center.lng + dLng,
+    bottom: city.center.lat - dLat,
+  };
 }
 
 /** All spellings that should be treated as this district. */

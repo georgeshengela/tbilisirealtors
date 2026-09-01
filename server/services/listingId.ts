@@ -1,18 +1,22 @@
-import { eq } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { db } from '../db.js';
 import { properties } from '../schema.js';
-import { randomListingId } from '../utils.js';
 
-/** Allocate a unique 8-digit listing ID, retrying on the rare collision. */
-export async function allocateListingId(maxAttempts = 12): Promise<string> {
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    const id = randomListingId();
-    const [existing] = await db
-      .select({ id: properties.id })
-      .from(properties)
-      .where(eq(properties.id, id))
-      .limit(1);
-    if (!existing) return id;
-  }
-  throw new Error('Could not allocate a unique listing ID');
+const SEQUENCE_START = 10_000_000;
+
+/**
+ * Next unused 8-digit listing ID, counting up from 10000000.
+ * Existing random codes (58M, 81M, …) stay as they are so public URLs do not break.
+ */
+export async function allocateListingId(): Promise<string> {
+  const existing = await db
+    .select({ id: properties.id })
+    .from(properties)
+    .where(sql`${properties.id} ~ '^[0-9]{8}$'`);
+
+  const used = new Set(existing.map(row => row.id));
+  let next = SEQUENCE_START;
+  while (used.has(String(next))) next += 1;
+  if (next > 99_999_999) throw new Error('Could not allocate a unique listing ID');
+  return String(next);
 }

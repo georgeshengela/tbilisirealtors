@@ -3830,6 +3830,129 @@ textarea:focus, textarea:focus-visible {
 
 .pdp-head__side .pdp-price { text-align: right; }
 
+.pdp-price__fx {
+  margin-top: 10px;
+}
+
+.pdp-aside__price-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.pdp-bar__price-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pdp-bar__fx .price-fx__track {
+  height: 32px;
+  border-radius: 9px;
+}
+
+.pdp-bar__fx .price-fx__opt {
+  min-width: 44px;
+  font-size: 11px;
+  gap: 3px;
+}
+
+.pdp-bar__fx .price-fx__symbol {
+  font-size: 12px;
+}
+
+/* ── Price currency toggle ($ / ₾) ── */
+.price-fx {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.price-fx.is-end { align-items: flex-end; }
+.price-fx.is-start { align-items: flex-start; }
+
+.price-fx__track {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  height: 36px;
+  padding: 3px;
+  border-radius: 11px;
+  background: #eef0f4;
+  border: 1px solid #e4e6ea;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+}
+
+.price-fx__thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: calc(50% - 3px);
+  height: calc(100% - 6px);
+  border-radius: 8px;
+  background: #0f172a;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.22);
+  transition: transform 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.price-fx__opt {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #76777d;
+  transition: color 0.18s ease;
+  min-width: 52px;
+  padding: 0 8px;
+}
+
+.price-fx__opt.is-on {
+  color: #fff;
+}
+
+.price-fx__opt:not(.is-on):hover {
+  color: #191c1e;
+}
+
+.price-fx__symbol {
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.price-fx__code {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  opacity: 0.9;
+}
+
+.price-fx__hint {
+  margin: 0;
+  font-size: 10px;
+  font-weight: 600;
+  color: #9ca3af;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .price-fx.is-end { align-items: flex-start; }
+  .pdp-price__fx { margin-top: 12px; }
+}
+
 .pdp-actions { display: flex; gap: 8px; }
 
 .pdp-icon-btn {

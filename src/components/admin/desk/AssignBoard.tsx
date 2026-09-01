@@ -293,7 +293,7 @@ export default function AssignBoard({ api, showToast, onCountsChanged }: DeskBoa
                         <Chip label={`${member.openTasks} დავალება`} bg="#fef3c7" text="#92400e" />
                       )}
                       {member.scope === 'own' && (
-                        <Chip label="მხოლოდ თავისი" bg="#f1f5f9" text="#475569" />
+                        <Chip label="კონტაქტი საკუთარზე" bg="#f1f5f9" text="#475569" />
                       )}
                     </div>
                   </div>

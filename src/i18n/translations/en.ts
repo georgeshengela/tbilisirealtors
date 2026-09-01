@@ -256,6 +256,10 @@ export const en = {
       mtskheta: 'Mtskheta',
       sighnaghi: 'Sighnaghi',
       gori: 'Gori',
+      rustavi: 'Rustavi',
+      zugdidi: 'Zugdidi',
+      poti: 'Poti',
+      borjomi: 'Borjomi',
     },
     cityShort: {
       tbilisi: 'Tbil.',

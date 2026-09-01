@@ -202,6 +202,7 @@ async function main() {
         type: 'apartment',
         status: 'sale',
         images: [],
+        owner: { name: 'Broker Owner', phone: '+995511111111' },
       },
     });
     check('broker creates a listing', brokerListing.status === 201, `HTTP ${brokerListing.status}`);
@@ -226,22 +227,34 @@ async function main() {
     if (managerListing.data?.id) created.listings.push(managerListing.data.id);
 
     const brokerSees = await api('/api/admin/properties?limit=200', { token: broker.token });
-    const brokerIds: string[] = (brokerSees.data?.data ?? []).map((row: any) => row.id);
+    const brokerRows: any[] = brokerSees.data?.data ?? [];
+    const brokerIds = brokerRows.map((row: any) => row.id);
+    const sharedRow = brokerRows.find((row: any) => row.id === managerListing.data?.id);
     check(
-      'broker only sees own listings',
-      brokerIds.includes(brokerListing.data?.id) && !brokerIds.includes(managerListing.data?.id),
+      'broker sees the full listing base',
+      brokerIds.includes(brokerListing.data?.id) && brokerIds.includes(managerListing.data?.id),
       `${brokerIds.length} listing(s) visible`,
+    );
+    check(
+      'broker does not see owner phone on others listings',
+      sharedRow?.owner && !sharedRow.owner.phone && sharedRow.owner.name === 'Owner Name',
+      `owner=${JSON.stringify(sharedRow?.owner)}`,
     );
 
     const brokerPeeks = await api(`/api/admin/properties/${managerListing.data?.id}`, { token: broker.token });
-    check("broker gets 404 on another's listing", brokerPeeks.status === 404, `HTTP ${brokerPeeks.status}`);
+    check("broker can open another's listing", brokerPeeks.status === 200, `HTTP ${brokerPeeks.status}`);
+    check(
+      'broker peek hides owner contacts',
+      brokerPeeks.data?.owner && !brokerPeeks.data.owner.phone && !brokerPeeks.data.owner.email,
+      `owner=${JSON.stringify(brokerPeeks.data?.owner)}`,
+    );
 
     const brokerEdits = await api(`/api/admin/properties/${managerListing.data?.id}`, {
       token: broker.token,
       method: 'PATCH',
       body: { isFeatured: true },
     });
-    check("broker cannot edit another's listing", brokerEdits.status === 404, `HTTP ${brokerEdits.status}`);
+    check("broker cannot edit another's listing", brokerEdits.status === 403, `HTTP ${brokerEdits.status}`);
 
     const brokerDeletes = await api(`/api/admin/properties/${brokerListing.data?.id}`, {
       token: broker.token,
@@ -261,8 +274,8 @@ async function main() {
     const brokerReadsOwn = await api(`/api/admin/properties/${brokerListing.data?.id}`, { token: broker.token });
     check(
       'broker keeps owner access on own listing',
-      'owner' in (brokerReadsOwn.data ?? {}),
-      `keys: ${Object.keys(brokerReadsOwn.data ?? {}).length}`,
+      brokerReadsOwn.data?.owner?.phone === '+995511111111',
+      `owner=${JSON.stringify(brokerReadsOwn.data?.owner)}`,
     );
     check(
       'broker never receives billing fields',

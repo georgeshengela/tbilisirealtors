@@ -15,6 +15,7 @@ import { fileURLToPath } from 'url';
 import { v2 as cloudinary } from 'cloudinary';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { can } from '../permissions.js';
+import { WATERMARK_TAG, WATERMARK_TRANSFORM, ensureWatermark } from '../lib/watermark.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTRACTS_DIR = path.join(__dirname, '../../uploads/contracts');
@@ -56,19 +57,9 @@ function uploadPhoto(file: Express.Multer.File): Promise<{
         resource_type: 'image',
         overwrite: false,
         access_mode: 'public',
-        transformation: [
-          {
-            overlay: {
-              font_family: 'Arial',
-              font_size: 48,
-              font_weight: 'bold',
-              text: 'Tbilisi Realtors',
-            },
-            color: '#ffffff',
-            opacity: 55,
-            gravity: 'center',
-          },
-        ],
+        tags: [WATERMARK_TAG],
+        context: 'watermarked=v2',
+        transformation: WATERMARK_TRANSFORM,
       },
       (err, result) => {
         if (err || !result?.secure_url) {
@@ -140,6 +131,7 @@ router.post('/', upload.array('files', 20), async (req: AuthRequest, res: Respon
   }
 
   try {
+    if (photos.length) await ensureWatermark();
     const uploadedPhotos = await Promise.all(photos.map(uploadPhoto));
     const savedContracts = contracts.map(saveContract);
     res.json({ files: [...uploadedPhotos, ...savedContracts] });

@@ -24,7 +24,8 @@
     "verify:analytics": "tsx scripts/smoke-analytics.ts",
     "db:fix-locations": "tsx server/fix-listing-locations.ts",
     "db:remap-ids": "tsx server/remap-listing-ids.ts",
-    "warm:buildings": "tsx server/warm-buildings.ts"
+    "warm:buildings": "tsx server/warm-buildings.ts",
+    "photos:watermark": "tsx scripts/watermark-existing.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.2",

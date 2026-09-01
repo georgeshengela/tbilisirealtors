@@ -22,6 +22,16 @@ export function formatGeorgianLongDate(input: Date | string | number = new Date(
   return `${KA_WEEKDAYS_LONG[date.getDay()]}, ${date.getDate()} ${KA_MONTHS_LONG[date.getMonth()]}, ${date.getFullYear()}`;
 }
 
+/** Compact admin table stamp — e.g. "07.06.2023". */
+export function formatDotDate(input: Date | string | number | null | undefined): string {
+  if (!input) return '';
+  const date = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(date.getTime())) return '';
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  return `${dd}.${mm}.${date.getFullYear()}`;
+}
+
 /** Short Georgian date — e.g. "16 აგვ. 2026". */
 export function formatGeorgianShortDate(input: Date | string | number): string {
   const date = input instanceof Date ? input : new Date(input);

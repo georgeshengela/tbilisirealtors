@@ -11,6 +11,8 @@ export interface LocationValue {
   address: string;
   city: string;
   district: string;
+  street?: string;
+  streetNumber?: string;
 }
 
 interface LocationPickerMapProps {
@@ -78,7 +80,7 @@ export default function LocationPickerMap({ value, onChange, height = 420 }: Loc
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
       try {
-        const found = await searchAddress(text);
+        const found = await searchAddress(text, value.city);
         setResults(found);
         setShowResults(found.length > 0);
       } finally {
@@ -88,12 +90,14 @@ export default function LocationPickerMap({ value, onChange, height = 420 }: Loc
   }
 
   function applyResult(result: GeocodingResult) {
+    const address = result.address || result.displayName.split(',')[0] || '';
     onChange({
       lat: result.lat,
       lng: result.lng,
-      address: result.address || result.displayName.split(',')[0] || '',
-      city: result.city || 'თბილისი',
+      address,
+      city: result.city || value.city || 'თბილისი',
       district: result.district || '',
+      street: address,
     });
     setQuery(result.displayName.split(',').slice(0, 2).join(', '));
     setShowResults(false);

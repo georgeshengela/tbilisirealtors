@@ -7,7 +7,13 @@ import {
   type PropertyOwner, type PropertyContract, type InternalNote,
 } from '../schema.js';
 import { activeProvider, translateFromGeorgian, type TargetLang } from '../services/translate.js';
-import { eq, desc, count, sql, inArray, and, ne, or } from 'drizzle-orm';
+import { eq, desc, count, sql, inArray, and, ne, or, ilike, type SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
+import {
+  listingOrigin,
+  normalizePlacement,
+  normalizePlacementPackage,
+} from '../lib/listingMeta.js';
 import {
   requireStaff,
   requirePermission,
@@ -60,9 +66,22 @@ import { buildDisplayName, profileFieldsFromBody } from '../utils/adminProfile.j
 
 const router = Router();
 
+const listingCreator = alias(users, 'listing_creator');
+const listingAssignee = alias(users, 'listing_assignee');
+
 /** Who to credit for an edit in the price history. */
 function editorName(req: AuthRequest): string {
   return req.user?.name || req.user?.email || 'admin';
+}
+
+/** Short name for the agent column — firstName (e.g. თეო) when set. */
+function staffAgentName(actor: PermissionActor | undefined | null): string {
+  if (!actor) return '';
+  return (actor.firstName || actor.name || '').trim();
+}
+
+function nonempty(value: unknown): string {
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 function priceSource(value: unknown): PriceSource {
@@ -136,25 +155,20 @@ async function withPriceHistory<T extends { id: string }>(rows: T[]) {
 /* ── Scope, sanitization and audit ───────────────────────────────────────── */
 
 /**
- * Reading and writing are scoped differently on purpose.
+ * `own` scope no longer hides the listing table. Brokers see the whole base;
+ * owner phone / email are stripped in sanitizeListingFor unless the row is
+ * theirs. Dashboard widgets still use this condition so personal KPIs stay
+ * about their own book.
  *
- * A broker ('own' scope) reads everything they created *plus* anything a manager
- * handed them — otherwise assignment would put a listing on their desk that they
- * cannot open. Editing stays with the creator, so a handover is a reading right,
- * not a licence to rewrite someone else's listing.
+ * Write access stays with the creator (or anyone on `all` scope).
  */
-function scopeCondition(actor: PermissionActor) {
+function portfolioCondition(actor: PermissionActor) {
   return actor.scope === 'own'
     ? or(eq(properties.createdByUserId, actor.id), eq(properties.assignedToUserId, actor.id))
     : undefined;
 }
 
 type ScopedListing = { createdByUserId: number | null; assignedToUserId?: number | null };
-
-function withinScope(actor: PermissionActor, listing: ScopedListing): boolean {
-  if (actor.scope !== 'own') return true;
-  return listing.createdByUserId === actor.id || listing.assignedToUserId === actor.id;
-}
 
 /** Write access: the creator, or anyone whose scope is not restricted. */
 function canEditListing(actor: PermissionActor, listing: ScopedListing): boolean {
@@ -274,7 +288,7 @@ router.get('/stats', requirePermission('dashboard.view'), async (req: AuthReques
     await refreshExpiredRentals();
 
     const actor = req.user!;
-    const mine = scopeCondition(actor);
+    const mine = portfolioCondition(actor);
     const ownerId = actor.scope === 'own' ? actor.id : null;
 
     const [propCount] = await db.select({ count: count() }).from(properties).where(mine);
@@ -355,27 +369,137 @@ router.get('/properties', requirePermission('listings.view'), async (req: AuthRe
   try {
     await refreshExpiredRentals();
 
-    const page = Math.max(1, parseInt(String(req.query.page ?? '1')));
-    const limit = Math.min(200, parseInt(String(req.query.limit ?? '20')));
+    const page = Math.max(1, parseInt(String(req.query.page ?? '1')) || 1);
+    const limit = Math.min(200, parseInt(String(req.query.limit ?? '20')) || 20);
     const offset = (page - 1) * limit;
-    const mine = scopeCondition(req.user!);
+    const conditions: SQL[] = [];
+
+    const staffId = Number(req.query.staffId);
+    if (Number.isFinite(staffId) && staffId > 0) {
+      conditions.push(or(
+        eq(properties.createdByUserId, staffId),
+        eq(properties.assignedToUserId, staffId),
+      ));
+    }
+
+    const memberQ = typeof req.query.member === 'string' ? req.query.member.trim().slice(0, 80) : '';
+    if (memberQ) {
+      const fuzzy = `%${memberQ}%`;
+      const members = await db
+        .select({ id: users.id })
+        .from(users)
+        .where(and(
+          eq(users.role, 'user'),
+          or(
+            ilike(users.name, fuzzy),
+            ilike(users.firstName, fuzzy),
+            ilike(users.lastName, fuzzy),
+            ilike(users.phone, fuzzy),
+            ilike(users.email, fuzzy),
+          ),
+        ))
+        .limit(50);
+      if (members.length === 0) {
+        res.json({
+          data: [],
+          total: 0,
+          page,
+          limit,
+          summary: { total: 0, sale: 0, rent: 0, new: 0, current: 0, old: 0, new_r: 0 },
+        });
+        return;
+      }
+      conditions.push(inArray(properties.createdByUserId, members.map(row => row.id)));
+    }
+
+    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
+    if (q) {
+      const fuzzy = `%${q}%`;
+      conditions.push(or(
+        eq(properties.id, q),
+        ilike(properties.title, fuzzy),
+        ilike(properties.address, fuzzy),
+        ilike(properties.district, fuzzy),
+        ilike(properties.city, fuzzy),
+        sql`coalesce(${properties.owner}->>'name','') ILIKE ${fuzzy}`,
+        sql`coalesce(${properties.owner}->>'phone','') ILIKE ${fuzzy}`,
+      ));
+    }
+
+    const where = conditions.length ? and(...conditions) : undefined;
 
     const all = await db
-      .select()
+      .select({
+        property: properties,
+        creatorName: listingCreator.name,
+        creatorFirstName: listingCreator.firstName,
+        creatorPhone: listingCreator.phone,
+        creatorEmail: listingCreator.email,
+        creatorRole: listingCreator.role,
+        assigneeName: listingAssignee.name,
+        assigneeFirstName: listingAssignee.firstName,
+        assigneeRole: listingAssignee.role,
+        assigneeJobTitle: listingAssignee.jobTitle,
+      })
       .from(properties)
-      .where(mine)
+      .leftJoin(listingCreator, eq(listingCreator.id, properties.createdByUserId))
+      .leftJoin(listingAssignee, eq(listingAssignee.id, properties.assignedToUserId))
+      .where(where)
       .orderBy(desc(properties.createdAt))
       .limit(limit)
       .offset(offset);
 
-    const [total] = await db.select({ count: count() }).from(properties).where(mine);
+    const [total] = await db.select({ count: count() }).from(properties).where(where);
 
-    // Handed-over listings come back read-only, so the table can grey out its controls.
-    const editable = new Map(all.map(row => [row.id, canEditListing(req.user!, row)]));
-    const offerCounts = await offerCountsForProperties(all.map(row => row.id));
+    const grouped = await db
+      .select({
+        lifecycleState: properties.lifecycleState,
+        status: properties.status,
+        n: count(),
+      })
+      .from(properties)
+      .where(where)
+      .groupBy(properties.lifecycleState, properties.status);
+
+    const summary = { total: 0, sale: 0, rent: 0, new: 0, current: 0, old: 0, new_r: 0 };
+    for (const row of grouped) {
+      const n = Number(row.n);
+      summary.total += n;
+      if (row.status === 'sale' || row.status === 'both') summary.sale += n;
+      if (row.status === 'rent' || row.status === 'both') summary.rent += n;
+      if (row.lifecycleState === 'new') summary.new += n;
+      else if (row.lifecycleState === 'current') summary.current += n;
+      else if (row.lifecycleState === 'old') summary.old += n;
+      else if (row.lifecycleState === 'new_r') summary.new_r += n;
+    }
+
+    const editable = new Map(all.map(row => [row.property.id, canEditListing(req.user!, row.property)]));
+    const offerCounts = await offerCountsForProperties(all.map(row => row.property.id));
+
+    const enriched = all.map(row => {
+      const { property, creatorName, creatorFirstName, creatorPhone, creatorEmail, creatorRole,
+        assigneeName, assigneeFirstName, assigneeRole, assigneeJobTitle } = row;
+      const creatorLabel = (creatorFirstName || creatorName || '').trim();
+      const staffLabel = (assigneeFirstName || assigneeName || creatorLabel).trim();
+      return {
+        ...property,
+        agentName: nonempty(property.agentName) || creatorLabel || null,
+        agentPhone: nonempty(property.agentPhone) || creatorPhone || null,
+        agentEmail: nonempty(property.agentEmail) || creatorEmail || null,
+        staffName: staffLabel || null,
+        staffRole: assigneeRole || creatorRole || null,
+        staffJobTitle: assigneeJobTitle || null,
+        creatorRole: creatorRole || null,
+        origin: listingOrigin({
+          source: property.source,
+          sourceUrl: property.sourceUrl,
+          creatorRole,
+        }),
+      };
+    });
 
     res.json({
-      data: cleanAll(req, await withPriceHistory(all)).map(row => ({
+      data: cleanAll(req, await withPriceHistory(enriched)).map(row => ({
         ...row,
         canEdit: editable.get(row.id as string) ?? true,
         offersLast30Days: offerCounts.get(row.id)?.offersLast30Days ?? 0,
@@ -384,9 +508,39 @@ router.get('/properties', requirePermission('listings.view'), async (req: AuthRe
       total: Number(total.count),
       page,
       limit,
+      summary,
     });
   } catch (err) {
     console.error('Properties list error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/** Staff names for the portfolio filter — listings.view is enough. */
+router.get('/listing-staff', requirePermission('listings.view'), async (_req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const rows = await db
+      .select({
+        id: users.id,
+        name: users.name,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        role: users.role,
+        jobTitle: users.jobTitle,
+      })
+      .from(users)
+      .where(and(inArray(users.role, [...STAFF_ROLES]), eq(users.isActive, true)))
+      .orderBy(users.name);
+
+    res.json(rows.map(row => ({
+      id: row.id,
+      name: (row.firstName || row.name || '').trim(),
+      fullName: row.name,
+      role: row.role,
+      jobTitle: row.jobTitle,
+    })));
+  } catch (err) {
+    console.error('Listing staff error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -431,13 +585,30 @@ router.get('/properties/:id', requirePermission('listings.view'), async (req: Au
       .from(properties)
       .where(eq(properties.id, String(req.params.id)));
 
-    if (!property || !withinScope(req.user!, property)) {
+    if (!property) {
       res.status(404).json({ error: 'Property not found' });
       return;
     }
 
     const [withHistory] = await withPriceHistory([property]);
-    res.json(clean(req, withHistory));
+    let creatorRole: string | null = null;
+    if (property.createdByUserId) {
+      const [creator] = await db
+        .select({ role: users.role })
+        .from(users)
+        .where(eq(users.id, property.createdByUserId))
+        .limit(1);
+      creatorRole = creator?.role ?? null;
+    }
+    res.json({
+      ...clean(req, withHistory),
+      canEdit: canEditListing(req.user!, property),
+      origin: listingOrigin({
+        source: property.source,
+        sourceUrl: property.sourceUrl,
+        creatorRole,
+      }),
+    });
   } catch (err) {
     console.error('Property get error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -451,7 +622,7 @@ router.get('/properties/:id/price-history', requirePermission('listings.price'),
       .from(properties)
       .where(eq(properties.id, String(req.params.id)));
 
-    if (!property || !withinScope(req.user!, property)) {
+    if (!property) {
       res.status(404).json({ error: 'Property not found' });
       return;
     }
@@ -509,15 +680,15 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
         amenities: data.amenities || [],
         features: data.features || [],
         isFeatured: canFlag ? (data.isFeatured || false) : false,
-        isNew: canFlag ? (data.isNew ?? true) : true,
+        isNew: canFlag ? Boolean(data.isNew) : false,
         isPremium: canFlag ? (data.isPremium || false) : false,
         coordinates: data.coordinates,
         viewCount: 0,
         listedDate: new Date().toISOString().split('T')[0],
         agentId: data.agentId,
-        agentName: data.agentName,
-        agentPhone: data.agentPhone,
-        agentEmail: data.agentEmail,
+        agentName: nonempty(data.agentName) || staffAgentName(req.user) || null,
+        agentPhone: nonempty(data.agentPhone) || req.user?.phone || null,
+        agentEmail: nonempty(data.agentEmail) || req.user?.email || null,
         agentCompany: data.agentCompany || null,
         agentTaxId: data.agentTaxId || null,
         invoiceRef: data.invoiceRef || null,
@@ -530,6 +701,10 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
         source: data.source || null,
         sourceUrl: data.sourceUrl || null,
         sourceId: data.sourceId ? String(data.sourceId) : null,
+        placement: normalizePlacement(data.placement),
+        placementPackage: normalizePlacement(data.placement) === 'paid'
+          ? normalizePlacementPackage(data.placementPackage)
+          : null,
         createdByUserId: req.user!.id,
         moderationStatus: 'approved',
         ...lifecycle,
@@ -567,13 +742,13 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
       .from(properties)
       .where(eq(properties.id, String(req.params.id)));
 
-    if (!existing || !withinScope(req.user!, existing)) {
+    if (!existing) {
       res.status(404).json({ error: 'Property not found' });
       return;
     }
 
     if (!canEditListing(req.user!, existing)) {
-      res.status(403).json({ error: 'ეს განცხადება თქვენზეა გადმოცემული, მაგრამ რედაქტირება მხოლოდ ავტორს შეუძლია' });
+      res.status(403).json({ error: 'რედაქტირება მხოლოდ საკუთარ განცხადებაზე შეგიძლიათ' });
       return;
     }
 
@@ -629,6 +804,12 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
         source: data.source ?? existing.source,
         sourceUrl: data.sourceUrl ?? existing.sourceUrl,
         sourceId: data.sourceId ? String(data.sourceId) : existing.sourceId,
+        placement: 'placement' in data ? normalizePlacement(data.placement, existing.placement === 'paid' ? 'paid' : 'free') : existing.placement,
+        placementPackage: 'placement' in data || 'placementPackage' in data
+          ? (normalizePlacement(data.placement, existing.placement === 'paid' ? 'paid' : 'free') === 'paid'
+            ? normalizePlacementPackage(data.placementPackage ?? existing.placementPackage)
+            : null)
+          : existing.placementPackage,
         ...lifecycle,
         updatedAt: new Date(),
       })
@@ -758,13 +939,13 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
       .from(properties)
       .where(eq(properties.id, String(req.params.id)));
 
-    if (!existing || !withinScope(req.user!, existing)) {
+    if (!existing) {
       res.status(404).json({ error: 'Property not found' });
       return;
     }
 
     if (!canEditListing(req.user!, existing)) {
-      res.status(403).json({ error: 'ეს განცხადება თქვენზეა გადმოცემული, მაგრამ რედაქტირება მხოლოდ ავტორს შეუძლია' });
+      res.status(403).json({ error: 'რედაქტირება მხოლოდ საკუთარ განცხადებაზე შეგიძლიათ' });
       return;
     }
 
@@ -783,6 +964,14 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
 
     for (const key of ['source', 'sourceUrl', 'sourceId'] as const) {
       if (key in req.body) updates[key] = req.body[key] ? String(req.body[key]) : null;
+    }
+
+    if ('placement' in req.body) {
+      updates.placement = normalizePlacement(req.body.placement);
+      if (updates.placement === 'free') updates.placementPackage = null;
+    }
+    if ('placementPackage' in req.body && (updates.placement ?? existing.placement) === 'paid') {
+      updates.placementPackage = normalizePlacementPackage(req.body.placementPackage);
     }
 
     if ('showAddress' in req.body) updates.showAddress = Boolean(req.body.showAddress);

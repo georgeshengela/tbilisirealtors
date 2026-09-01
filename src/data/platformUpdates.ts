@@ -145,8 +145,8 @@ export const PLATFORM_UPDATES: PlatformUpdate[] = [
       en: 'Tbilisi Realtors watermark',
     },
     description: {
-      ka: 'ატვირთვისას Cloudinary-ზე ავტომატური ტექსტური watermark ყველა ფოტოზე.',
-      en: 'Automatic text watermark on every photo via Cloudinary on upload.',
+      ka: 'ატვირთვისას Cloudinary-ზე ცენტრში გამჭვირვალე TBILISIREALTOR.GE ლოგო ყველა ფოტოზე.',
+      en: 'Centered transparent TBILISIREALTOR.GE logo watermark on every photo upload.',
     },
   },
   {

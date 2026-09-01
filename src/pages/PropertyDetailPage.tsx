@@ -3,7 +3,7 @@ import { useParams, Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight, ArrowUpRight, Bath, Bed, Building2, Calendar, CheckCircle2, ChevronLeft, ChevronRight,
-  Copy, Eye, ExternalLink, Hash, Heart, Home, Layers, Mail, MapPin, Maximize2, Phone, Ruler, Share2, Sparkles, Square, Star, X,
+  Copy, Eye, Hash, Heart, Home, Layers, Mail, MapPin, Maximize2, Phone, Ruler, Share2, Sparkles, Square, Star, X,
 } from 'lucide-react';
 import { useProperty, useProperties } from '../hooks/usePublicData';
 import PropertyMap from '../components/PropertyMap';
@@ -13,6 +13,7 @@ import { useIsFavorite } from '../lib/favorites';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useLocale, useTranslation } from '../i18n/LocaleContext';
 import BookViewingModal from '../components/BookViewingModal';
+import PriceCurrencyToggle from '../components/PriceCurrencyToggle';
 import { submitLead } from '../lib/leads';
 import { applySeo, clipMeta, pageUrl, setJsonLd, SITE_NAME, absoluteImage } from '../lib/seo';
 
@@ -471,18 +472,6 @@ export default function PropertyDetailPage() {
                 <span className="pdp-chip__id">{property.id}</span>
                 {idCopied ? <CheckCircle2 size={11} strokeWidth={2.4} /> : <Copy size={10} strokeWidth={2.4} />}
               </button>
-              {property.sourceUrl ? (
-                <a
-                  href={property.sourceUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="pdp-chip pdp-chip--link"
-                  title={property.sourceUrl}
-                >
-                  <ExternalLink size={11} strokeWidth={2.4} />
-                  {t('property.externalWebsite')}
-                </a>
-              ) : null}
               <span className={`pdp-chip ${isSale ? 'is-sale' : 'is-rent'}`}>
                 {isSale ? t('propertyStatus.sale') : t('propertyStatus.rent')}
               </span>
@@ -513,6 +502,7 @@ export default function PropertyDetailPage() {
               {isSale && (
                 <p className="pdp-price__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>
               )}
+              <PriceCurrencyToggle className="pdp-price__fx" />
             </div>
 
             <div className="pdp-actions">
@@ -721,11 +711,16 @@ export default function PropertyDetailPage() {
           <aside className="pdp-aside">
             <div className="pdp-aside__card">
               <div className="pdp-aside__price">
-                <p className="pdp-price__value">{price}</p>
-                {rentPrice && <p className="pdp-price__rent">{rentPrice}</p>}
-                {isSale && (
-                  <p className="pdp-price__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>
-                )}
+                <div className="pdp-aside__price-row">
+                  <div>
+                    <p className="pdp-price__value">{price}</p>
+                    {rentPrice && <p className="pdp-price__rent">{rentPrice}</p>}
+                    {isSale && (
+                      <p className="pdp-price__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>
+                    )}
+                  </div>
+                  <PriceCurrencyToggle align="start" showRate={false} />
+                </div>
               </div>
 
               <div className="pdp-agent">
@@ -805,7 +800,10 @@ export default function PropertyDetailPage() {
       {/* ── Mobile action bar ── */}
       <div className="pdp-bar">
         <div className="pdp-bar__price">
-          <p className="pdp-bar__value">{price}</p>
+          <div className="pdp-bar__price-top">
+            <p className="pdp-bar__value">{price}</p>
+            <PriceCurrencyToggle align="start" showRate={false} className="pdp-bar__fx" />
+          </div>
           {isSale && <p className="pdp-bar__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>}
         </div>
         <a className="pdp-bar__call" href={`tel:${property.agent.phone}`}>

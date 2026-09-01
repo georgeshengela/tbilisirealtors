@@ -466,6 +466,10 @@ export const ka = {
       mtskheta: 'მცხეთა',
       sighnaghi: 'სიღნაღი',
       gori: 'გორი',
+      rustavi: 'რუსთავი',
+      zugdidi: 'ზუგდიდი',
+      poti: 'ფოთი',
+      borjomi: 'ბორჯომი',
     },
     cityShort: {
       tbilisi: 'თბ.',

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Building2, Home, Store, TreePine, Hotel,
@@ -21,12 +21,23 @@ import {
 import { useFileUpload } from '../hooks/useFileUpload';
 import LocationPickerMap, { type LocationValue } from '../components/LocationPickerMap';
 import AdminLayout from '../components/admin/AdminLayout';
+import DistrictCombobox from '../components/admin/DistrictCombobox';
+import StreetSuggestInput from '../components/admin/StreetSuggestInput';
+import { CITY_AREAS, canonicalCityName, canonicalDistrictName, findCityArea } from '../data/districts';
+import { formatStreetAddress, parseListingAddress } from '../lib/address';
+import type { StreetSuggestion } from '../lib/geocoding';
 import { importFieldLabel } from '../lib/permissions';
 import type { ImportedListingData } from '../types/importListing';
 import {
   LIFECYCLE_OUTCOMES,
   LIFECYCLE_OUTCOME_META,
 } from '../lib/lifecycle';
+import {
+  adminReturnPath,
+  bedroomsChipFromCount,
+  roomsChipFromCount,
+  unpackListingFields,
+} from '../lib/listingFormFields';
 
 const SECTION_NAV = [
   { id: 'section-contact',  label: 'კონტაქტი',       icon: User       },
@@ -116,6 +127,25 @@ const BADGE_OPTIONS = [
   { id: 'investment',  label: 'საინვესტიციო',        icon: TrendingUp  },
   { id: 'accessible',  label: 'სსსმ',                icon: BadgeCheck  },
 ];
+
+const CHIP_UNPACK_OPTIONS = {
+  conditions: CONDITIONS,
+  buildingStatusIds: BUILDING_STATUSES.map(s => s.id),
+  projectTypes: PROJECT_TYPES,
+  layouts: LAYOUT_OPTIONS,
+  parking: PARKING_OPTIONS,
+  heating: HEATING_OPTIONS,
+  hotWater: HOT_WATER_OPTIONS,
+  buildingMaterials: BUILDING_MATERIALS,
+  windowsMaterials: WINDOW_MATERIALS,
+  furniture: FURNITURE_ITEMS,
+  propertyAmenities: PROPERTY_AMENITIES,
+  buildingFeatures: BUILDING_FEATURES,
+  badgeIds: BADGE_OPTIONS.map(b => b.id),
+  materialPrefix: 'მასალა: ',
+  windowsPrefix: 'კარ-ფანჯ: ',
+  layoutPrefix: 'განლაგება: ',
+};
 
 /* ─── Tiny TrendingUp icon placeholder ──────────────────── */
 function TrendingUp({ size = 16, className = '' }: { size?: number; className?: string }) {
@@ -219,6 +249,8 @@ interface FormState {
   isPremium: boolean; isFeatured: boolean; isNew: boolean;
   /* origin of the listing */
   source: string; sourceUrl: string; sourceId: string;
+  placement: 'free' | 'paid';
+  placementPackage: string;
   /* lifecycle: new → current → old (with a reason) → new R */
   lifecycleState: string; rentTermMonths: string;
   rentStartedAt: string; rentExpiresAt: string; lifecycleNote: string;
@@ -247,8 +279,9 @@ const defaultForm: FormState = {
   ownerIdNumber: '', ownerAddress: '', ownerNote: '',
   agentName: '', agentPhone: '', agentEmail: '',
   agentCompany: '', agentTaxId: '', invoiceRef: '',
-  isPremium: false, isFeatured: false, isNew: true,
+  isPremium: false, isFeatured: false, isNew: false,
   source: '', sourceUrl: '', sourceId: '',
+  placement: 'free', placementPackage: '',
   lifecycleState: 'current', rentTermMonths: '', rentStartedAt: '', rentExpiresAt: '', lifecycleNote: '',
   lifecycleOutcome: '', lifecycleDealPrice: '',
 };
@@ -345,6 +378,7 @@ function pricePerSqmOf(price: string, area: string): string {
 /* ─── Main component ─────────────────────────────────────── */
 export default function AdminAddListingPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { id }   = useParams();
   const isEdit   = Boolean(id);
   const { user, can, loading: authLoading } = useAdminAuth();
@@ -365,6 +399,8 @@ export default function AdminAddListingPage() {
   const [saving, setSaving]   = useState(false);
   const [loading, setLoading] = useState(isEdit);
   const [error, setError]     = useState('');
+  const [listingLocked, setListingLocked] = useState(false);
+  const [ownerContactsVisible, setOwnerContactsVisible] = useState(true);
   const [titleManual, setTitleManual] = useState(isEdit);
   const [importUrl, setImportUrl] = useState('');
   const [importing, setImporting] = useState(false);
@@ -384,12 +420,24 @@ export default function AdminAddListingPage() {
     if (!authLoading && !user) navigate('/admin/login');
   }, [user, authLoading, navigate]);
 
+  // New listing: prefill agent contact from the logged-in staff account.
+  useEffect(() => {
+    if (isEdit || !user) return;
+    setForm(prev => ({
+      ...prev,
+      agentName: prev.agentName || user.firstName || user.name || '',
+      agentPhone: prev.agentPhone || user.phone || '',
+      agentEmail: prev.agentEmail || user.email || '',
+    }));
+  }, [isEdit, user]);
+
   useEffect(() => {
     if (!isEdit || !user) return;
     (async () => {
       try {
         const data = await api(`/properties/${id}`);
         const coords = data.coordinates as { lat: number; lng: number } | null;
+        const unpacked = unpackListingFields(data.amenities, data.features, CHIP_UNPACK_OPTIONS);
         setForm(prev => ({
           ...prev,
           title:      data.title || '',
@@ -405,20 +453,36 @@ export default function AdminAddListingPage() {
           area:       String(data.area || ''),
           type:       data.type || 'apartment',
           dealTypes:  data.status === 'both' ? ['sale', 'rent'] : [data.status || 'sale'],
-          bedrooms:   String(data.bedrooms || ''),
+          rooms:      roomsChipFromCount(data.bedrooms) || prev.rooms,
+          bedrooms:   bedroomsChipFromCount(data.bedrooms) || String(data.bedrooms || ''),
           bathrooms:  String(data.bathrooms || ''),
+          condition:  unpacked.condition,
+          buildingStatus: unpacked.buildingStatus,
+          projectType: unpacked.projectType,
+          parking:    unpacked.parking,
+          heating:    unpacked.heating,
+          hotWater:   unpacked.hotWater,
+          layout:     unpacked.layout,
+          buildingMaterials: unpacked.buildingMaterials,
+          windowsMaterials: unpacked.windowsMaterials,
+          furniture:  unpacked.furniture,
+          propertyAmenities: unpacked.propertyAmenities,
+          buildingFeatures: unpacked.buildingFeatures,
+          badges:     unpacked.badges,
           floor:      String(data.floor || ''),
           totalFloors: String(data.totalFloors || ''),
-          city:       data.city || 'თბილისი',
-          district:   data.district || '',
+          city:       canonicalCityName(data.city) || data.city || 'თბილისი',
+          district:   canonicalDistrictName(data.city || 'თბილისი', data.district) || data.district || '',
           address:    data.address || '',
+          street:     parseListingAddress(data.address || '', data.city, data.district).street,
+          streetNumber: parseListingAddress(data.address || '', data.city, data.district).streetNumber,
           cadastralCode: data.cadastralCode || '',
           lat:        coords?.lat ?? 41.7151,
           lng:        coords?.lng ?? 44.8271,
           showAddress: data.showAddress !== false,
           photos:     toPhotoItems(data.images, data.hiddenImages),
-          amenities:  Array.isArray(data.amenities) ? data.amenities : [],
-          features:   Array.isArray(data.features) ? data.features : [],
+          amenities:  unpacked.amenities,
+          features:   unpacked.features,
           agentName:  data.agentName || '',
           agentPhone: data.agentPhone || '',
           agentEmail: data.agentEmail || '',
@@ -433,10 +497,12 @@ export default function AdminAddListingPage() {
           ownerNote:     data.owner?.note || '',
           isPremium:  Boolean(data.isPremium),
           isFeatured: Boolean(data.isFeatured),
-          isNew:      data.isNew !== undefined ? Boolean(data.isNew) : true,
+          isNew:      Boolean(data.isNew),
           source:     data.source || '',
           sourceUrl:  data.sourceUrl || '',
           sourceId:   data.sourceId || '',
+          placement:  data.placement === 'paid' ? 'paid' : 'free',
+          placementPackage: data.placementPackage || '',
           lifecycleState: data.lifecycleOutcome === 'rented_owner' ? 'old' : (data.lifecycleState || 'new'),
           rentTermMonths: data.rentTermMonths ? String(data.rentTermMonths) : '',
           rentStartedAt:  data.rentStartedAt ? String(data.rentStartedAt).slice(0, 10) : '',
@@ -448,6 +514,12 @@ export default function AdminAddListingPage() {
             : '',
         }));
         setSavedNotes(Array.isArray(data.internalNotes) ? data.internalNotes : []);
+        const owner = (data.owner ?? {}) as Record<string, unknown>;
+        const hasOwnerContacts = Boolean(
+          owner.phone || owner.email || owner.idNumber || owner.address || owner.note,
+        );
+        setListingLocked(data.canEdit === false);
+        setOwnerContactsVisible(hasOwnerContacts || data.canEdit !== false);
       } catch { setError('განცხადების ჩატვირთვა ვერ მოხერხდა'); }
       finally  { setLoading(false); }
     })();
@@ -469,10 +541,44 @@ export default function AdminAddListingPage() {
 
   const locationValue: LocationValue = {
     lat: form.lat, lng: form.lng,
-    address: form.address, city: form.city, district: form.district,
+    address: formatStreetAddress(form.street, form.streetNumber) || form.address,
+    city: form.city, district: form.district,
   };
-  function handleLocationChange(loc: LocationValue) {
-    setForm(f => ({ ...f, lat: loc.lat, lng: loc.lng, address: loc.address, city: loc.city, district: loc.district }));
+
+  function applyLocation(loc: LocationValue) {
+    const parsed = parseListingAddress(loc.address || '', loc.city, loc.district);
+    const city = canonicalCityName(loc.city) || loc.city;
+    setForm(f => ({
+      ...f,
+      lat: loc.lat,
+      lng: loc.lng,
+      address: loc.address || formatStreetAddress(parsed.street, parsed.streetNumber),
+      city,
+      district: canonicalDistrictName(city, loc.district) || loc.district || f.district,
+      street: loc.street || parsed.street || f.street,
+      streetNumber: loc.streetNumber || parsed.streetNumber || f.streetNumber,
+    }));
+  }
+
+  function handleCityChange(nextCity: string) {
+    setForm(f => {
+      const kept = canonicalDistrictName(nextCity, f.district);
+      const known = Boolean(findCityArea(nextCity)?.districts.some(d => d.ka === kept));
+      return { ...f, city: nextCity, district: known ? kept : '' };
+    });
+  }
+
+  function handleStreetPick(hit: StreetSuggestion) {
+    setForm(f => ({
+      ...f,
+      street: hit.street,
+      streetNumber: hit.streetNumber || f.streetNumber,
+      address: formatStreetAddress(hit.street, hit.streetNumber || f.streetNumber),
+      city: hit.city || f.city,
+      district: hit.district || f.district,
+      lat: hit.lat || f.lat,
+      lng: hit.lng || f.lng,
+    }));
   }
 
   function applyImportedData(data: ImportedListingData) {
@@ -511,11 +617,11 @@ export default function AdminAddListingPage() {
       waitingArea: data.waitingArea || f.waitingArea,
       livingRoomArea: data.livingRoomArea || f.livingRoomArea,
       storageArea: data.storageArea || f.storageArea,
-      city: data.city || f.city,
-      district: data.district || f.district,
+      city: canonicalCityName(data.city) || data.city || f.city,
+      district: canonicalDistrictName(data.city || f.city, data.district) || data.district || f.district,
       address: data.address || f.address,
-      street: data.street || f.street,
-      streetNumber: data.streetNumber || f.streetNumber,
+      street: data.street || parseListingAddress(data.address || '', data.city, data.district).street || f.street,
+      streetNumber: data.streetNumber || parseListingAddress(data.address || '', data.city, data.district).streetNumber || f.streetNumber,
       cadastralCode: data.cadastralCode || f.cadastralCode,
       lat: data.lat || f.lat,
       lng: data.lng || f.lng,
@@ -634,7 +740,11 @@ export default function AdminAddListingPage() {
     });
   }
 
-  async function handleSubmit(publish = true) {
+  async function handleSubmit(_publish = true) {
+    if (listingLocked) {
+      setError('რედაქტირება მხოლოდ საკუთარ განცხადებაზე შეგიძლიათ');
+      return;
+    }
     if (!form.price) {
       setError('ფასი სავალდებულოა');
       scrollToSection('section-details');
@@ -651,7 +761,6 @@ export default function AdminAddListingPage() {
       return;
     }
     setSaving(true); setError('');
-    if (publish) set('isNew', true);
     try {
       const allFeatures = [
         ...form.features,
@@ -700,7 +809,7 @@ export default function AdminAddListingPage() {
         totalFloors:  parseInt(form.totalFloors) || null,
         city:         form.city,
         district:     form.district,
-        address:      [form.street, form.streetNumber, form.address].filter(Boolean).join(', ') || form.address,
+        address:      formatStreetAddress(form.street, form.streetNumber) || form.address,
         showAddress:  form.showAddress,
         cadastralCode: form.cadastralCode.trim(),
         coordinates:  { lat: form.lat, lng: form.lng },
@@ -710,7 +819,7 @@ export default function AdminAddListingPage() {
         features:     allFeatures,
         // Private groups are omitted entirely when the account cannot see them,
         // otherwise the server would reject the request for touching them.
-        ...(canOwner ? {
+        ...(canOwner && ownerContactsVisible ? {
           owner: {
             name: form.ownerName, phone: form.ownerPhone, email: form.ownerEmail,
             idNumber: form.ownerIdNumber, address: form.ownerAddress, note: form.ownerNote,
@@ -735,6 +844,8 @@ export default function AdminAddListingPage() {
         source:       form.source || (form.sourceUrl ? 'manual' : ''),
         sourceUrl:    form.sourceUrl,
         sourceId:     form.sourceId,
+        placement:    form.placement,
+        placementPackage: form.placement === 'paid' ? form.placementPackage.trim() : '',
         lifecycleState: isEdit ? (form.lifecycleState || 'current') : 'current',
         rentTermMonths: isEdit && form.rentTermMonths ? parseInt(form.rentTermMonths) : null,
         rentStartedAt:  isEdit ? (form.rentStartedAt || null) : null,
@@ -754,7 +865,7 @@ export default function AdminAddListingPage() {
       } else {
         await api('/properties', { method: 'POST', body: JSON.stringify(payload) });
       }
-      navigate('/admin?section=properties');
+      navigate(adminReturnPath(searchParams.get('from')));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'შეცდომა');
     } finally {
@@ -790,7 +901,7 @@ export default function AdminAddListingPage() {
       <button
         type="button"
         onClick={() => handleSubmit(false)}
-        disabled={saving || !form.price}
+        disabled={saving || listingLocked || !form.price}
         className="flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 rounded-xl border border-slate-200 text-slate-700 text-sm font-bold hover:bg-slate-50 transition-colors disabled:opacity-40"
       >
         {saving ? <Loader2 size={15} className="animate-spin" /> : <FileText size={15} />}
@@ -799,7 +910,7 @@ export default function AdminAddListingPage() {
       <button
         type="button"
         onClick={() => handleSubmit(true)}
-        disabled={saving || !form.price}
+        disabled={saving || listingLocked || !form.price}
         className="flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-colors disabled:opacity-40"
         style={{ background: '#2563eb' }}
       >
@@ -837,6 +948,13 @@ export default function AdminAddListingPage() {
             {actionButtons}
           </div>
         </div>
+
+        {listingLocked && (
+          <div className="mb-5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium">
+            რედაქტირება მხოლოდ საკუთარ განცხადებაზე შეგიძლიათ
+            {!ownerContactsVisible ? '. მესაკუთრის ტელეფონი და მეილი დაფარულია.' : '.'}
+          </div>
+        )}
 
         {error && (
           <div className="mb-5 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-600 text-sm font-medium">
@@ -1039,33 +1157,44 @@ export default function AdminAddListingPage() {
                 {canOwner && (
                   <div>
                     <p className={sectionTitle}>მესაკუთრე</p>
+                    {listingLocked && !ownerContactsVisible && (
+                      <p className="mb-3 text-[11px] font-semibold text-slate-400">
+                        მესაკუთრის ტელეფონი და მეილი მხოლოდ საკუთარ პორტფოლიოში ჩანს.
+                      </p>
+                    )}
                     <div className="grid sm:grid-cols-3 gap-3">
                       <div>
                         <label className={labelCls}><User size={12} /> სახელი გვარი</label>
-                        <input type="text" value={form.ownerName} onChange={e => set('ownerName', e.target.value)} className={inputCls} placeholder="ნინო ბერიძე" />
+                        <input type="text" value={form.ownerName} onChange={e => set('ownerName', e.target.value)} className={inputCls} placeholder="ნინო ბერიძე" readOnly={listingLocked} />
                       </div>
-                      <div>
-                        <label className={labelCls}><Phone size={12} /> ტელეფონი</label>
-                        <input type="text" value={form.ownerPhone} onChange={e => set('ownerPhone', e.target.value)} className={inputCls} placeholder="+995 5XX XXX XXX" />
-                      </div>
-                      <div>
-                        <label className={labelCls}><Mail size={12} /> Email</label>
-                        <input type="email" value={form.ownerEmail} onChange={e => set('ownerEmail', e.target.value)} className={inputCls} />
-                      </div>
-                      <div>
-                        <label className={labelCls}>პირადი ნომერი</label>
-                        <input type="text" value={form.ownerIdNumber} onChange={e => set('ownerIdNumber', e.target.value)} className={inputCls} placeholder="01001XXXXXX" />
-                      </div>
-                      <div className="sm:col-span-2">
-                        <label className={labelCls}><MapPin size={12} /> მისამართი</label>
-                        <input type="text" value={form.ownerAddress} onChange={e => set('ownerAddress', e.target.value)} className={inputCls} />
-                      </div>
+                      {ownerContactsVisible && (
+                        <>
+                          <div>
+                            <label className={labelCls}><Phone size={12} /> ტელეფონი</label>
+                            <input type="text" value={form.ownerPhone} onChange={e => set('ownerPhone', e.target.value)} className={inputCls} placeholder="+995 5XX XXX XXX" readOnly={listingLocked} />
+                          </div>
+                          <div>
+                            <label className={labelCls}><Mail size={12} /> Email</label>
+                            <input type="email" value={form.ownerEmail} onChange={e => set('ownerEmail', e.target.value)} className={inputCls} readOnly={listingLocked} />
+                          </div>
+                          <div>
+                            <label className={labelCls}>პირადი ნომერი</label>
+                            <input type="text" value={form.ownerIdNumber} onChange={e => set('ownerIdNumber', e.target.value)} className={inputCls} placeholder="01001XXXXXX" readOnly={listingLocked} />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className={labelCls}><MapPin size={12} /> მისამართი</label>
+                            <input type="text" value={form.ownerAddress} onChange={e => set('ownerAddress', e.target.value)} className={inputCls} readOnly={listingLocked} />
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <div className="mt-3">
-                      <label className={labelCls}>შენიშვნა მესაკუთრეზე</label>
-                      <textarea value={form.ownerNote} onChange={e => set('ownerNote', e.target.value)} rows={2}
-                        className={`${inputCls} resize-none`} placeholder="რეესტრი ვის სახელზეა, თანამესაკუთრეები..." />
-                    </div>
+                    {ownerContactsVisible && (
+                      <div className="mt-3">
+                        <label className={labelCls}>შენიშვნა მესაკუთრეზე</label>
+                        <textarea value={form.ownerNote} onChange={e => set('ownerNote', e.target.value)} rows={2}
+                          className={`${inputCls} resize-none`} placeholder="რეესტრი ვის სახელზეა, თანამესაკუთრეები..." readOnly={listingLocked} />
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1106,6 +1235,47 @@ export default function AdminAddListingPage() {
                       ფასიანი განთავსებისას ინვოისი ავტომატურად მიებმება ორგანიზაციის მონაცემებს.
                     </p>
                   )}
+
+                  <div className="mt-5 pt-4 border-t border-slate-100">
+                    <p className={sectionTitle}>განთავსება / ღირებულება</p>
+                    <div className="flex flex-wrap gap-2">
+                      {([
+                        { id: 'free' as const, label: 'უფასო' },
+                        { id: 'paid' as const, label: 'ფასიანი' },
+                      ]).map(opt => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => set('placement', opt.id)}
+                          className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                            form.placement === opt.id
+                              ? 'bg-blue-600 text-white border-blue-600'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    {form.placement === 'paid' && (
+                      <div className="mt-3 max-w-sm">
+                        <label className={labelCls}>პაკეტი (არასავალდებულო)</label>
+                        <input
+                          type="text"
+                          value={form.placementPackage}
+                          onChange={e => set('placementPackage', e.target.value)}
+                          className={inputCls}
+                          placeholder="VIP, Premium…"
+                        />
+                      </div>
+                    )}
+                    {(form.sourceUrl || form.source) && (
+                      <p className="mt-3 text-[11px] font-semibold text-slate-500">
+                        წარმოშობა: <span className="text-slate-800">გადმოტანილი</span>
+                        {form.sourceUrl ? ' · MyHome / ss.ge' : ''}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </div>
             </FormSection>
@@ -1683,32 +1853,60 @@ export default function AdminAddListingPage() {
 
             <FormSection id="section-location" title="მდებარეობა" desc="მოძებნეთ ან კარტაზე მონიშნეთ ლოკაცია" icon={MapPin}>
               <div className="space-y-5">
-                <LocationPickerMap value={locationValue} onChange={handleLocationChange} height={360} />
+                <LocationPickerMap value={locationValue} onChange={applyLocation} height={360} />
 
                 <div className="space-y-4 pt-2 border-t border-slate-100">
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div>
                           <label className={labelCls}><MapPin size={12} /> ქალაქი</label>
-                          <select value={form.city} onChange={e => set('city', e.target.value)} className={inputCls}>
-                            {['თბილისი','ბათუმი','ქუთაისი','რუსთავი','გორი','ზუგდიდი','ფოთი','მცხეთა','სიღნაღი','ბორჯომი'].map(c =>
-                              <option key={c}>{c}</option>
+                          <select value={form.city} onChange={e => handleCityChange(e.target.value)} className={inputCls}>
+                            {CITY_AREAS.map(c =>
+                              <option key={c.ka} value={c.ka}>{c.ka}</option>
                             )}
                           </select>
                         </div>
                         <div>
                           <label className={labelCls}>რაიონი</label>
-                          <input type="text" value={form.district} onChange={e => set('district', e.target.value)} className={inputCls} placeholder="ვაკე" />
+                          <DistrictCombobox
+                            value={form.district}
+                            options={[
+                              ...(findCityArea(form.city)?.districts ?? []).map(d => ({ value: d.ka, label: d.ka })),
+                              ...(form.district && !findCityArea(form.city)?.districts.some(d => d.ka === form.district)
+                                ? [{ value: form.district, label: form.district }]
+                                : []),
+                            ]}
+                            onChange={value => set('district', value)}
+                            placeholder="აირჩიეთ ან ჩაწერეთ"
+                          />
                         </div>
                       </div>
 
                       <div className="grid sm:grid-cols-2 gap-4">
                         <div>
                           <label className={labelCls}>ქუჩა</label>
-                          <input type="text" value={form.street} onChange={e => set('street', e.target.value)} className={inputCls} placeholder="ჩიქოვანის ქ." />
+                          <StreetSuggestInput
+                            value={form.street}
+                            city={form.city}
+                            onChange={value => {
+                              set('street', value);
+                              set('address', formatStreetAddress(value, form.streetNumber));
+                            }}
+                            onPick={handleStreetPick}
+                            placeholder="დაიწყეთ ქუჩის წერა — მაგ. ბერბუკის"
+                          />
                         </div>
                         <div>
                           <label className={labelCls}>ქ. ნომერი</label>
-                          <input type="text" value={form.streetNumber} onChange={e => set('streetNumber', e.target.value)} className={inputCls} placeholder="12ა" />
+                          <input
+                            type="text"
+                            value={form.streetNumber}
+                            onChange={e => {
+                              set('streetNumber', e.target.value);
+                              set('address', formatStreetAddress(form.street, e.target.value));
+                            }}
+                            className={inputCls}
+                            placeholder="12ა"
+                          />
                         </div>
                       </div>
 

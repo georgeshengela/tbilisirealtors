@@ -162,7 +162,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<Role, string[]> = {
   user: ['uploads.images'],
 };
 
-/** Brokers only touch what they created; everyone else sees the whole desk. */
+/** Brokers see the whole listing base; owner contacts stay on their own book. */
 export const ROLE_DEFAULT_SCOPE: Record<Role, 'own' | 'all'> = {
   super_admin: 'all',
   admin: 'all',
@@ -175,6 +175,8 @@ export interface PermissionActor {
   id: number;
   email: string;
   name: string;
+  firstName: string;
+  phone: string;
   role: string;
   scope: 'own' | 'all';
   permissions: string[];
@@ -284,11 +286,25 @@ const PRIVATE_FIELD_PERMISSION: Record<string, string> = {
   invoiceRef: 'listings.billing',
 };
 
+const OWNER_CONTACT_KEYS = ['phone', 'email', 'idNumber', 'address', 'note'] as const;
+
+/** Listings this staff member created or was handed — their working portfolio. */
+export function inOwnPortfolio(
+  actor: PermissionActor | undefined,
+  listing: { createdByUserId?: number | null; assignedToUserId?: number | null },
+): boolean {
+  if (!actor) return false;
+  return listing.createdByUserId === actor.id || listing.assignedToUserId === actor.id;
+}
+
 /**
  * Removes owner PII, contracts, internal notes and billing refs from a listing
  * before it leaves the server. The keys are deleted rather than blanked, so the
  * response carries no trace that the data exists. Hiding these in the UI alone
  * is not enough.
+ *
+ * `own` scope still sees every listing, but owner phone / email / ID stay on
+ * their own portfolio only. Name and surname remain visible on the shared base.
  */
 export function sanitizeListingFor<T extends Record<string, unknown>>(
   actor: PermissionActor | undefined,
@@ -302,6 +318,20 @@ export function sanitizeListingFor<T extends Record<string, unknown>>(
     if (!(field in out)) continue;
     if (!can(actor, permission)) delete out[field];
   }
+
+  if (
+    out.owner
+    && actor?.scope === 'own'
+    && !inOwnPortfolio(actor, listing as { createdByUserId?: number | null; assignedToUserId?: number | null })
+  ) {
+    const owner = out.owner as Record<string, unknown>;
+    const name = typeof owner.name === 'string' ? owner.name.trim() : '';
+    const publicOwner: Record<string, string> = {};
+    if (name) publicOwner.name = name;
+    for (const key of OWNER_CONTACT_KEYS) delete publicOwner[key];
+    out.owner = publicOwner;
+  }
+
   return out as T;
 }
 

@@ -3,10 +3,10 @@ import {
   type MouseEvent as ReactMouseEvent, type ReactNode,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Search, Plus, Pencil, Trash2, Eye, ExternalLink,
-  Star, MapPin, Bed, Layers, Ruler, User, Phone,
+  Star, MapPin, Ruler, User, Phone,
   ArrowUpDown, ArrowUp, ArrowDown, X, Building2, TrendingUp, Home,
   Image as ImageIcon, Calendar, ChevronDown, Check, Copy, History,
   PhoneCall, CalendarClock, Loader2, Mail, FileText, MessageSquare,
@@ -14,9 +14,11 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { listingIdMatches } from '../../lib/listingId';
-import { formatGeorgianDateTime, formatGeorgianShortDate } from '../../lib/dateFormat';
+import { formatDotDate, formatGeorgianDateTime, formatGeorgianShortDate } from '../../lib/dateFormat';
+import { roleLabel } from '../../lib/permissions';
 import { useFileUpload, type UploadedFile } from '../../hooks/useFileUpload';
 import { useAdminAuth, useApiRequest } from '../../contexts/AdminAuthContext';
+import { FALLBACK_USD_RATE, useCurrency } from '../../contexts/CurrencyContext';
 import ListingWorkPanel from './desk/ListingWorkPanel';
 import {
   LIFECYCLE_OUTCOMES,
@@ -86,9 +88,17 @@ export interface AdminPropertyRow {
   offersLast60Days?: number;
   listedDate: string;
   createdAt: string;
+  updatedAt?: string | null;
   agentName: string;
   agentPhone: string;
   agentEmail: string;
+  staffName?: string | null;
+  staffRole?: string | null;
+  staffJobTitle?: string | null;
+  creatorRole?: string | null;
+  origin?: 'imported' | 'member' | 'office' | null;
+  placement?: 'free' | 'paid' | null;
+  placementPackage?: string | null;
   source?: string | null;
   sourceUrl?: string | null;
   sourceId?: string | null;
@@ -169,7 +179,30 @@ const PRICE_SOURCE_LABEL: Record<string, string> = {
   system: 'სისტემა',
 };
 
-const GEL = (n: number | string) => Number(n).toLocaleString('ka-GE') + ' ₾';
+/** Admin listings table always shows USD (DB still stores GEL). */
+function useAdminUsd() {
+  const { rates } = useCurrency();
+  const usdRate = rates.USD ?? FALLBACK_USD_RATE;
+
+  const gelToUsd = (amountGel: number | string | null | undefined) => {
+    const n = Number(amountGel);
+    if (!Number.isFinite(n) || n === 0) return 0;
+    return Math.round(n / usdRate);
+  };
+
+  const usdToGel = (amountUsd: number) => {
+    if (!Number.isFinite(amountUsd) || amountUsd === 0) return 0;
+    return Math.round(amountUsd * usdRate);
+  };
+
+  const USD = (amountGel: number | string | null | undefined) => {
+    const n = Number(amountGel);
+    if (!Number.isFinite(n) || n === 0) return '—';
+    return `$${gelToUsd(n).toLocaleString('ka-GE')}`;
+  };
+
+  return { USD, gelToUsd, usdToGel, usdRate };
+}
 
 const lifecycleOf = (p: AdminPropertyRow) => (p.lifecycleState && LIFECYCLE_META[p.lifecycleState] ? p.lifecycleState : 'new');
 
@@ -283,20 +316,6 @@ function Badge({ label, color }: { label: string; color: string }) {
     >
       {label}
     </span>
-  );
-}
-
-function Toggle({ on, onToggle, label, color = '#10B981' }: { on: boolean; onToggle: () => void; label: string; color?: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      title={label}
-      className={`relative inline-flex h-5 w-9 items-center rounded-full transition-all duration-200 ${on ? 'opacity-100' : 'opacity-35'}`}
-      style={{ background: on ? color : '#94a3b8' }}
-    >
-      <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform duration-200 ${on ? 'translate-x-4' : 'translate-x-0.5'}`} />
-    </button>
   );
 }
 
@@ -651,6 +670,12 @@ function AnchoredPopover({
   );
 }
 
+const ORIGIN_LABEL: Record<string, string> = {
+  imported: 'გადმოტანილი',
+  member: 'მესაკუთრემ განათავსა',
+  office: 'ოფისი',
+};
+
 /* Photo, listing ID and public URL as one compact tile. */
 function ListingLeadCell({ p, onOpen }: { p: AdminPropertyRow; onOpen: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -668,12 +693,24 @@ function ListingLeadCell({ p, onOpen }: { p: AdminPropertyRow; onOpen: () => voi
   }
 
   return (
-    <div className="relative h-[112px] w-[160px] overflow-hidden rounded-xl border border-slate-200 bg-slate-100">
+    <div className="w-[92px]">
+      <div className="mb-1 flex items-center gap-0.5">
+        <button
+          type="button"
+          onClick={copyId}
+          title={copied ? 'დაკოპირდა' : 'ID-ის კოპირება'}
+          className="font-mono text-[10px] font-bold tabular-nums text-slate-700 hover:text-blue-600"
+        >
+          {p.id}
+        </button>
+        {p.isFeatured && <Star size={10} className="fill-amber-400 text-amber-400" />}
+        {copied ? <Check size={10} className="text-emerald-600" /> : <Copy size={9} className="text-slate-300" />}
+      </div>
       <button
         type="button"
         onClick={onOpen}
         title="რედაქტირება"
-        className="absolute inset-0 block"
+        className="relative block h-[52px] w-[80px] overflow-hidden rounded border border-slate-200 bg-slate-100"
       >
         {photo ? (
           <img
@@ -684,42 +721,25 @@ function ListingLeadCell({ p, onOpen }: { p: AdminPropertyRow; onOpen: () => voi
           />
         ) : (
           <span className="flex h-full w-full items-center justify-center">
-            <ImageIcon size={18} className="text-slate-300" />
+            <ImageIcon size={14} className="text-slate-300" />
           </span>
         )}
       </button>
-
-      <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start justify-between gap-1 bg-gradient-to-b from-black/70 to-transparent px-1.5 pt-1.5 pb-5">
-        <button
-          type="button"
-          onClick={copyId}
-          title={copied ? 'დაკოპირდა' : 'ID-ის კოპირება'}
-          className="pointer-events-auto inline-flex max-w-[118px] items-center gap-1 rounded-md bg-white/95 px-1.5 py-0.5 font-mono text-[10px] font-bold tabular-nums text-slate-800 shadow-sm"
-        >
-          <span className="truncate">{p.id}</span>
-          {copied ? <Check size={9} className="text-emerald-600" /> : <Copy size={9} className="text-slate-400" />}
-        </button>
-        <a
-          href={viewHref}
-          target="_blank"
-          rel="noreferrer"
-          title="საიტზე ნახვა"
-          className="pointer-events-auto inline-flex h-[22px] w-[22px] items-center justify-center rounded-md bg-white/95 text-slate-700 shadow-sm hover:bg-blue-600 hover:text-white"
-        >
-          <ExternalLink size={11} />
-        </a>
-      </div>
-
-      {p.images?.length > 1 && (
-        <span className="absolute bottom-1 right-1 rounded bg-black/60 px-1 py-px text-[9px] font-bold text-white">
-          {p.images.length}
-        </span>
-      )}
+      <a
+        href={viewHref}
+        target="_blank"
+        rel="noreferrer"
+        title="საიტზე ნახვა"
+        className="mt-0.5 inline-flex items-center gap-0.5 text-[9px] font-semibold text-blue-600 hover:underline"
+      >
+        <ExternalLink size={9} />
+        ლინკი
+      </a>
     </div>
   );
 }
 
-/* One editable money value — used for both the sale and the rent price. */
+/* One editable money value — displayed in USD, saved as GEL. */
 function InlineMoney({
   value, label, labelColor, suffix, onSave, delta,
 }: {
@@ -727,9 +747,10 @@ function InlineMoney({
   label: string;
   labelColor: string;
   suffix?: string;
-  onSave: (next: number) => Promise<void>;
+  onSave: (nextGel: number) => Promise<void>;
   delta?: { previous: number; current: number } | null;
 }) {
+  const { USD, gelToUsd, usdToGel } = useAdminUsd();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -740,14 +761,19 @@ function InlineMoney({
   }, [editing]);
 
   async function commit() {
-    const next = Number(draft.replace(/[^\d.]/g, ''));
-    if (!Number.isFinite(next) || next < 0 || next === value) {
+    const nextUsd = Number(draft.replace(/[^\d.]/g, ''));
+    if (!Number.isFinite(nextUsd) || nextUsd < 0) {
+      setEditing(false);
+      return;
+    }
+    const nextGel = usdToGel(nextUsd);
+    if (nextGel === (value ?? 0)) {
       setEditing(false);
       return;
     }
     setSaving(true);
     try {
-      await onSave(next);
+      await onSave(nextGel);
       setEditing(false);
     } finally {
       setSaving(false);
@@ -757,6 +783,7 @@ function InlineMoney({
   if (editing) {
     return (
       <div className="flex items-center gap-1 py-0.5">
+        <span className="text-[11px] font-bold text-slate-400">$</span>
         <input
           ref={inputRef}
           value={draft}
@@ -799,11 +826,11 @@ function InlineMoney({
       </span>
       <button
         type="button"
-        onClick={() => { setDraft(value ? String(Math.round(value)) : ''); setEditing(true); }}
-        title="ფასის შეცვლა"
+        onClick={() => { setDraft(value ? String(gelToUsd(value)) : ''); setEditing(true); }}
+        title="ფასის შეცვლა ($)"
         className="font-extrabold text-slate-800 hover:text-blue-600 transition-colors text-[13px]"
       >
-        {value ? GEL(value) : <span className="text-slate-300">ფასი —</span>}
+        {value ? USD(value) : <span className="text-slate-300">ფასი —</span>}
         {value && suffix ? <span className="text-[10px] font-bold text-slate-400">{suffix}</span> : null}
       </button>
 
@@ -827,6 +854,7 @@ function PriceCell({
   p: AdminPropertyRow;
   onPatch: (id: string, patch: PropertyPatch) => Promise<void>;
 }) {
+  const { USD } = useAdminUsd();
   const [historyAnchor, setHistoryAnchor] = useState<HTMLElement | null>(null);
 
   const history = p.priceHistory ?? [];
@@ -869,13 +897,13 @@ function PriceCell({
       >
         <History size={10} />
         {previous !== null
-          ? <span>წინა: <b className="text-slate-500">{GEL(previous)}</b></span>
+          ? <span>წინა: <b className="text-slate-500">{USD(previous)}</b></span>
           : <span>ისტორია ({history.length})</span>}
       </button>
 
       {historyAnchor && (
         <AnchoredPopover anchor={historyAnchor} width={310} onClose={() => setHistoryAnchor(null)}>
-          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">ფასის ისტორია</p>
+          <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-2">ფასის ისტორია ($)</p>
           {history.length === 0 ? (
             <p className="text-xs text-slate-400 py-2">ცვლილება ჯერ არ დაფიქსირებულა</p>
           ) : (
@@ -889,20 +917,20 @@ function PriceCell({
                     <div className="flex items-center gap-1.5 text-xs">
                       {from !== null ? (
                         <>
-                          <span className="text-slate-400 line-through">{GEL(from)}</span>
+                          <span className="text-slate-400 line-through">{USD(from)}</span>
                           <span className="text-slate-300">→</span>
-                          <span className="font-bold text-slate-800">{GEL(to)}</span>
+                          <span className="font-bold text-slate-800">{USD(to)}</span>
                           <span
                             className="ml-auto inline-flex items-center gap-0.5 text-[10px] font-extrabold"
                             style={{ color: up ? '#ef4444' : '#10b981' }}
                           >
                             {up ? <ArrowUp size={9} strokeWidth={3} /> : <ArrowDown size={9} strokeWidth={3} />}
-                            {GEL(Math.abs(to - from))}
+                            {USD(Math.abs(to - from))}
                           </span>
                         </>
                       ) : (
                         <>
-                          <span className="font-bold text-slate-800">{GEL(to)}</span>
+                          <span className="font-bold text-slate-800">{USD(to)}</span>
                           <span className="ml-auto text-[10px] font-bold text-slate-400">დამატება</span>
                         </>
                       )}
@@ -1265,9 +1293,13 @@ function OwnerCell({
   const [draft, setDraft] = useState<PropertyOwnerInfo>({});
 
   const owner = p.owner ?? {};
+  const hasContact = Boolean(owner.phone || owner.email || owner.idNumber || owner.address || owner.note);
+  const canMutateOwner = p.canEdit !== false;
+  const canOpenOwner = canMutateOwner || hasContact;
   const filled = Object.values(owner).some(v => v && String(v).trim());
 
   function open(e: ReactMouseEvent<HTMLButtonElement>) {
+    if (!canOpenOwner) return;
     setDraft({ ...owner });
     setEditing(!filled);
     setAnchor(anchor ? null : e.currentTarget);
@@ -1288,22 +1320,29 @@ function OwnerCell({
       <button
         type="button"
         onClick={open}
-        className="text-left min-w-0 max-w-[140px] group/owner"
-        title="მესაკუთრის ინფორმაცია"
+        className="text-left min-w-0 max-w-[140px] group/owner disabled:cursor-default"
+        title={canOpenOwner ? 'მესაკუთრის ინფორმაცია' : (owner.name || 'მესაკუთრის კონტაქტი დაფარულია')}
+        disabled={!canOpenOwner}
       >
         {filled ? (
           <>
-            <span className="block text-xs font-bold text-slate-700 truncate group-hover/owner:text-blue-600 transition-colors">
+            <span className={`block text-xs font-bold text-slate-700 truncate ${canOpenOwner ? 'group-hover/owner:text-blue-600 transition-colors' : ''}`}>
               {owner.name || 'უსახელო'}
             </span>
-            <span className="block text-[10px] text-slate-400 truncate">
-              {owner.phone || owner.email || 'დეტალები'}
-            </span>
+            {hasContact ? (
+              <span className="block text-[10px] text-slate-400 truncate">
+                {owner.phone || owner.email}
+              </span>
+            ) : canOpenOwner ? (
+              <span className="block text-[10px] text-slate-400 truncate">დეტალები</span>
+            ) : null}
           </>
-        ) : (
+        ) : canOpenOwner ? (
           <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-300 hover:text-blue-500 transition-colors">
             <Plus size={11} /> მესაკუთრე
           </span>
+        ) : (
+          <span className="text-[11px] font-semibold text-slate-300">—</span>
         )}
       </button>
 
@@ -1311,7 +1350,7 @@ function OwnerCell({
         <AnchoredPopover anchor={anchor} width={320} onClose={() => setAnchor(null)}>
           <div className="flex items-center justify-between mb-2.5">
             <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">მესაკუთრე</p>
-            {!editing && (
+            {!editing && canMutateOwner && (
               <button
                 type="button"
                 onClick={() => { setDraft({ ...owner }); setEditing(true); }}
@@ -1684,8 +1723,31 @@ function NotesButton({
   );
 }
 
+export interface ListingStaffOption {
+  id: number;
+  name: string;
+  fullName?: string;
+  role: string;
+  jobTitle?: string | null;
+}
+
+export interface ListingsSummary {
+  total: number;
+  sale: number;
+  rent: number;
+  new: number;
+  current: number;
+  old: number;
+  new_r: number;
+}
+
 interface AdminPropertiesSectionProps {
   properties: AdminPropertyRow[];
+  total?: number;
+  page?: number;
+  limit?: number;
+  summary?: ListingsSummary | null;
+  staffOptions?: ListingStaffOption[];
   onPatch: (id: string, patch: PropertyPatch) => Promise<void>;
   onDelete: (id: string) => void;
   showToast?: (message: string, type?: 'success' | 'error') => void;
@@ -1693,13 +1755,54 @@ interface AdminPropertiesSectionProps {
 
 export default function AdminPropertiesSection({
   properties,
+  total = 0,
+  page = 1,
+  limit = 20,
+  summary,
+  staffOptions = [],
   onPatch,
   onDelete,
   showToast,
 }: AdminPropertiesSectionProps) {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, can } = useAdminAuth();
   const api = useApiRequest();
+  const staffId = searchParams.get('staff') || '';
+  const memberQ = searchParams.get('member') || '';
+  const [memberDraft, setMemberDraft] = useState(memberQ);
+
+  useEffect(() => { setMemberDraft(memberQ); }, [memberQ]);
+
+  function patchQuery(next: Record<string, string | null>, resetPage = true) {
+    const params = new URLSearchParams(searchParams);
+    params.set('section', 'properties');
+    for (const [key, value] of Object.entries(next)) {
+      if (value) params.set(key, value);
+      else params.delete(key);
+    }
+    if (resetPage) params.delete('page');
+    setSearchParams(params, { replace: true });
+  }
+
+  function openEdit(id: string) {
+    sessionStorage.setItem('admin-listings-scroll', String(window.scrollY));
+    const from = `?${searchParams.toString()}`;
+    navigate(`/admin/listings/${id}/edit?from=${encodeURIComponent(from)}`);
+  }
+
+  useLayoutEffect(() => {
+    const y = sessionStorage.getItem('admin-listings-scroll');
+    if (!y) return;
+    window.scrollTo(0, Number(y));
+    sessionStorage.removeItem('admin-listings-scroll');
+  }, []);
+
+  useEffect(() => {
+    if (page > 1 && properties.length === 0 && total > 0) {
+      patchQuery({ page: String(page - 1) }, false);
+    }
+  }, [page, properties.length, total]);
 
   // The server already strips what this account may not see; these keep the
   // matching controls out of the table so nothing looks editable but isn't.
@@ -1707,16 +1810,26 @@ export default function AdminPropertiesSection({
   const canOwner = can('listings.owner');
   const canContracts = can('listings.contracts');
   const canNotes = can('listings.notes');
-  const canFlags = can('listings.flags');
   const canLifecycle = can('listings.lifecycle');
   const canEdit = can('listings.edit');
   const canDelete = can('listings.delete');
   const canTasks = can('listings.tasks');
+  const { USD } = useAdminUsd();
 
   const [workPanel, setWorkPanel] = useState<AdminPropertyRow | null>(null);
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => searchParams.get('q') || '');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const next = search.trim();
+      const current = searchParams.get('q') || '';
+      if (next === current) return;
+      patchQuery({ q: next || null });
+    }, 400);
+    return () => window.clearTimeout(timer);
+  }, [search]);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>('current');
+  const [lifecycleFilter, setLifecycleFilter] = useState<LifecycleFilter>('all');
   const [typeFilter, setTypeFilter] = useState('all');
   const [badgeFilter, setBadgeFilter] = useState<BadgeFilter>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all');
@@ -1735,23 +1848,20 @@ export default function AdminPropertiesSection({
     [properties, mode],
   );
 
-  const archivedCount = useMemo(
-    () => properties.filter(p => lifecycleOf(p) === 'old').length,
-    [properties],
-  );
+  const archivedCount = summary?.old ?? properties.filter(p => lifecycleOf(p) === 'old').length;
 
   const stats = useMemo(() => {
     const byState = (state: string) => pool.filter(p => lifecycleOf(p) === state).length;
     return {
-      total: pool.length,
-      sale: pool.filter(sellsAt).length,
-      rent: pool.filter(rentsAt).length,
+      total: summary?.total ?? pool.length,
+      sale: summary?.sale ?? pool.filter(sellsAt).length,
+      rent: summary?.rent ?? pool.filter(rentsAt).length,
       premium: pool.filter(p => p.isPremium).length,
       views: pool.reduce((s, p) => s + (p.viewCount || 0), 0),
-      new: byState('new'),
-      current: byState('current'),
-      old: byState('old'),
-      newR: byState('new_r'),
+      new: summary?.new ?? byState('new'),
+      current: summary?.current ?? byState('current'),
+      old: summary?.old ?? byState('old'),
+      newR: summary?.new_r ?? byState('new_r'),
       rentedOwner: pool.filter(p => outcomeOf(p) === 'rented_owner').length,
       freeingSoon: pool.filter(p => {
         if (lifecycleOf(p) !== 'old') return false;
@@ -1759,7 +1869,7 @@ export default function AdminPropertiesSection({
         return days !== null && days >= 0 && days <= 30;
       }).length,
     };
-  }, [pool]);
+  }, [pool, summary]);
 
   /* Rentals whose term ran out — the call-back list. */
   const needsCall = useMemo(
@@ -2011,6 +2121,52 @@ export default function AdminPropertiesSection({
           )}
         </div>
 
+        <div className="grid gap-2 sm:grid-cols-2">
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400">შიდა მომხმარებელი</span>
+            <select
+              value={staffId}
+              onChange={e => patchQuery({ staff: e.target.value || null })}
+              className="w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-sm font-medium text-slate-800 focus:outline-none"
+            >
+              <option value="">ყველა ბროკერი / პორტფოლიო</option>
+              {staffOptions.map(opt => (
+                <option key={opt.id} value={String(opt.id)}>
+                  {opt.name}{opt.jobTitle ? ` (${opt.jobTitle})` : opt.role ? ` (${roleLabel(opt.role)})` : ''}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[10px] font-bold uppercase tracking-widest text-slate-400">გარე მომხმარებელი</span>
+            <div className="relative">
+              <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={memberDraft}
+                onChange={e => setMemberDraft(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') patchQuery({ member: memberDraft.trim() || null });
+                }}
+                onBlur={() => {
+                  if (memberDraft.trim() !== memberQ) patchQuery({ member: memberDraft.trim() || null });
+                }}
+                placeholder="სახელი ან მობილური"
+                className="w-full rounded-xl border border-slate-200 bg-slate-50/50 py-2 pl-9 pr-9 text-sm font-medium text-slate-800 placeholder-slate-400 focus:outline-none"
+              />
+              {memberDraft && (
+                <button
+                  type="button"
+                  onClick={() => { setMemberDraft(''); patchQuery({ member: null }); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </label>
+        </div>
+
         {/* Lifecycle: the client's own new → current → old → new R vocabulary */}
         {mode === 'active' && (
         <div className="flex flex-wrap items-center gap-1.5">
@@ -2105,7 +2261,8 @@ export default function AdminPropertiesSection({
           )}
 
           <span className="text-xs text-slate-400 ml-auto font-medium">
-            ნაჩვენებია <b className="text-slate-700">{filtered.length}</b> / {pool.length}
+            ნაჩვენებია <b className="text-slate-700">{filtered.length}</b>
+            {total ? ` / ${total}` : ''}
           </span>
         </div>
       </div>
@@ -2113,64 +2270,49 @@ export default function AdminPropertiesSection({
       {/* Table */}
       <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm min-w-[1340px]">
+          <table className="w-full text-[12px] min-w-[1100px]">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50/80">
-                <th className="text-left py-3.5 pl-5 pr-2 w-[176px] min-w-[176px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ფოტო</th>
-                <th className="text-left py-3.5 px-2 w-[248px]">
-                  <SortHeader label="მისამართი" sortKey="city" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                </th>
-                <th className="text-left py-3.5 px-2 w-[172px]">
+              <tr className="border-b border-slate-200 bg-slate-50/90">
+                <th className="py-2 pl-3 pr-1 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">ID</th>
+                <th className="py-2 px-1.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">განცხადება</th>
+                <th className="py-2 px-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">ოთ.</th>
+                <th className="py-2 px-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">სართ.</th>
+                <th className="py-2 px-1.5 text-left">
                   <SortHeader label="ფასი" sortKey="price" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
                 {canOwner && (
-                  <th className="text-left py-3.5 px-2 w-[144px]">
+                  <th className="py-2 px-1.5 text-left">
                     <SortHeader label="მესაკუთრე" sortKey="owner" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                   </th>
                 )}
-                <th className="text-left py-3.5 px-2 w-[142px]">
+                <th className="py-2 px-1.5 text-left text-[10px] font-bold uppercase tracking-wider text-slate-500">განთავსება</th>
+                <th className="py-2 px-1.5 text-left">
                   <SortHeader label="სტატუსი" sortKey="lifecycle" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
-                {canContracts && (
-                  <th className="text-left py-3.5 px-2 w-[96px] text-[10px] font-bold uppercase tracking-wider text-slate-500">ხელშეკრ.</th>
-                )}
-                <th className="text-left py-3.5 px-2 hidden lg:table-cell">
-                  <SortHeader label="ტიპი" sortKey="type" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                </th>
-                <th className="text-left py-3.5 px-2 hidden 2xl:table-cell">
-                  <SortHeader label="₾/მ²" sortKey="pricePerSqm" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                </th>
-                <th className="text-left py-3.5 px-2">
-                  <SortHeader label="პარამეტრები" sortKey="area" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                </th>
-                <th className="text-left py-3.5 px-2 hidden 2xl:table-cell">
-                  <SortHeader label="აგენტი" sortKey="agentName" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
-                </th>
-                <th className="text-left py-3.5 px-2 hidden xl:table-cell">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">აქტივობა</span>
-                </th>
-                <th className="text-left py-3.5 px-2 hidden xl:table-cell">
+                <th className="py-2 px-1.5 text-center bg-slate-100/80">
                   <SortHeader label="თარიღი" sortKey="createdAt" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
-                {canFlags && (
-                  <th className="text-center py-3.5 px-2 text-[10px] font-bold uppercase tracking-wider text-slate-500">სტიკერები</th>
-                )}
+                <th className="py-2 px-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">წყარო</th>
+                <th className="py-2 px-1.5 text-left">
+                  <SortHeader label="აგენტი" sortKey="agentName" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                </th>
+                <th className="py-2 px-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">ნახ.</th>
                 <th
-                  className="py-3.5 pr-5 pl-2 w-[112px] sticky right-0 bg-slate-50"
-                  style={{ boxShadow: '-10px 0 12px -10px rgba(15,23,42,0.12)' }}
+                  className="py-2 pr-3 pl-1 w-[72px] sticky right-0 bg-slate-50"
+                  style={{ boxShadow: '-8px 0 10px -8px rgba(15,23,42,0.12)' }}
                 />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
+            <tbody className="divide-y divide-slate-100">
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={14} className="py-16 text-center">
+                  <td colSpan={13} className="py-16 text-center">
                     <Building2 size={32} className="mx-auto text-slate-200 mb-3" />
                     <p className="text-slate-500 font-semibold text-sm">
-                      {hasFilters ? 'ფილტრებით ვერაფერი მოიძებნა' : 'განცხადება ჯერ არ არის'}
+                      {hasFilters || staffId || memberQ ? 'ფილტრებით ვერაფერი მოიძებნა' : 'განცხადება ჯერ არ არის'}
                     </p>
-                    {hasFilters && (
-                      <button type="button" onClick={clearFilters} className="mt-2 text-xs font-bold text-blue-600 hover:underline">
+                    {(hasFilters || staffId || memberQ) && (
+                      <button type="button" onClick={() => { clearFilters(); patchQuery({ staff: null, member: null }); setMemberDraft(''); }} className="mt-2 text-xs font-bold text-blue-600 hover:underline">
                         ფილტრების გასუფთავება
                       </button>
                     )}
@@ -2178,163 +2320,117 @@ export default function AdminPropertiesSection({
                 </tr>
               ) : filtered.map(p => {
                 const state = lifecycleOf(p);
+                const updated = formatDotDate(p.updatedAt || p.createdAt);
+                const created = formatDotDate(p.createdAt || p.listedDate);
                 return (
                 <tr
                   key={p.id}
-                  className="hover:bg-blue-50/30 transition-colors group"
+                  className="group hover:bg-blue-50/30"
                   style={state === 'new_r' ? { background: 'rgba(239,68,68,0.045)' } : undefined}
                 >
-                  <td className="py-3 pl-5 pr-2">
-                    <ListingLeadCell
-                      p={p}
-                      onOpen={() => navigate(`/admin/listings/${p.id}/edit`)}
-                    />
+                  <td className="py-1.5 pl-3 pr-1 align-top">
+                    <ListingLeadCell p={p} onOpen={() => openEdit(p.id)} />
                   </td>
-                  <td className="py-3 px-2">
-                    <AddressCell p={p} />
+                  <td className="py-1.5 px-1.5 align-top min-w-[180px] max-w-[260px]">
+                    <p className="text-[12px] font-semibold leading-snug text-slate-800 line-clamp-2">{p.title || '—'}</p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+                      {TYPE_LABELS[p.type] || p.type}
+                      {p.district ? `, ${p.district}` : ''}
+                      {p.city ? `, ${p.city}` : ''}
+                    </p>
+                    {p.area ? (
+                      <p className="mt-0.5 text-[10px] text-slate-400">{Number(p.area).toLocaleString('ka-GE')} მ²</p>
+                    ) : null}
+                    {!p.title ? <AddressCell p={p} /> : null}
+                    {canContracts && (p.contracts?.length ?? 0) > 0 ? (
+                      <p className="mt-0.5 text-[10px] font-semibold text-slate-400">ხელშ. {p.contracts!.length}</p>
+                    ) : null}
                   </td>
-                  <td className="py-3 px-2">
+                  <td className="py-1.5 px-1.5 text-center align-middle font-semibold tabular-nums text-slate-700">
+                    {p.bedrooms || '—'}
+                  </td>
+                  <td className="py-1.5 px-1.5 text-center align-middle tabular-nums text-slate-700 whitespace-nowrap">
+                    {p.floor ? `${p.floor}${p.totalFloors ? ` (${p.totalFloors})` : ''}` : '—'}
+                  </td>
+                  <td className="py-1.5 px-1.5 align-middle">
                     {canPrice
                       ? <PriceCell p={p} onPatch={onPatch} />
-                      : <span className="text-sm font-extrabold text-slate-800 whitespace-nowrap">{GEL(p.price)}</span>}
+                      : (
+                        <>
+                          <p className="font-extrabold text-slate-800 whitespace-nowrap">{USD(p.price)}</p>
+                          <p className="text-[10px] font-semibold text-slate-400">{STATUS_LABEL[p.status] || p.status}</p>
+                        </>
+                      )}
                   </td>
                   {canOwner && (
-                    <td className="py-3 px-2">
+                    <td className="py-1.5 px-1.5 align-middle">
                       <OwnerCell p={p} onPatch={onPatch} />
                     </td>
                   )}
-                  <td className="py-3 px-2">
+                  <td className="py-1.5 px-1.5 align-middle whitespace-nowrap">
+                    <p className="text-[11px] font-bold text-slate-600">{p.placement === 'paid' ? 'ფასიანი' : 'უფასო'}</p>
+                    {p.placement === 'paid' && p.placementPackage ? (
+                      <p className="text-[10px] text-slate-400">{p.placementPackage}</p>
+                    ) : null}
+                  </td>
+                  <td className="py-1.5 px-1.5 align-middle">
                     {canLifecycle
                       ? <LifecycleCell p={p} onPatch={onPatch} />
                       : <Badge label={LIFECYCLE_META[state]?.label ?? state} color={LIFECYCLE_META[state]?.color ?? '#94a3b8'} />}
                   </td>
-                  {canContracts && (
-                    <td className="py-3 px-2">
-                      <ContractCell p={p} onPatch={onPatch} />
-                    </td>
-                  )}
-                  <td className="py-3 px-2 hidden lg:table-cell">
-                    <Badge label={TYPE_LABELS[p.type] || p.type} color={TYPE_COLORS[p.type] || '#94a3b8'} />
+                  <td className="py-1.5 px-1.5 align-middle bg-slate-50/90 text-center leading-tight">
+                    <p className="font-semibold tabular-nums text-slate-700">{updated || '—'}</p>
+                    <p className="tabular-nums text-[11px] text-slate-400">{created && created !== updated ? created : created || ''}</p>
                   </td>
-                  <td className="py-3 px-2 hidden 2xl:table-cell whitespace-nowrap text-xs text-slate-500">
-                    {p.pricePerSqm ? GEL(p.pricePerSqm) : '—'}
-                  </td>
-                  <td className="py-3 px-2 whitespace-nowrap">
-                    <div className="flex items-center gap-2.5 text-xs text-slate-600">
-                      <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                        <Ruler size={11} className="text-slate-400" />
-                        {p.area ? `${Number(p.area).toLocaleString('ka-GE')} მ²` : '—'}
+                  <td className="py-1.5 px-1.5 align-middle text-center">
+                    {p.origin && p.origin !== 'office' ? (
+                      <span className="inline-block max-w-[88px] text-[9px] font-bold leading-tight text-slate-500" title={ORIGIN_LABEL[p.origin]}>
+                        {p.origin === 'imported' ? 'გადმ.' : 'მესაკ.'}
                       </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Bed size={11} className="text-slate-400" />
-                        {p.bedrooms || '—'}
-                      </span>
-                      <span className="inline-flex items-center gap-1">
-                        <Layers size={11} className="text-slate-400" />
-                        {p.floor ? `${p.floor}${p.totalFloors ? `/${p.totalFloors}` : ''}` : '—'}
-                      </span>
-                    </div>
-                  </td>
-                  <td className="py-3 px-2 hidden 2xl:table-cell max-w-[140px]">
-                    {p.agentName ? (
-                      <div className="min-w-0">
-                        <p className="text-xs font-semibold text-slate-700 truncate flex items-center gap-1">
-                          <User size={10} className="text-slate-400 flex-shrink-0" />
-                          {p.agentName}
-                        </p>
-                        {p.agentPhone && (
-                          <p className="text-[10px] text-slate-400 truncate flex items-center gap-1 mt-0.5">
-                            <Phone size={9} />
-                            {p.agentPhone}
-                          </p>
-                        )}
-                      </div>
                     ) : (
-                      <span className="text-xs text-slate-300">—</span>
+                      <span className="text-slate-300">·</span>
                     )}
                   </td>
-                  <td className="py-3 px-2 hidden xl:table-cell">
-                    <div className="text-[10px] leading-relaxed text-slate-600 font-medium space-y-0.5">
-                      <p>30დ: <b className="text-slate-800">{p.offersLast30Days ?? 0}</b> კლიენტი</p>
-                      <p>60დ: <b className="text-slate-800">{p.offersLast60Days ?? 0}</b> კლიენტი</p>
-                      <p className="inline-flex items-center gap-1">
-                        <Eye size={10} className="text-slate-400" />
-                        საიტზე: <b className="text-slate-800">{(p.viewCount ?? 0).toLocaleString('ka-GE')}</b>
+                  <td className="py-1.5 px-1.5 align-middle max-w-[140px]">
+                    <p className="truncate text-[12px] font-semibold text-blue-600">{p.staffName || p.agentName || '—'}</p>
+                    {(p.staffJobTitle || p.staffRole) && (
+                      <p className="truncate text-[10px] text-slate-400">
+                        ({p.staffJobTitle || roleLabel(p.staffRole || '')})
                       </p>
-                    </div>
+                    )}
                   </td>
-                  <td className="py-3 px-2 hidden xl:table-cell whitespace-nowrap">
-                    <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                      <Calendar size={10} className="text-slate-400" />
-                      {fmtDate(p.createdAt || p.listedDate)}
-                    </span>
+                  <td className="py-1.5 px-1.5 text-center align-middle tabular-nums text-slate-600">
+                    {p.viewCount ?? 0}
                   </td>
-                  {canFlags && (
-                    <td className="py-3 px-2">
-                      <div className="flex items-center justify-center gap-1.5">
-                        <Toggle on={p.isPremium} onToggle={() => onPatch(p.id, { isPremium: !p.isPremium })} label="VIP" color="#f59e0b" />
-                        <Toggle on={p.isFeatured} onToggle={() => onPatch(p.id, { isFeatured: !p.isFeatured })} label="გამორჩეული" color="#2563eb" />
-                        <Toggle on={p.isNew} onToggle={() => onPatch(p.id, { isNew: !p.isNew })} label="ახალი" color="#10B981" />
-                      </div>
-                    </td>
-                  )}
                   <td
-                    className="py-3 pr-5 pl-2 sticky right-0 bg-white group-hover:bg-[#f5f9ff] transition-colors"
+                    className="sticky right-0 bg-white py-1.5 pl-1 pr-3 align-middle group-hover:bg-[#f5f9ff]"
                     style={{
-                      boxShadow: '-10px 0 12px -10px rgba(15,23,42,0.12)',
+                      boxShadow: '-8px 0 10px -8px rgba(15,23,42,0.12)',
                       ...(state === 'new_r' ? { background: '#fdf3f3' } : null),
                     }}
                   >
-                    <div className="flex flex-col items-end gap-1">
-                      <div className="flex items-center gap-0.5 opacity-60 group-hover:opacity-100 transition-opacity">
-                        <a
-                          href={`/property/${p.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors"
-                          title="საიტზე ნახვა"
-                        >
-                          <ExternalLink size={14} />
-                        </a>
-                        {canTasks && (
-                          <button
-                            type="button"
-                            onClick={() => setWorkPanel(p)}
-                            className="p-1.5 rounded-lg hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
-                            title="დავალებები და ზარები"
-                          >
-                            <ClipboardList size={14} />
-                          </button>
-                        )}
-                        {canEdit && (p.canEdit === false ? (
-                          <span
-                            className="p-1.5 rounded-lg text-slate-300"
-                            title="გადმოცემული განცხადება — რედაქტირება მხოლოდ ავტორს შეუძლია"
-                          >
-                            <Lock size={14} />
-                          </span>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/admin/listings/${p.id}/edit`)}
-                            className="p-1.5 rounded-lg hover:bg-blue-50 text-slate-400 hover:text-blue-600 transition-colors"
-                            title="რედაქტირება"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        ))}
-                        {canDelete && p.canEdit !== false && (
-                          <button
-                            type="button"
-                            onClick={() => onDelete(p.id)}
-                            className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"
-                            title="წაშლა"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        )}
-                      </div>
+                    <div className="flex flex-col items-end gap-0.5">
+                      {canEdit && (p.canEdit === false ? (
+                        <span className="p-1 text-slate-300" title="რედაქტირება მხოლოდ საკუთარ განცხადებაზე შეგიძლიათ">
+                          <Lock size={13} />
+                        </span>
+                      ) : (
+                        <button type="button" onClick={() => openEdit(p.id)} className="p-1 text-slate-400 hover:text-blue-600" title="რედაქტირება">
+                          <Pencil size={13} />
+                        </button>
+                      ))}
                       {canNotes && <NotesButton p={p} onPatch={onPatch} />}
+                      {canContracts && <ContractCell p={p} onPatch={onPatch} />}
+                      {canTasks && (
+                        <button type="button" onClick={() => setWorkPanel(p)} className="p-1 text-slate-400 hover:text-indigo-600" title="დავალებები">
+                          <ClipboardList size={13} />
+                        </button>
+                      )}
+                      {canDelete && p.canEdit !== false && (
+                        <button type="button" onClick={() => onDelete(p.id)} className="p-1 text-slate-400 hover:text-red-600" title="წაშლა">
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -2343,6 +2439,46 @@ export default function AdminPropertiesSection({
             </tbody>
           </table>
         </div>
+        {total > 0 && (
+          <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-[11px] font-medium text-slate-500">
+              Showing {total === 0 ? 0 : (page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total} entries
+            </p>
+            <div className="flex flex-wrap items-center gap-1">
+              {([
+                ['First', 1],
+                ['Previous', Math.max(1, page - 1)],
+              ] as const).map(([label, target]) => (
+                <button
+                  key={label}
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => patchQuery({ page: String(target) }, false)}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 disabled:opacity-40"
+                >
+                  {label}
+                </button>
+              ))}
+              <span className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700">
+                Page {page} of {Math.max(1, Math.ceil(total / limit))}
+              </span>
+              {([
+                ['Next', Math.min(Math.max(1, Math.ceil(total / limit)), page + 1)],
+                ['Last', Math.max(1, Math.ceil(total / limit))],
+              ] as const).map(([label, target]) => (
+                <button
+                  key={label}
+                  type="button"
+                  disabled={page >= Math.max(1, Math.ceil(total / limit))}
+                  onClick={() => patchQuery({ page: String(target) }, false)}
+                  className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-600 disabled:opacity-40"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {workPanel && (
