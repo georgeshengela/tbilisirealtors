@@ -2442,12 +2442,12 @@ export default function AdminPropertiesSection({
         {total > 0 && (
           <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-2.5 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[11px] font-medium text-slate-500">
-              Showing {total === 0 ? 0 : (page - 1) * limit + 1} to {Math.min(page * limit, total)} of {total} entries
+              ნაჩვენებია {total === 0 ? 0 : (page - 1) * limit + 1}–{Math.min(page * limit, total)} / {total}
             </p>
             <div className="flex flex-wrap items-center gap-1">
               {([
-                ['First', 1],
-                ['Previous', Math.max(1, page - 1)],
+                ['პირველი', 1],
+                ['წინა', Math.max(1, page - 1)],
               ] as const).map(([label, target]) => (
                 <button
                   key={label}
@@ -2460,11 +2460,11 @@ export default function AdminPropertiesSection({
                 </button>
               ))}
               <span className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-bold text-slate-700">
-                Page {page} of {Math.max(1, Math.ceil(total / limit))}
+                გვერდი {page} / {Math.max(1, Math.ceil(total / limit))}
               </span>
               {([
-                ['Next', Math.min(Math.max(1, Math.ceil(total / limit)), page + 1)],
-                ['Last', Math.max(1, Math.ceil(total / limit))],
+                ['შემდეგი', Math.min(Math.max(1, Math.ceil(total / limit)), page + 1)],
+                ['ბოლო', Math.max(1, Math.ceil(total / limit))],
               ] as const).map(([label, target]) => (
                 <button
                   key={label}
