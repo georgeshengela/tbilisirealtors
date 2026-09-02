@@ -40,7 +40,7 @@ function agentFromPropertyRow(row: ApiPropertyRow): Agent {
   return {
     id: row.agentId || 'agency',
     name: row.agentName || 'TBILISIREALTOR.GE',
-    photo: PLACEHOLDER_AGENT,
+    photo: '',
     phone: row.agentPhone || '',
     email: row.agentEmail || '',
     rating: 5,

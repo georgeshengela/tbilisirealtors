@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Phone, Mail, MapPin, Send,
-  Building, Home, Star, Key, Layers, Tag,
+  Building,
   Users, BookOpen, Info, MessageSquare, Briefcase,
   ArrowUpRight, CheckCircle, Globe,
   Shield, Rocket, type LucideIcon,
@@ -13,6 +13,7 @@ import ContactAddress from './ContactAddress';
 import BrandLogo from './BrandLogo';
 import { useTranslation } from '../i18n/LocaleContext';
 import { submitLead } from '../lib/leads';
+import { FOOTER_SEARCH_LINKS } from '../data/footerSearches';
 
 const SocialIcon = ({ label }: { label: string }) => {
   if (label === 'Facebook') return (
@@ -67,15 +68,6 @@ export default function Footer() {
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
 
-  const PROPERTY_LINKS = useMemo(() => [
-    { label: t('footer.apartments'), href: '/listings?type=apartment', icon: Building, color: '#2563eb' },
-    { label: t('footer.houses'), href: '/listings?type=house', icon: Home, color: '#10b981' },
-    { label: t('footer.villas'), href: '/listings?type=villa', icon: Star, color: '#ec4899' },
-    { label: t('footer.commercial'), href: '/listings?type=commercial', icon: Layers, color: '#f59e0b' },
-    { label: t('footer.forRent'), href: '/listings?status=rent', icon: Key, color: '#2563eb' },
-    { label: t('footer.premium'), href: '/listings?premium=true', icon: Tag, color: '#06b6d4' },
-  ], [t]);
-
   const COMPANY_LINKS = useMemo(() => [
     { label: t('footer.about'), href: '/about', icon: Info },
     { label: t('footer.agents'), href: '/agents', icon: Users },
@@ -83,15 +75,6 @@ export default function Footer() {
     { label: t('footer.contact'), href: '/contact', icon: MessageSquare },
     { label: t('footer.updates'), href: '/updates', icon: Rocket },
     { label: t('footer.careers'), href: '#', icon: Briefcase },
-  ], [t]);
-
-  const CITY_LINKS = useMemo(() => [
-    { label: t('listings.cities.tbilisi'), href: '/listings?city=თბილისი', count: '2,847' },
-    { label: t('listings.cities.batumi'), href: '/listings?city=ბათუმი', count: '1,234' },
-    { label: t('listings.cities.kutaisi'), href: '/listings?city=ქუთაისი', count: '567' },
-    { label: t('listings.cities.mtskheta'), href: '/listings?city=მცხეთა', count: '312' },
-    { label: t('listings.cities.sighnaghi'), href: '/listings?city=სიღნაღი', count: '198' },
-    { label: t('listings.cities.gori'), href: '/listings?city=გორი', count: '143' },
   ], [t]);
 
   const handleSubscribe = async () => {
@@ -311,33 +294,6 @@ export default function Footer() {
               </div>
             </div>
 
-            {/* Property links */}
-            <div className="lg:col-span-2">
-              <SectionTitle icon={Building}>{t('footer.properties')}</SectionTitle>
-              <ul className="space-y-1">
-                {PROPERTY_LINKS.map(link => (
-                  <li key={link.label}>
-                    <Link
-                      to={link.href}
-                      className="flex items-center gap-2.5 py-2 px-2.5 rounded-xl text-sm transition-all duration-150"
-                      style={{ color: 'rgba(255,255,255,0.45)', textDecoration: 'none' }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLElement).style.color = '#fff';
-                        (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)';
-                      }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.45)';
-                        (e.currentTarget as HTMLElement).style.background = 'transparent';
-                      }}
-                    >
-                      <link.icon size={14} strokeWidth={2} style={{ color: link.color, flexShrink: 0 }} />
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
             {/* Company links */}
             <div className="lg:col-span-2">
               <SectionTitle icon={Info}>{t('footer.company')}</SectionTitle>
@@ -366,48 +322,31 @@ export default function Footer() {
               </ul>
             </div>
 
-            {/* Cities */}
-            <div className="lg:col-span-4">
-              <SectionTitle icon={MapPin}>{t('footer.cities')}</SectionTitle>
-              <div className="grid grid-cols-2 gap-2.5">
-                {CITY_LINKS.map(city => (
-                  <Link
-                    key={city.label}
-                    to={city.href}
-                    className="group flex items-center justify-between px-3.5 py-3 rounded-xl transition-all duration-200"
-                    style={{
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid rgba(255,255,255,0.07)',
-                      textDecoration: 'none',
-                    }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(37, 99, 235,0.12)';
-                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37, 99, 235,0.28)';
-                      (e.currentTarget as HTMLElement).style.transform = 'translateY(-1px)';
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
-                      (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.07)';
-                      (e.currentTarget as HTMLElement).style.transform = 'none';
-                    }}
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <MapPin size={12} style={{ color: '#2563eb', flexShrink: 0 }} />
-                      <span className="text-sm font-semibold truncate" style={{ color: 'rgba(255,255,255,0.8)' }}>{city.label}</span>
-                    </div>
-                    <span
-                      className="text-[10px] font-bold px-2 py-0.5 rounded-md flex-shrink-0 ml-2"
-                      style={{ background: 'rgba(255,255,255,0.06)', color: 'rgba(255,255,255,0.35)' }}
+            {/* Popular listing searches */}
+            <div className="lg:col-span-6">
+              <SectionTitle icon={Building}>{t('footer.listings')}</SectionTitle>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-6">
+                {FOOTER_SEARCH_LINKS.map(link => (
+                  <li key={link.label}>
+                    <Link
+                      to={link.href}
+                      className="flex items-center py-1.5 px-2 rounded-lg text-[13px] leading-snug transition-colors duration-150"
+                      style={{ color: 'rgba(255,255,255,0.48)', textDecoration: 'none' }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLElement).style.color = '#fff';
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.48)';
+                      }}
                     >
-                      {city.count}
-                    </span>
-                  </Link>
+                      {link.label}
+                    </Link>
+                  </li>
                 ))}
-              </div>
+              </ul>
 
-              {/* Address */}
               <div
-                className="mt-5 rounded-2xl p-4 flex items-start gap-3"
+                className="mt-6 rounded-2xl p-4 flex items-start gap-3"
                 style={{
                   background: 'linear-gradient(135deg, rgba(19,27,46,0.8), rgba(15,23,42,0.6))',
                   border: '1px solid rgba(37, 99, 235,0.15)',

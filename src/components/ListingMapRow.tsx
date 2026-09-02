@@ -4,6 +4,7 @@ import { ArrowUpRight, Bed, Heart, Maximize2, MapPin, Sparkles } from 'lucide-re
 import type { Property } from '../types/listing';
 import { formatListedDate } from '../lib/dateFormat';
 import { useLocale, useTranslation } from '../i18n/LocaleContext';
+import { propertyHref } from '../lib/seoPropertyUrl';
 
 interface ListingMapRowProps {
   property: Property;
@@ -39,7 +40,7 @@ export default function ListingMapRow({
       onMouseEnter={() => onHover?.(property.id)}
       onMouseLeave={() => onHover?.(null)}
     >
-      <Link to={`/property/${property.id}`} className="listing-map-row__link">
+      <Link to={propertyHref(property)} className="listing-map-row__link">
         <div className="listing-map-row__image">
           <img src={property.images[0]} alt={property.title} loading="lazy" />
           <span className="listing-map-row__scrim" aria-hidden="true" />

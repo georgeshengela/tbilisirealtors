@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { useParams, Link, Navigate } from 'react-router-dom';
+import { useParams, useLocation, useNavigate, Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight, ArrowUpRight, Bath, Bed, Building2, Calendar, CheckCircle2, ChevronLeft, ChevronRight,
@@ -16,6 +16,9 @@ import BookViewingModal from '../components/BookViewingModal';
 import PriceCurrencyToggle from '../components/PriceCurrencyToggle';
 import { submitLead } from '../lib/leads';
 import { applySeo, clipMeta, pageUrl, setJsonLd, SITE_NAME, absoluteImage } from '../lib/seo';
+import { personInitials } from '../lib/personInitials';
+import { listingsHref } from '../lib/seoListingsUrl';
+import { parsePropertyId, propertyHref, propertySeoCopy } from '../lib/seoPropertyUrl';
 
 /** Long descriptions collapse to a few lines until the reader asks for more. */
 const CLAMP_AT_CHARS = 460;
@@ -62,8 +65,15 @@ export default function PropertyDetailPage() {
   const { t } = useTranslation();
   const { locale } = useLocale();
   const { formatMoney } = useCurrency();
-  const { id } = useParams();
+  const { id: paramId } = useParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const id = parsePropertyId(location.pathname) ?? paramId;
   const { data: property, loading } = useProperty(id);
+  const seo = useMemo(
+    () => (property ? propertySeoCopy(property, locale === 'en' ? 'en' : 'ka') : null),
+    [property, locale],
+  );
   const { data: allProperties } = useProperties();
 
   const [isFavorited, toggleFavorite] = useIsFavorite(id ?? '');
@@ -149,29 +159,40 @@ export default function PropertyDetailPage() {
   };
 
   useEffect(() => {
-    if (!property) return;
-    const statusKey = property.status === 'rent' || property.status === 'daily_rent' ? 'rent' : 'sale';
-    const status = t(`propertyStatus.${statusKey}`);
-    const typeKey = property.type === 'hotel' ? 'home.propertyTypes.hotel' : `propertyTypes.${property.type}`;
-    const typeLabel = t(typeKey);
-    const place = [property.district, property.city].filter(Boolean).join(', ');
-    const area = property.area ? `${property.area} მ²` : '';
+    if (!property || !seo) return;
+    const canonical = propertyHref(property);
+    const current = location.pathname.endsWith('/') ? location.pathname : `${location.pathname}/`;
+    if (current !== canonical) {
+      navigate(`${canonical}${location.search}${location.hash}`, { replace: true });
+    }
+  }, [property, seo, location.pathname, location.search, location.hash, navigate]);
+
+  useEffect(() => {
+    if (!property || !seo) return;
     applySeo({
-      title: `${property.title} | ${SITE_NAME}`,
-      description: clipMeta(
-        [status, typeLabel, area, place, property.description].filter(Boolean).join(' · '),
-      ),
-      path: `/property/${property.id}`,
+      title: seo.title,
+      description: clipMeta(seo.description, 220),
+      path: seo.path,
+      pathEn: seo.pathEn,
       image: property.images[0],
+      keywords: seo.keywords,
+      product: {
+        id: property.id,
+        price: seo.price != null ? String(seo.price) : undefined,
+        currency: 'GEL',
+        brand: SITE_NAME,
+        condition: 'new',
+        availability: 'in stock',
+      },
     });
-    const url = pageUrl(`/property/${property.id}`);
+    const url = pageUrl(seo.path);
     setJsonLd('page', {
       '@context': 'https://schema.org',
       '@graph': [
         {
           '@type': 'RealEstateListing',
-          name: property.title,
-          description: clipMeta(property.description || property.title, 240),
+          name: seo.h1,
+          description: clipMeta(property.description || seo.h1, 240),
           url,
           image: property.images.slice(0, 8).map(absoluteImage),
           datePosted: property.listedDate,
@@ -184,23 +205,24 @@ export default function PropertyDetailPage() {
           },
           offers: {
             '@type': 'Offer',
-            price: String(property.status === 'rent' && property.rentPrice ? property.rentPrice : property.price),
+            price: String(seo.price ?? property.price),
             priceCurrency: 'GEL',
             availability: 'https://schema.org/InStock',
+            url,
           },
         },
         {
           '@type': 'BreadcrumbList',
           itemListElement: [
             { '@type': 'ListItem', position: 1, name: SITE_NAME, item: pageUrl('/') },
-            { '@type': 'ListItem', position: 2, name: t('common.listings'), item: pageUrl('/listings') },
-            { '@type': 'ListItem', position: 3, name: property.title, item: url },
+            { '@type': 'ListItem', position: 2, name: t('common.listings'), item: pageUrl(listingsHref()) },
+            { '@type': 'ListItem', position: 3, name: seo.h1, item: url },
           ],
         },
       ],
     });
     return () => setJsonLd('page', null);
-  }, [property, t, locale]);
+  }, [property, seo, t, locale]);
 
   /* Lightbox: arrow keys, Escape, and no page scrolling behind it. */
   useEffect(() => {
@@ -264,7 +286,7 @@ export default function PropertyDetailPage() {
     );
   }
 
-  if (!property) return <Navigate to="/listings" replace />;
+  if (!property) return <Navigate to={listingsHref()} replace />;
 
   const typeLabels: Record<string, string> = {
     apartment: t('propertyTypes.apartment'),
@@ -379,13 +401,13 @@ export default function PropertyDetailPage() {
           <nav className="pdp-crumbs__inner">
             <Link to="/"><Home size={13} strokeWidth={2.2} />{t('property.home')}</Link>
             <span>/</span>
-            <Link to="/listings">{t('property.listing')}</Link>
+            <Link to={listingsHref()}>{t('property.listing')}</Link>
             <span>/</span>
-            <Link to={`/listings?city=${encodeURIComponent(property.city)}&district=${encodeURIComponent(property.district)}`}>
+            <Link to={listingsHref({ city: property.city, district: property.district })}>
               {property.district}
             </Link>
             <span>/</span>
-            <strong>{property.title}</strong>
+            <strong>{seo?.h1 ?? property.title}</strong>
           </nav>
         </div>
       </div>
@@ -486,7 +508,7 @@ export default function PropertyDetailPage() {
               </span>
             </div>
 
-            <h1 className="pdp-title">{property.title}</h1>
+            <h1 className="pdp-title">{seo?.h1 ?? property.title}</h1>
 
             <button type="button" className="pdp-address" onClick={() => goTo('location')}>
               <MapPin size={14} strokeWidth={2.4} />
@@ -503,21 +525,6 @@ export default function PropertyDetailPage() {
                 <p className="pdp-price__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>
               )}
               <PriceCurrencyToggle className="pdp-price__fx" />
-            </div>
-
-            <div className="pdp-actions">
-              <button
-                type="button"
-                className={`pdp-icon-btn ${isFavorited ? 'is-active' : ''}`}
-                onClick={toggleFavorite}
-              >
-                <Heart size={15} strokeWidth={2.2} style={{ fill: isFavorited ? 'currentColor' : 'none' }} />
-                {t('property.save')}
-              </button>
-              <button type="button" className="pdp-icon-btn" onClick={share}>
-                <Share2 size={15} strokeWidth={2.2} />
-                {copied ? t('property.linkCopied') : t('property.share')}
-              </button>
             </div>
           </div>
         </header>
@@ -636,7 +643,7 @@ export default function PropertyDetailPage() {
                   <p><MapPin size={14} strokeWidth={2.4} />{addressLine}</p>
                   <Link
                     className="pdp-map-link"
-                    to={`/listings?city=${encodeURIComponent(property.city)}&district=${encodeURIComponent(property.district)}`}
+                    to={listingsHref({ city: property.city, district: property.district })}
                   >
                     {t('property.districtListings', { district: property.district })}
                     <ArrowRight size={13} strokeWidth={2.6} />
@@ -697,7 +704,7 @@ export default function PropertyDetailPage() {
             <section className="pdp-section" id="similar">
               <div className="pdp-similar-head">
                 <h2 className="pdp-card__title">{t('property.similar')}</h2>
-                <Link to="/listings" className="pdp-map-link">
+                <Link to={listingsHref()} className="pdp-map-link">
                   {t('common.viewAll')} <ArrowRight size={13} strokeWidth={2.6} />
                 </Link>
               </div>
@@ -724,22 +731,32 @@ export default function PropertyDetailPage() {
               </div>
 
               <div className="pdp-agent">
-                <img className="pdp-agent__photo" src={property.agent.photo} alt={property.agent.name} />
+                {property.agent.photo ? (
+                  <img className="pdp-agent__photo" src={property.agent.photo} alt={property.agent.name} />
+                ) : (
+                  <div className="pdp-agent__photo pdp-agent__initials" aria-hidden>
+                    {personInitials(property.agent.name)}
+                  </div>
+                )}
                 <div className="pdp-agent__info">
                   <p className="pdp-agent__name">{property.agent.name}</p>
-                  <p className="pdp-agent__meta">
-                    <Star size={11} fill="currentColor" />
-                    {property.agent.rating} · {property.agent.reviewCount} {t('property.agentRating')}
-                  </p>
+                  {property.agent.reviewCount > 0 && (
+                    <p className="pdp-agent__meta">
+                      <Star size={11} fill="currentColor" />
+                      {property.agent.rating} · {property.agent.reviewCount} {t('property.agentRating')}
+                    </p>
+                  )}
                   {property.agent.verified && (
                     <p className="pdp-agent__verified">
                       <CheckCircle2 size={11} strokeWidth={2.6} />{t('common.verified')}
                     </p>
                   )}
                 </div>
-                <Link className="pdp-agent__link" to={`/agent/${property.agent.id}`}>
-                  {t('property.profile')}
-                </Link>
+                {property.agent.id && property.agent.id !== 'agency' && (
+                  <Link className="pdp-agent__link" to={`/agent/${property.agent.id}`}>
+                    {t('property.profile')}
+                  </Link>
+                )}
               </div>
 
               <p className="pdp-reply"><span className="pdp-reply__dot" />{t('property.replyTime')}</p>
@@ -754,6 +771,24 @@ export default function PropertyDetailPage() {
                 <button type="button" className="pdp-cta is-book" onClick={() => setShowBooking(true)}>
                   <Calendar size={15} strokeWidth={2.2} />{t('property.bookViewing')}
                 </button>
+                <div className="pdp-split">
+                  <button
+                    type="button"
+                    className={`pdp-split__lane is-save ${isFavorited ? 'is-on' : ''}`}
+                    onClick={toggleFavorite}
+                  >
+                    <span className="pdp-split__icon">
+                      <Heart size={15} strokeWidth={2.3} style={{ fill: isFavorited ? 'currentColor' : 'none' }} />
+                    </span>
+                    {t('property.save')}
+                  </button>
+                  <button type="button" className="pdp-split__lane is-share" onClick={share}>
+                    <span className="pdp-split__icon">
+                      <Share2 size={15} strokeWidth={2.3} />
+                    </span>
+                    {copied ? t('property.linkCopied') : t('property.share')}
+                  </button>
+                </div>
               </div>
 
               <form className="pdp-form" onSubmit={handleEnquiry}>

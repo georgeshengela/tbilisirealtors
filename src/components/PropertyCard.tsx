@@ -5,6 +5,8 @@ import type { Property } from '../types/listing';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useIsFavorite } from '../lib/favorites';
 import { useTranslation } from '../i18n/LocaleContext';
+import { personInitials } from '../lib/personInitials';
+import { propertyHref } from '../lib/seoPropertyUrl';
 
 interface PropertyCardProps {
   property: Property;
@@ -57,7 +59,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
       onMouseLeave={() => setHovered(false)}
     >
       {/* ── Image area ── */}
-      <Link to={`/property/${property.id}`} className="relative block overflow-hidden" style={{ aspectRatio: '5/4' }}>
+      <Link to={propertyHref(property)} className="relative block overflow-hidden" style={{ aspectRatio: '5/4' }}>
         {/* Skeleton */}
         {!imgLoaded && <div className="absolute inset-0 skeleton" />}
 
@@ -136,7 +138,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
       </Link>
 
       {/* ── Content ── */}
-      <Link to={`/property/${property.id}`} className="flex flex-col flex-1 p-4">
+      <Link to={propertyHref(property)} className="flex flex-col flex-1 p-4">
 
         {/* Price row */}
         <div className="flex items-center justify-between mb-2">
@@ -199,12 +201,22 @@ export default function PropertyCard({ property, variant = 'default' }: Property
             </div>
 
             <div className="ml-auto flex items-center gap-1.5">
-              <img
-                src={property.agent.photo}
-                alt={property.agent.name}
-                className="w-6 h-6 rounded-full object-cover"
-                style={{ border: '1.5px solid #e8eaed' }}
-              />
+              {property.agent.photo ? (
+                <img
+                  src={property.agent.photo}
+                  alt={property.agent.name}
+                  className="w-6 h-6 rounded-full object-cover"
+                  style={{ border: '1.5px solid #e8eaed' }}
+                />
+              ) : (
+                <span
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-extrabold text-white"
+                  style={{ background: '#0f172a', border: '1.5px solid #e8eaed' }}
+                  aria-hidden
+                >
+                  {personInitials(property.agent.name)}
+                </span>
+              )}
               <ArrowUpRight
                 size={14}
                 strokeWidth={2.5}
@@ -236,7 +248,7 @@ function HorizontalCard({ property }: { property: Property }) {
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#eceef0'; }}
     >
       {/* Image */}
-      <Link to={`/property/${property.id}`} className="w-52 sm:w-72 flex-shrink-0 relative overflow-hidden">
+      <Link to={propertyHref(property)} className="w-52 sm:w-72 flex-shrink-0 relative overflow-hidden">
         <img
           src={property.images[0]}
           alt={property.title}
@@ -279,7 +291,7 @@ function HorizontalCard({ property }: { property: Property }) {
           </button>
         </div>
 
-        <Link to={`/property/${property.id}`}>
+        <Link to={propertyHref(property)}>
           <h3 className="font-semibold text-[#191c1e] hover:text-[#2563eb] transition-colors mb-1.5" style={{ fontSize: 15 }}>
             {property.title}
           </h3>
@@ -309,7 +321,7 @@ function HorizontalCard({ property }: { property: Property }) {
             <span style={{ color: '#9ea0a7' }}>{property.floor}/{property.totalFloors} {t('property.floorShort')}</span>
           )}
           <Link
-            to={`/property/${property.id}`}
+            to={propertyHref(property)}
             className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold text-white transition-colors duration-200"
             style={{ background: '#191c1e' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2563eb'; }}

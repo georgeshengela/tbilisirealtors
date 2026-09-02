@@ -62,7 +62,7 @@ import {
   type PriceSource,
 } from '../services/listingLifecycle.js';
 import { offerCountsForProperties } from '../services/propertyOffers.js';
-import { buildDisplayName, profileFieldsFromBody } from '../utils/adminProfile.js';
+import { buildDisplayName, profileFieldsFromBody, splitLegacyName } from '../utils/adminProfile.js';
 
 const router = Router();
 
@@ -292,7 +292,6 @@ router.get('/stats', requirePermission('dashboard.view'), async (req: AuthReques
     const ownerId = actor.scope === 'own' ? actor.id : null;
 
     const [propCount] = await db.select({ count: count() }).from(properties).where(mine);
-    const [agentCount] = await db.select({ count: count() }).from(agents);
     const [blogCount] = await db.select({ count: count() }).from(blogPosts);
     const [staffCount] = await db
       .select({ count: count() })
@@ -344,7 +343,7 @@ router.get('/stats', requirePermission('dashboard.view'), async (req: AuthReques
 
     res.json({
       properties: Number(propCount.count),
-      agents: Number(agentCount.count),
+      agents: await countBrokerPanel(),
       blogPosts: Number(blogCount.count),
       adminUsers: Number(staffCount.count),
       members: Number(memberCount.count),
@@ -1132,6 +1131,146 @@ async function brokerListingStats(): Promise<Map<string, BrokerListingStats>> {
   return map;
 }
 
+const STAFF_BROKER_PREFIX = 'staff-';
+
+function staffBrokerVirtualId(userId: number): string {
+  return `${STAFF_BROKER_PREFIX}${userId}`;
+}
+
+function parseStaffBrokerId(id: string): number | null {
+  if (!id.startsWith(STAFF_BROKER_PREFIX)) return null;
+  const n = Number(id.slice(STAFF_BROKER_PREFIX.length));
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+const staffBrokerColumns = {
+  id: users.id,
+  email: users.email,
+  name: users.name,
+  firstName: users.firstName,
+  lastName: users.lastName,
+  role: users.role,
+  scope: users.scope,
+  isActive: users.isActive,
+  lastLoginAt: users.lastLoginAt,
+  phone: users.phone,
+  avatarUrl: users.avatarUrl,
+  showOnFrontend: users.showOnFrontend,
+  jobTitle: users.jobTitle,
+  bio: users.bio,
+  createdAt: users.createdAt,
+};
+
+type StaffBrokerRow = {
+  id: number;
+  email: string;
+  name: string;
+  firstName: string | null;
+  lastName: string | null;
+  role: string;
+  scope: string | null;
+  isActive: boolean;
+  lastLoginAt: Date | string | null;
+  phone: string | null;
+  avatarUrl: string | null;
+  showOnFrontend: boolean;
+  jobTitle: string | null;
+  bio: string | null;
+  createdAt: Date | string | null;
+};
+
+function toLinkedStaff(staff: StaffBrokerRow) {
+  return {
+    id: staff.id,
+    email: staff.email,
+    name: buildDisplayName(staff.firstName, staff.lastName, staff.name),
+    role: staff.role,
+    scope: staff.scope,
+    isActive: staff.isActive,
+    lastLoginAt: staff.lastLoginAt,
+    phone: staff.phone,
+    avatarUrl: staff.avatarUrl,
+    showOnFrontend: staff.showOnFrontend,
+  };
+}
+
+function virtualStaffBroker(staff: StaffBrokerRow, stats: BrokerListingStats) {
+  const id = staffBrokerVirtualId(staff.id);
+  return {
+    id,
+    name: buildDisplayName(staff.firstName, staff.lastName, staff.name),
+    email: staff.email,
+    phone: staff.phone,
+    photo: staff.avatarUrl,
+    company: 'TBILISIREALTOR.GE',
+    verified: false,
+    isActive: staff.isActive,
+    propertyCount: stats.liveListings,
+    rating: null,
+    reviewCount: 0,
+    yearsExperience: 0,
+    bio: staff.bio,
+    languages: ['ქართული'],
+    specialization: staff.jobTitle ? [staff.jobTitle] : [],
+    createdAt: staff.createdAt,
+    updatedAt: null,
+    stats,
+    linkedStaff: toLinkedStaff(staff),
+    source: 'staff' as const,
+  };
+}
+
+async function staffPortfolioStats(userIds: number[]): Promise<Map<number, BrokerListingStats>> {
+  const map = new Map<number, BrokerListingStats>();
+  for (const id of userIds) map.set(id, emptyBrokerStats(staffBrokerVirtualId(id)));
+  if (userIds.length === 0) return map;
+
+  const rows = await db
+    .select({
+      assignedToUserId: properties.assignedToUserId,
+      createdByUserId: properties.createdByUserId,
+      status: properties.status,
+      isFeatured: properties.isFeatured,
+      isPremium: properties.isPremium,
+      viewCount: properties.viewCount,
+      lifecycleState: properties.lifecycleState,
+    })
+    .from(properties)
+    .where(or(
+      inArray(properties.assignedToUserId, userIds),
+      inArray(properties.createdByUserId, userIds),
+    ));
+
+  for (const row of rows) {
+    const owners = new Set<number>();
+    if (row.assignedToUserId && map.has(row.assignedToUserId)) owners.add(row.assignedToUserId);
+    if (row.createdByUserId && map.has(row.createdByUserId)) owners.add(row.createdByUserId);
+    for (const uid of owners) {
+      const s = map.get(uid)!;
+      s.liveListings += 1;
+      if (row.status === 'sale' || row.status === 'both') s.forSale += 1;
+      if (row.status === 'rent' || row.status === 'both' || row.status === 'daily_rent') s.forRent += 1;
+      if (row.isFeatured || row.isPremium) s.featured += 1;
+      s.totalViews += Number(row.viewCount) || 0;
+      if (row.lifecycleState === 'old' || row.lifecycleState === 'new_r') s.needsAttention += 1;
+    }
+  }
+  return map;
+}
+
+/** Catalog agents plus staff with role=broker who are not already linked by email. */
+async function countBrokerPanel(): Promise<number> {
+  const [catalog, staff] = await Promise.all([
+    db.select({ email: agents.email }).from(agents),
+    db.select({ email: users.email }).from(users).where(eq(users.role, 'broker')),
+  ]);
+  const linked = new Set(
+    catalog.map(a => a.email?.toLowerCase()).filter((email): email is string => Boolean(email)),
+  );
+  const extra = staff.filter(s => !s.email || !linked.has(s.email.toLowerCase())).length;
+  return catalog.length + extra;
+}
+
 function emptyBrokerStats(agentId: string): BrokerListingStats {
   return {
     agentId,
@@ -1144,24 +1283,32 @@ function emptyBrokerStats(agentId: string): BrokerListingStats {
   };
 }
 
+const listingPreviewColumns = {
+  id: properties.id,
+  title: properties.title,
+  price: properties.price,
+  rentPrice: properties.rentPrice,
+  status: properties.status,
+  city: properties.city,
+  district: properties.district,
+  type: properties.type,
+  images: properties.images,
+  viewCount: properties.viewCount,
+  isFeatured: properties.isFeatured,
+  isPremium: properties.isPremium,
+  lifecycleState: properties.lifecycleState,
+  moderationStatus: properties.moderationStatus,
+  listedDate: properties.listedDate,
+  updatedAt: properties.updatedAt,
+};
+
 router.get('/agents', requirePermission('agents.view'), async (_req: AuthRequest, res: Response): Promise<void> => {
   try {
     const [all, statsMap, staffBrokers] = await Promise.all([
       db.select().from(agents).orderBy(desc(agents.createdAt)),
       brokerListingStats(),
       db
-        .select({
-          id: users.id,
-          email: users.email,
-          name: users.name,
-          role: users.role,
-          scope: users.scope,
-          isActive: users.isActive,
-          lastLoginAt: users.lastLoginAt,
-          phone: users.phone,
-          avatarUrl: users.avatarUrl,
-          showOnFrontend: users.showOnFrontend,
-        })
+        .select(staffBrokerColumns)
         .from(users)
         .where(eq(users.role, 'broker')),
     ]);
@@ -1172,20 +1319,29 @@ router.get('/agents', requirePermission('agents.view'), async (_req: AuthRequest
         .map(s => [s.email.toLowerCase(), s]),
     );
 
+    const linkedEmails = new Set<string>();
     const enriched = all.map(agent => {
       const stats = statsMap.get(agent.id) ?? emptyBrokerStats(agent.id);
       const linkedStaff = agent.email
         ? staffByEmail.get(agent.email.toLowerCase()) ?? null
         : null;
+      if (agent.email) linkedEmails.add(agent.email.toLowerCase());
       return {
         ...agent,
         propertyCount: stats.liveListings,
         stats,
         linkedStaff,
+        source: 'catalog' as const,
       };
     });
 
-    res.json(enriched);
+    const unmatched = staffBrokers.filter(s => !s.email || !linkedEmails.has(s.email.toLowerCase()));
+    const staffStats = await staffPortfolioStats(unmatched.map(s => s.id));
+    const fromStaff = unmatched.map(s => (
+      virtualStaffBroker(s, staffStats.get(s.id) ?? emptyBrokerStats(staffBrokerVirtualId(s.id)))
+    ));
+
+    res.json([...fromStaff, ...enriched]);
   } catch (err) {
     console.error('Brokers error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -1195,25 +1351,37 @@ router.get('/agents', requirePermission('agents.view'), async (_req: AuthRequest
 router.get('/agents/:id/listings', requirePermission('agents.view'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const id = String(req.params.id);
+    const staffId = parseStaffBrokerId(id);
+
+    if (staffId) {
+      const [staff] = await db
+        .select({ email: users.email })
+        .from(users)
+        .where(and(eq(users.id, staffId), eq(users.role, 'broker')));
+      if (!staff) {
+        res.status(404).json({ error: 'Broker not found' });
+        return;
+      }
+
+      const conds = [
+        eq(properties.assignedToUserId, staffId),
+        eq(properties.createdByUserId, staffId),
+      ];
+      if (staff.email) conds.push(eq(properties.agentEmail, staff.email));
+
+      const rows = await db
+        .select(listingPreviewColumns)
+        .from(properties)
+        .where(or(...conds))
+        .orderBy(desc(properties.updatedAt))
+        .limit(40);
+
+      res.json({ data: rows });
+      return;
+    }
+
     const rows = await db
-      .select({
-        id: properties.id,
-        title: properties.title,
-        price: properties.price,
-        rentPrice: properties.rentPrice,
-        status: properties.status,
-        city: properties.city,
-        district: properties.district,
-        type: properties.type,
-        images: properties.images,
-        viewCount: properties.viewCount,
-        isFeatured: properties.isFeatured,
-        isPremium: properties.isPremium,
-        lifecycleState: properties.lifecycleState,
-        moderationStatus: properties.moderationStatus,
-        listedDate: properties.listedDate,
-        updatedAt: properties.updatedAt,
-      })
+      .select(listingPreviewColumns)
       .from(properties)
       .where(eq(properties.agentId, id))
       .orderBy(desc(properties.updatedAt))
@@ -1258,6 +1426,7 @@ router.post('/agents', requirePermission('agents.create'), async (req: AuthReque
       propertyCount: 0,
       stats: emptyBrokerStats(id),
       linkedStaff: null,
+      source: 'catalog' as const,
     });
   } catch (err) {
     console.error('Broker create error:', err);
@@ -1269,6 +1438,46 @@ router.put('/agents/:id', requirePermission('agents.edit'), async (req: AuthRequ
   try {
     const data = req.body;
     const id = String(req.params.id);
+    const staffId = parseStaffBrokerId(id);
+
+    if (staffId) {
+      const [existing] = await db
+        .select(staffBrokerColumns)
+        .from(users)
+        .where(and(eq(users.id, staffId), eq(users.role, 'broker')));
+      if (!existing) {
+        res.status(404).json({ error: 'Broker not found' });
+        return;
+      }
+
+      const patch: Record<string, unknown> = { updatedAt: new Date() };
+      if (typeof data.name === 'string') {
+        const name = data.name.trim() || existing.name;
+        const parts = splitLegacyName(name);
+        patch.name = name;
+        patch.firstName = parts.firstName || null;
+        patch.lastName = parts.lastName || null;
+      }
+      if (data.phone !== undefined) patch.phone = String(data.phone || '').trim() || null;
+      if (data.photo !== undefined) patch.avatarUrl = String(data.photo || '').trim() || null;
+      if (data.bio !== undefined) patch.bio = String(data.bio || '').trim() || null;
+      if (data.isActive !== undefined) patch.isActive = Boolean(data.isActive);
+      if (Array.isArray(data.specialization) && data.specialization[0]) {
+        patch.jobTitle = String(data.specialization[0]).trim() || null;
+      }
+
+      const [updated] = await db
+        .update(users)
+        .set(patch)
+        .where(eq(users.id, staffId))
+        .returning(staffBrokerColumns);
+
+      await logActivity(req, 'broker.update', 'staff', String(staffId));
+      const stats = (await staffPortfolioStats([staffId])).get(staffId)
+        ?? emptyBrokerStats(id);
+      res.json(virtualStaffBroker(updated ?? { ...existing, ...patch } as StaffBrokerRow, stats));
+      return;
+    }
 
     const patch: Record<string, unknown> = {
       updatedAt: new Date(),
@@ -1298,7 +1507,7 @@ router.put('/agents/:id', requirePermission('agents.edit'), async (req: AuthRequ
 
     await logActivity(req, 'broker.update', 'agent', id);
     const stats = (await brokerListingStats()).get(id) ?? emptyBrokerStats(id);
-    res.json({ ...updated, propertyCount: stats.liveListings, stats, linkedStaff: null });
+    res.json({ ...updated, propertyCount: stats.liveListings, stats, linkedStaff: null, source: 'catalog' as const });
   } catch (err) {
     console.error('Broker update error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -1307,8 +1516,13 @@ router.put('/agents/:id', requirePermission('agents.edit'), async (req: AuthRequ
 
 router.delete('/agents/:id', requirePermission('agents.delete'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    await db.delete(agents).where(eq(agents.id, String(req.params.id)));
-    await logActivity(req, 'broker.delete', 'agent', String(req.params.id));
+    const id = String(req.params.id);
+    if (parseStaffBrokerId(id)) {
+      res.status(400).json({ error: 'ეს ბროკერი თანამშრომელია. წაშალეთ თანამშრომლებიდან.' });
+      return;
+    }
+    await db.delete(agents).where(eq(agents.id, id));
+    await logActivity(req, 'broker.delete', 'agent', id);
     res.json({ success: true });
   } catch (err) {
     console.error('Broker delete error:', err);

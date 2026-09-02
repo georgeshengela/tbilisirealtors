@@ -150,6 +150,20 @@ export const CITY_AREAS: CityArea[] = [
     center: { lat: 41.8395, lng: 43.3869 },
     districts: [{ ka: 'ცენტრი', en: 'Centre' }],
   },
+  {
+    ka: 'ქობულეთი',
+    en: 'Kobuleti',
+    labelKey: 'listings.cities.kobuleti',
+    center: { lat: 41.8214, lng: 41.7753 },
+    districts: [{ ka: 'ცენტრი', en: 'Centre' }],
+  },
+  {
+    ka: 'ბაკურიანი',
+    en: 'Bakuriani',
+    labelKey: 'listings.cities.bakuriani',
+    center: { lat: 41.7494, lng: 43.5294 },
+    districts: [{ ka: 'ცენტრი', en: 'Centre' }],
+  },
 ];
 
 const normalise = (value: string) => value.trim().toLowerCase();

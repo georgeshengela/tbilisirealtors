@@ -20,6 +20,7 @@ import { MODERATION_COLOR, MODERATION_LABEL } from '../lib/permissions';
 import { useTranslation } from '../i18n/LocaleContext';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { formatShortDate } from '../lib/dateFormat';
+import { listingsHref, listingsHrefFromSearchParams } from '../lib/seoListingsUrl';
 
 type Tab = 'overview' | 'favorites' | 'listings' | 'searches' | 'profile';
 
@@ -361,7 +362,7 @@ export default function DashboardPage() {
                       title={t('favorites.emptyTitle')}
                       hint={t('favorites.emptyHint')}
                       action={(
-                        <Link to="/listings" className="inline-flex px-6 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors">
+                        <Link to={listingsHref()} className="inline-flex px-6 py-3 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors">
                           {t('favorites.browse')}
                         </Link>
                       )}
@@ -524,7 +525,7 @@ export default function DashboardPage() {
                           </p>
                         </div>
                         <Link
-                          to={`/listings${query ? `?${query}` : ''}`}
+                          to={listingsHrefFromSearchParams(new URLSearchParams(query))}
                           className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-700 text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-200 transition-colors flex-shrink-0"
                         >
                           {t('dashboard.runSearch')}

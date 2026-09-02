@@ -11,6 +11,7 @@ import {
   propertyTypeFilterOptions,
 } from '../i18n/labels';
 import { districtLabel, findCityArea, findDistrictArea } from '../data/districts';
+import { listingsHref } from '../lib/seoListingsUrl';
 
 const POPULAR_AREAS = [
   { city: 'თბილისი', district: 'ვაკე', count: 842 },
@@ -117,19 +118,17 @@ export default function HomeHero() {
   }
 
   function handleSearch() {
-    const p = new URLSearchParams({
-      status: tab,
-      city: form.city,
-      district: form.district,
-      type: form.propType || form.type,
-      bedrooms: form.bedrooms,
-      priceMin: form.priceMin ? String(displayToGel(Number(form.priceMin))) : '',
-      priceMax: form.priceMax ? String(displayToGel(Number(form.priceMax))) : '',
-      areaMin: form.areaMin,
-      areaMax: form.areaMax,
-    });
-    p.forEach((v, k) => { if (!v) p.delete(k); });
-    navigate(`/listings?${p}`);
+    navigate(listingsHref({
+      status: tab || undefined,
+      city: form.city || undefined,
+      district: form.district || undefined,
+      type: form.propType || form.type || undefined,
+      bedrooms: form.bedrooms || undefined,
+      priceMin: form.priceMin ? String(displayToGel(Number(form.priceMin))) : undefined,
+      priceMax: form.priceMax ? String(displayToGel(Number(form.priceMax))) : undefined,
+      areaMin: form.areaMin || undefined,
+      areaMax: form.areaMax || undefined,
+    }));
     setFilterOpen(false);
     setMobileSheet(null);
     setOpenField(null);

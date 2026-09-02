@@ -13,6 +13,7 @@ import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from '../i18n/LocaleContext';
 import ConstructionProjectCard from '../components/ConstructionProjectCard';
 import HomeHero from '../components/HomeHero';
+import { propertyHref } from '../lib/seoPropertyUrl';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -370,7 +371,7 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
   return (
     <Link
       ref={cardRef}
-      to={`/property/${property.id}`}
+      to={propertyHref(property)}
       className="group relative flex flex-col h-full rounded-2xl overflow-hidden bg-white"
       style={{
         border: `1px solid ${hovered ? `${accentColor}45` : '#eceef0'}`,
@@ -641,7 +642,7 @@ export default function HomePage() {
             <SectionTitle
               icon={Rocket}
               title={t('home.sections.vip')}
-              linkTo="/listings?vip=true"
+              linkTo="/udzravi-qoneba/?vip=true"
               linkLabel={t('home.sections.vipAll')}
             />
           </InViewFade>
@@ -672,7 +673,7 @@ export default function HomePage() {
               icon={Sparkles}
               title={t('home.sections.newListings')}
               accent="green"
-              linkTo="/listings?new=true"
+              linkTo="/udzravi-qoneba/?new=true"
               linkLabel={t('home.sections.newAll')}
             />
           </InViewFade>
@@ -687,7 +688,7 @@ export default function HomePage() {
           title={t('home.ads.vipTitle')}
           subtitle={t('home.ads.vipSubtitle')}
           ctaLabel={t('home.ads.vipCta')}
-          ctaHref="/listings?vip=true"
+          ctaHref="/udzravi-qoneba/?vip=true"
           variant="blue"
           icon={Rocket}
         />

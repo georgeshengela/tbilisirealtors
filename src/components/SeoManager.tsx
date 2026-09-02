@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { useLocation, useSearchParams } from 'react-router-dom';
 import { useLocale, useTranslation } from '../i18n/LocaleContext';
-import { applySeo, SITE_NAME } from '../lib/seo';
+import { applySeo, pageUrl, setJsonLd, SITE_NAME } from '../lib/seo';
+import { isListingsPath, isPropertySeoPath, listingsCanonicalPath, parseListingsLocation } from '../lib/seoListingsUrl';
 
 const NOINDEX_PREFIXES = ['/login', '/register', '/favorites', '/dashboard', '/admin'];
 
@@ -35,7 +36,13 @@ export default function SeoManager() {
       return;
     }
 
+    if (isPropertySeoPath(pathname) || pathname.startsWith('/property/')) {
+      setJsonLd('listings-breadcrumbs', null);
+      return;
+    }
+
     if (DETAIL_PREFIXES.some(prefix => pathname.startsWith(prefix))) {
+      setJsonLd('listings-breadcrumbs', null);
       const key = seoKey(pathname);
       applySeo({
         title: t(`seo.${key}.title`),
@@ -46,11 +53,18 @@ export default function SeoManager() {
       return;
     }
 
-    if (pathname.startsWith('/listings')) {
-      const { title, description, path } = listingsSeo(searchParams, t);
+    if (isListingsPath(pathname)) {
+      const { title, description, path } = listingsSeo(pathname, searchParams, t);
       applySeo({ title, description, path, noindex });
+      setJsonLd('listings-breadcrumbs', {
+        '@context': 'https://schema.org',
+        '@type': 'BreadcrumbList',
+        itemListElement: listingsBreadcrumbs(path, title, t),
+      });
       return;
     }
+
+    setJsonLd('listings-breadcrumbs', null);
 
     const key = seoKey(pathname);
     applySeo({
@@ -64,32 +78,29 @@ export default function SeoManager() {
   return null;
 }
 
-function listingsSeo(params: URLSearchParams, t: (key: string, vars?: Record<string, string | number>) => string) {
-  const status = params.get('status') ?? '';
-  const type = params.get('type') ?? '';
-  const city = params.get('city') ?? '';
-  const district = params.get('district') ?? '';
+function listingsSeo(
+  pathname: string,
+  params: URLSearchParams,
+  t: (key: string, vars?: Record<string, string | number>) => string,
+) {
+  const filters = parseListingsLocation(pathname, `?${params.toString()}`);
+  const path = listingsCanonicalPath(filters);
 
   const parts = [
-    status === 'sale' || status === 'rent' ? t(`propertyStatus.${status}`) : '',
-    TYPE_KEYS[type] ? t(TYPE_KEYS[type]) : '',
-    district,
-    city,
+    filters.status === 'daily_rent' ? t('propertyStatus.daily_rent') : '',
+    filters.status === 'sale' || filters.status === 'rent' ? t(`propertyStatus.${filters.status}`) : '',
+    TYPE_KEYS[filters.type ?? ''] ? t(TYPE_KEYS[filters.type ?? '']) : '',
+    filters.bedrooms ? `${filters.bedrooms} ${t('listings.bedrooms')}` : '',
+    filters.q || '',
+    filters.district || '',
+    filters.city || '',
   ].filter(Boolean);
-
-  const keep = new URLSearchParams();
-  for (const key of ['status', 'city', 'district', 'type']) {
-    const value = params.get(key);
-    if (value) keep.set(key, value);
-  }
-  const query = keep.toString();
-  const path = query ? `/listings?${query}` : '/listings';
 
   if (parts.length === 0) {
     return { title: t('seo.listings.title'), description: t('seo.listings.description'), path };
   }
 
-  const summary = parts.join(' ');
+  const summary = parts.join(' · ');
   return {
     title: `${summary} | ${SITE_NAME}`,
     description: t('seo.listings.filteredDescription', { summary }),
@@ -97,9 +108,24 @@ function listingsSeo(params: URLSearchParams, t: (key: string, vars?: Record<str
   };
 }
 
+function listingsBreadcrumbs(
+  path: string,
+  title: string,
+  t: (key: string) => string,
+) {
+  const crumbs = [
+    { '@type': 'ListItem', position: 1, name: t('property.home'), item: pageUrl('/') },
+    { '@type': 'ListItem', position: 2, name: t('common.listings'), item: pageUrl('/udzravi-qoneba/') },
+  ];
+  if (path !== '/udzravi-qoneba/') {
+    crumbs.push({ '@type': 'ListItem', position: 3, name: title.replace(` | ${SITE_NAME}`, ''), item: pageUrl(path) });
+  }
+  return crumbs;
+}
+
 function seoKey(pathname: string): string {
   if (pathname === '/') return 'home';
-  if (pathname.startsWith('/listings')) return 'listings';
+  if (isListingsPath(pathname)) return 'listings';
   if (pathname.startsWith('/property/')) return 'property';
   if (pathname.startsWith('/agents')) return 'agents';
   if (pathname.startsWith('/agent/')) return 'agent';

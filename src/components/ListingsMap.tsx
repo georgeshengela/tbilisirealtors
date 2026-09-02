@@ -8,6 +8,7 @@ import type { Property } from '../types/listing';
 import { fetchBuildingFootprints, type AreaBoundary, type Ring } from '../lib/geoApi';
 import { pointInRing } from '../lib/geoMath';
 import { useTranslation } from '../i18n/LocaleContext';
+import { propertyHref } from '../lib/seoPropertyUrl';
 
 interface ListingsMapProps {
   properties: Property[];
@@ -714,7 +715,7 @@ function MapPopupCard({
   const { t } = useTranslation();
 
   return (
-    <Link to={`/property/${property.id}`} className="listing-map-popup">
+    <Link to={propertyHref(property)} className="listing-map-popup">
       <div className="listing-map-popup__thumb">
         <img src={property.images[0]} alt="" />
         {property.isPremium && (

@@ -22,6 +22,7 @@ import StaffPermissionEditor from '../components/admin/StaffPermissionEditor';
 import BrandLogo from '../components/BrandLogo';
 import AdminFooter from '../components/admin/AdminFooter';
 import { formatGeorgianLongDate, formatGeorgianShortDate } from '../lib/dateFormat';
+import { propertyHref } from '../lib/seoPropertyUrl';
 import {
   ROLE_DESCRIPTION, STAFF_ROLES,
   canManageRole, meetsAdminFloor, roleColor, roleLabel, type Role,
@@ -1109,7 +1110,7 @@ export default function AdminPage() {
                         <button
                           key={p.id}
                           type="button"
-                          onClick={() => navigate(`/property/${p.id}`)}
+                          onClick={() => navigate(propertyHref(p))}
                           className="admin-listing-row"
                         >
                           <span

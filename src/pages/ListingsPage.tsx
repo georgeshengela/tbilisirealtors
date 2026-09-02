@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import type L from 'leaflet';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -22,19 +22,51 @@ import {
   findDistrictArea,
 } from '../data/districts';
 import type { Property } from '../types/listing';
+import { listingsHref, parseListingsLocation } from '../lib/seoListingsUrl';
+import { propertyHref } from '../lib/seoPropertyUrl';
 
 const PAGE_SIZE = 24;
+
+function listingFiltersFromLocation(pathname: string, search: string) {
+  const parsed = parseListingsLocation(pathname, search);
+  const city = findCityArea(parsed.city);
+  const district = findDistrictArea(city, parsed.district);
+  const storedCurrency = readStoredCurrency();
+  const usdRate = FALLBACK_USD_RATE;
+  const priceFromUrl = (param: string | undefined) => {
+    if (!param) return '';
+    const gel = parseFloat(param);
+    if (!gel) return '';
+    if (storedCurrency === 'USD') return String(Math.round(gel / usdRate));
+    return param;
+  };
+
+  return {
+    status: parsed.status || '',
+    city: city?.ka ?? parsed.city ?? '',
+    district: district?.ka ?? parsed.district ?? '',
+    type: parsed.type || '',
+    bedrooms: parsed.bedrooms || '',
+    priceMin: priceFromUrl(parsed.priceMin),
+    priceMax: priceFromUrl(parsed.priceMax),
+    areaMin: parsed.areaMin || '',
+    isPremium: Boolean(parsed.isPremium),
+    isNew: Boolean(parsed.isNew),
+    q: parsed.q || '',
+  };
+}
 
 export default function ListingsPage() {
   const { t } = useTranslation();
   const { locale } = useLocale();
   const navigate = useNavigate();
+  const location = useLocation();
   const { currencySymbol, formatMoney, displayToGel } = useCurrency();
   const [searchParams] = useSearchParams();
 
   const [showFilters, setShowFilters] = useState(false);
   const [sort, setSort] = useState('newest');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(() => listingFiltersFromLocation(location.pathname, location.search).q);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<'list' | 'map'>('list');
   const [page, setPage] = useState(1);
@@ -50,36 +82,34 @@ export default function ListingsPage() {
 
   const { data: properties, loading } = useProperties();
 
-  const [filters, setFilters] = useState(() => {
-    // Links may carry either language, so resolve them to the canonical names
-    // the selects use.
-    const cityParam = searchParams.get('city') || '';
-    const districtParam = searchParams.get('district') || '';
-    const city = findCityArea(cityParam);
-    const district = findDistrictArea(city, districtParam);
-    const storedCurrency = readStoredCurrency();
-    const usdRate = FALLBACK_USD_RATE;
-    const priceFromUrl = (param: string | null) => {
-      if (!param) return '';
-      const gel = parseFloat(param);
-      if (!gel) return '';
-      if (storedCurrency === 'USD') return String(Math.round(gel / usdRate));
-      return param;
-    };
+  const [filters, setFilters] = useState(() => listingFiltersFromLocation(location.pathname, location.search));
 
-    return {
-      status: searchParams.get('status') || '',
-      city: city?.ka ?? cityParam,
-      district: district?.ka ?? districtParam,
-      type: searchParams.get('type') || '',
-      bedrooms: searchParams.get('bedrooms') || '',
-      priceMin: priceFromUrl(searchParams.get('priceMin')),
-      priceMax: priceFromUrl(searchParams.get('priceMax')),
-      areaMin: searchParams.get('areaMin') || '',
-      isPremium: searchParams.get('premium') === 'true',
-      isNew: searchParams.get('new') === 'true',
-    };
-  });
+  useEffect(() => {
+    const next = listingFiltersFromLocation(location.pathname, location.search);
+    setFilters(next);
+    setSearch(next.q);
+  }, [location.pathname, location.search]);
+
+  useEffect(() => {
+    const next = listingsHref({
+      status: filters.status || undefined,
+      type: filters.type || undefined,
+      bedrooms: filters.bedrooms || undefined,
+      city: filters.city || undefined,
+      district: filters.district || undefined,
+      q: search || undefined,
+      isNew: filters.isNew || undefined,
+      isPremium: filters.isPremium || undefined,
+      vip: searchParams.get('vip') === 'true' || undefined,
+      priceMin: searchParams.get('priceMin') || undefined,
+      priceMax: searchParams.get('priceMax') || undefined,
+      areaMin: searchParams.get('areaMin') || undefined,
+      areaMax: searchParams.get('areaMax') || undefined,
+    });
+    const current = `${location.pathname}${location.search}`;
+    if (current === next) return;
+    navigate(`${next}${location.hash}`, { replace: true });
+  }, [filters, search, navigate, location.hash, location.pathname, location.search, searchParams]);
 
   const cityArea = useMemo(() => findCityArea(filters.city), [filters.city]);
   const districtArea = useMemo(() => findDistrictArea(cityArea, filters.district), [cityArea, filters.district]);
@@ -187,7 +217,7 @@ export default function ListingsPage() {
     const q = search.trim();
     if (!isExactListingId(q)) return;
     const hit = properties.find(p => p.id === q);
-    if (hit) navigate(`/property/${hit.id}`);
+    if (hit) navigate(propertyHref(hit));
   }
   /** Listings just outside the selected area, drawn faded for context. */
   const contextProperties = useMemo(() => {
@@ -277,9 +307,10 @@ export default function ListingsPage() {
 
   const clear = () => {
     clearDrawnArea();
+    setSearch('');
     setFilters({
       status: '', city: '', district: '', type: '', bedrooms: '',
-      priceMin: '', priceMax: '', areaMin: '', isPremium: false, isNew: false,
+      priceMin: '', priceMax: '', areaMin: '', isPremium: false, isNew: false, q: '',
     });
   };
 

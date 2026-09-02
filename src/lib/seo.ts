@@ -2,6 +2,15 @@ export const SITE_URL = 'https://tbilisirealtors.ge';
 export const SITE_NAME = 'TBILISIREALTOR.GE';
 export const OG_IMAGE = `${SITE_URL}/5e6a55c3201bd.jpg`;
 
+export type SeoProduct = {
+  price?: string;
+  currency?: string;
+  id?: string;
+  availability?: string;
+  brand?: string;
+  condition?: string;
+};
+
 export type SeoInput = {
   title: string;
   description: string;
@@ -9,6 +18,9 @@ export type SeoInput = {
   image?: string;
   noindex?: boolean;
   type?: 'website' | 'article';
+  keywords?: string;
+  pathEn?: string;
+  product?: SeoProduct | null;
 };
 
 export function clipMeta(text: string, max = 160): string {
@@ -38,6 +50,10 @@ function upsertMeta(attr: 'name' | 'property', key: string, content: string) {
     document.head.appendChild(el);
   }
   el.setAttribute('content', content);
+}
+
+function removeMeta(attr: 'name' | 'property', key: string) {
+  document.head.querySelector(`meta[${attr}="${key}"]`)?.remove();
 }
 
 function upsertLink(rel: string, href: string, extra?: Record<string, string>) {
@@ -73,6 +89,15 @@ export function setJsonLd(id: string, data: Record<string, unknown> | null) {
   el.textContent = JSON.stringify(data);
 }
 
+const PRODUCT_KEYS = [
+  'product:brand',
+  'product:condition',
+  'product:price:amount',
+  'product:price:currency',
+  'product:retailer_item_id',
+  'product:availability',
+] as const;
+
 export function applySeo({
   title,
   description,
@@ -80,17 +105,26 @@ export function applySeo({
   image,
   noindex = false,
   type = 'website',
+  keywords,
+  pathEn,
+  product,
 }: SeoInput) {
   const url = pageUrl(path);
+  const urlEn = pageUrl(pathEn || path);
   const ogImage = absoluteImage(image);
   const locale = document.documentElement.lang === 'en' ? 'en_US' : 'ka_GE';
 
   document.title = title;
+  upsertMeta('name', 'title', title);
   upsertMeta('name', 'description', description);
+  upsertMeta('name', 'image', ogImage);
   upsertMeta('name', 'robots', noindex ? 'noindex, nofollow' : 'index, follow');
+  if (keywords) upsertMeta('name', 'keywords', keywords);
+  else removeMeta('name', 'keywords');
+
   upsertLink('canonical', url);
   upsertLink('alternate', url, { hreflang: 'ka' });
-  upsertLink('alternate', url, { hreflang: 'en' });
+  upsertLink('alternate', urlEn, { hreflang: 'en' });
   upsertLink('alternate', url, { hreflang: 'x-default' });
 
   upsertMeta('property', 'og:site_name', SITE_NAME);
@@ -107,4 +141,17 @@ export function applySeo({
   upsertMeta('name', 'twitter:title', title);
   upsertMeta('name', 'twitter:description', description);
   upsertMeta('name', 'twitter:image', ogImage);
+
+  if (product) {
+    upsertMeta('property', 'product:brand', product.brand || SITE_NAME);
+    upsertMeta('property', 'product:condition', product.condition || 'new');
+    if (product.price) upsertMeta('property', 'product:price:amount', product.price);
+    else removeMeta('property', 'product:price:amount');
+    upsertMeta('property', 'product:price:currency', product.currency || 'GEL');
+    if (product.id) upsertMeta('property', 'product:retailer_item_id', product.id);
+    else removeMeta('property', 'product:retailer_item_id');
+    upsertMeta('property', 'product:availability', product.availability || 'in stock');
+  } else {
+    for (const key of PRODUCT_KEYS) removeMeta('property', key);
+  }
 }

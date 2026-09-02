@@ -1,6 +1,7 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
@@ -14,6 +15,15 @@ import leadRoutes from './routes/leads.js';
 import geoRoutes from './routes/geo.js';
 import uploadRoutes from './routes/uploads.js';
 import { refreshExpiredRentals } from './services/listingLifecycle.js';
+import { isPropertySeoPath, listingsHrefFromSearchParams } from '../src/lib/seoListingsUrl.ts';
+import {
+  buildSitemapXml,
+  injectPropertySeo,
+  loadPublicProperty,
+  loadPublicPropertyUrls,
+  parsePropertyId,
+  propertyHref,
+} from './seoHtml.js';
 
 dotenv.config();
 
@@ -58,20 +68,76 @@ app.use('/api/uploads', uploadRoutes);
 app.use('/api', leadRoutes);
 app.use('/api', publicRoutes);
 
+app.get('/listings', (req, res) => {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(req.query)) {
+    if (typeof value === 'string') params.set(key, value);
+    else if (Array.isArray(value) && typeof value[0] === 'string') params.set(key, value[0]);
+  }
+  res.redirect(301, listingsHrefFromSearchParams(params));
+});
+
+app.get('/property/:id', async (req, res) => {
+  try {
+    const property = await loadPublicProperty(String(req.params.id));
+    if (!property) {
+      res.redirect(302, '/udzravi-qoneba/');
+      return;
+    }
+    res.redirect(301, propertyHref(property));
+  } catch (err) {
+    console.error('Legacy property redirect error:', err);
+    res.redirect(302, '/udzravi-qoneba/');
+  }
+});
+
+app.get('/sitemap.xml', async (_req, res) => {
+  try {
+    const rows = await loadPublicPropertyUrls();
+    res.type('application/xml').send(buildSitemapXml(rows.map(row => row.href)));
+  } catch (err) {
+    console.error('Sitemap error:', err);
+    res.status(500).type('text/plain').send('Sitemap unavailable');
+  }
+});
+
 // Legacy local uploads (pre-Cloudinary). New files go to Cloudinary CDN.
 app.use('/uploads', express.static(path.join(__dirname, '../uploads'), { maxAge: '30d' }));
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
   const distPath = path.join(__dirname, '../dist');
-  app.use(express.static(distPath));
-  // SPA fallback — app.use (no path) is Express 5 compatible; app.get('*') is not
-  app.use((req, res) => {
+  const indexFile = path.join(distPath, 'index.html');
+  app.use(express.static(distPath, { index: false }));
+  app.use(async (req, res) => {
     if (req.path.startsWith('/api/')) {
       res.status(404).json({ error: 'Not found' });
       return;
     }
-    res.sendFile(path.join(distPath, 'index.html'));
+
+    const listingId = parsePropertyId(req.path);
+    if (listingId && (req.method === 'GET' || req.method === 'HEAD')) {
+      try {
+        const property = await loadPublicProperty(listingId);
+        if (!property) {
+          res.redirect(302, '/udzravi-qoneba/');
+          return;
+        }
+        const canonical = propertyHref(property);
+        const current = req.path.endsWith('/') ? req.path : `${req.path}/`;
+        if (isPropertySeoPath(req.path) && current !== canonical) {
+          res.redirect(301, canonical);
+          return;
+        }
+        const html = await fs.readFile(indexFile, 'utf8');
+        res.type('html').send(injectPropertySeo(html, property));
+        return;
+      } catch (err) {
+        console.error('Property HTML render error:', err);
+      }
+    }
+
+    res.sendFile(indexFile);
   });
 }
 

@@ -26,6 +26,7 @@ import {
   isLifecycleOutcome,
   type LifecycleOutcome,
 } from '../../lib/lifecycle';
+import { propertyHref } from '../../lib/seoPropertyUrl';
 
 export interface PriceChangeRow {
   id: number;
@@ -679,7 +680,7 @@ const ORIGIN_LABEL: Record<string, string> = {
 /* Photo, listing ID and public URL as one compact tile. */
 function ListingLeadCell({ p, onOpen }: { p: AdminPropertyRow; onOpen: () => void }) {
   const [copied, setCopied] = useState(false);
-  const viewHref = `/property/${encodeURIComponent(p.id)}`;
+  const viewHref = propertyHref(p);
   const photo = p.images?.[0];
 
   async function copyId() {

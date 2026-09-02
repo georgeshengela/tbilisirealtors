@@ -52,6 +52,11 @@ export interface BrokerRow {
   updatedAt?: string | null;
   stats: BrokerStats;
   linkedStaff: LinkedStaff | null;
+  source?: 'staff' | 'catalog';
+}
+
+function isStaffBroker(broker: Pick<BrokerRow, 'id' | 'source'>): boolean {
+  return broker.source === 'staff' || broker.id.startsWith('staff-');
 }
 
 interface BrokerListing {
@@ -445,7 +450,11 @@ export default function AdminBrokersSection({
                       ) : <span className="text-slate-300">—</span>}
                     </td>
                     <td className="py-2.5 px-2 hidden xl:table-cell">
-                      {broker.linkedStaff ? (
+                      {isStaffBroker(broker) ? (
+                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2 py-0.5 rounded-full">
+                          <Shield size={10} /> თანამშრომელი
+                        </span>
+                      ) : broker.linkedStaff ? (
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2 py-0.5 rounded-full">
                           <Shield size={10} /> დაკავშ.
                         </span>
@@ -463,7 +472,7 @@ export default function AdminBrokersSection({
                             <Pencil size={14} />
                           </IconBtn>
                         )}
-                        {canDelete && (
+                        {canDelete && !isStaffBroker(broker) && (
                           <IconBtn title="წაშლა" danger onClick={() => setConfirmDelete(broker)}>
                             <Trash2 size={14} />
                           </IconBtn>
@@ -496,6 +505,7 @@ export default function AdminBrokersSection({
           onDelete={() => setConfirmDelete(selected)}
           onToggleActive={() => patchBroker(selected, { isActive: !selected.isActive })}
           onToggleVerified={() => patchBroker(selected, { verified: !selected.verified })}
+          staffSourced={isStaffBroker(selected)}
         />
       )}
 
@@ -541,6 +551,7 @@ function BrokerDetailModal({
   onDelete,
   onToggleActive,
   onToggleVerified,
+  staffSourced,
 }: {
   broker: BrokerRow;
   listings: BrokerListing[];
@@ -553,6 +564,7 @@ function BrokerDetailModal({
   onDelete: () => void;
   onToggleActive: () => void;
   onToggleVerified: () => void;
+  staffSourced: boolean;
 }) {
   const stats = broker.stats ?? {
     liveListings: broker.propertyCount || 0,
@@ -613,17 +625,21 @@ function BrokerDetailModal({
                   <BadgeCheck size={12} /> ვერიფიცირებული
                 </span>
               )}
-              {broker.linkedStaff && (
+              {staffSourced ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 px-2.5 py-1 rounded-full">
+                  <Shield size={12} /> თანამშრომელი
+                </span>
+              ) : broker.linkedStaff ? (
                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 border border-blue-100 px-2.5 py-1 rounded-full">
                   <Shield size={12} /> სისტემური ანგარიში
                 </span>
-              )}
+              ) : null}
             </div>
           </div>
 
           <div className="flex flex-wrap gap-2 mb-6">
             <a
-              href={`/agent/${broker.id}`}
+              href={staffSourced ? '/agents' : `/agent/${broker.id}`}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50"
@@ -641,6 +657,7 @@ function BrokerDetailModal({
             )}
             {canEdit && (
               <>
+                {!staffSourced && (
                 <button
                   type="button"
                   onClick={onToggleVerified}
@@ -654,6 +671,7 @@ function BrokerDetailModal({
                   <BadgeCheck size={13} />
                   {broker.verified ? 'ვერიფიცირებული' : 'ვერიფიკაცია'}
                 </button>
+                )}
                 <button
                   type="button"
                   onClick={onToggleActive}
@@ -669,7 +687,7 @@ function BrokerDetailModal({
                 </button>
               </>
             )}
-            {canDelete && (
+            {canDelete && !staffSourced && (
               <button
                 type="button"
                 onClick={onDelete}

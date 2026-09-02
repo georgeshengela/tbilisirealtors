@@ -45,7 +45,7 @@ export default function FavoritesPage() {
             </div>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-3">{t('favorites.emptyTitle')}</h2>
             <p className="text-slate-500 mb-8">{t('favorites.emptyHint')}</p>
-            <Link to="/listings" className="bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold hover:bg-blue-600 transition-colors">
+            <Link to="/udzravi-qoneba/" className="bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold hover:bg-blue-600 transition-colors">
               {t('favorites.browse')}
             </Link>
           </div>

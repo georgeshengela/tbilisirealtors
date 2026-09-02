@@ -44,7 +44,7 @@ export function buildNavItems(t: TFn): NavItem[] {
   return [
     {
       label: t('nav.newProjects'),
-      href: '/listings?new=true',
+      href: '/udzravi-qoneba/?new=true',
       icon: Building2,
       badge: 'NEW',
     },

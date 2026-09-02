@@ -1,0 +1,26 @@
+import { listingsHref } from '../lib/seoListingsUrl';
+
+export const FOOTER_SEARCH_LINKS: { label: string; href: string }[] = [
+  { label: 'განცხადებები', href: listingsHref() },
+  { label: 'ბინები ქირით', href: listingsHref({ type: 'apartment', status: 'rent' }) },
+  { label: 'იყიდება ბინები', href: listingsHref({ type: 'apartment', status: 'sale' }) },
+  { label: 'ბინები დღიურად', href: listingsHref({ type: 'apartment', status: 'daily_rent' }) },
+  { label: 'ქირავდება 1 ოთახიანი ბინა', href: listingsHref({ type: 'apartment', status: 'rent', bedrooms: '1' }) },
+  { label: 'ბინები ქირით რუსთაველის გამზირზე', href: listingsHref({ type: 'apartment', status: 'rent', city: 'თბილისი', q: 'რუსთაველის გამზირი' }) },
+  { label: 'ბინები დღიურად ქობულეთში', href: listingsHref({ type: 'apartment', status: 'daily_rent', city: 'ქობულეთი' }) },
+  { label: 'ქირავდება 2 ოთახიანი ბინა', href: listingsHref({ type: 'apartment', status: 'rent', bedrooms: '2' }) },
+  { label: 'ბინები ქირით ვაჟა-ფშაველას გამზირზე', href: listingsHref({ type: 'apartment', status: 'rent', city: 'თბილისი', q: 'ვაჟა-ფშაველას გამზირი' }) },
+  { label: 'ბინები', href: listingsHref({ type: 'apartment' }) },
+  { label: 'ქირავდება 3 ოთახიანი ბინა', href: listingsHref({ type: 'apartment', status: 'rent', bedrooms: '3' }) },
+  { label: 'ბინები ქირით ყაზბეგის გამზირზე', href: listingsHref({ type: 'apartment', status: 'rent', city: 'თბილისი', q: 'ყაზბეგის გამზირი' }) },
+  { label: 'ბინა ბაკურიანში', href: listingsHref({ type: 'apartment', city: 'ბაკურიანი' }) },
+  { label: 'ქირავდება 4 ოთახიანი ბინა', href: listingsHref({ type: 'apartment', status: 'rent', bedrooms: '4' }) },
+  { label: 'ბინები ქირით ჭავჭავაძის გამზირზე', href: listingsHref({ type: 'apartment', status: 'rent', city: 'თბილისი', q: 'ჭავჭავაძის გამზირი' }) },
+  { label: 'ბინები ქობულეთში', href: listingsHref({ type: 'apartment', city: 'ქობულეთი' }) },
+  { label: 'ქირავდება კომერციული ფართი', href: listingsHref({ type: 'commercial', status: 'rent' }) },
+  { label: 'იყიდება კერძო სახლი', href: listingsHref({ type: 'house', status: 'sale' }) },
+  { label: 'ბინები საბურთალოზე', href: listingsHref({ type: 'apartment', city: 'თბილისი', district: 'საბურთალო' }) },
+  { label: 'ბინები ქირით ვარკეთილში', href: listingsHref({ type: 'apartment', status: 'rent', city: 'თბილისი', district: 'ვარკეთილი' }) },
+  { label: 'იყიდება მიწა', href: listingsHref({ type: 'land', status: 'sale' }) },
+  { label: 'ბინები ვაკეში', href: listingsHref({ type: 'apartment', city: 'თბილისი', district: 'ვაკე' }) },
+];

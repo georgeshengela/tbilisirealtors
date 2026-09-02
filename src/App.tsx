@@ -31,13 +31,26 @@ import { UserAuthProvider, useUserAuth } from './contexts/UserAuthContext';
 import { LocaleProvider } from './i18n/LocaleContext';
 import { CurrencyProvider } from './contexts/CurrencyContext';
 import SeoManager from './components/SeoManager';
+import { isListingsPath, isPropertySeoPath, listingsHrefFromSearchParams } from './lib/seoListingsUrl';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
+    if (isListingsPath(pathname)) return;
     window.scrollTo(0, 0);
   }, [pathname]);
   return null;
+}
+
+function LegacyListingsRedirect() {
+  const location = useLocation();
+  const dest = listingsHrefFromSearchParams(new URLSearchParams(location.search));
+  return <Navigate to={`${dest}${location.hash}`} replace />;
+}
+
+function UdzraviSwitch() {
+  const { pathname } = useLocation();
+  return isPropertySeoPath(pathname) ? <PropertyDetailPage /> : <ListingsPage />;
 }
 
 function ProtectedAdminRoute({ children }: { children: ReactNode }) {
@@ -87,7 +100,7 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={location.pathname}
+            key={isListingsPath(location.pathname) ? 'listings' : location.pathname}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -95,7 +108,9 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
           >
             <Routes>
               <Route path="/" element={<HomePage />} />
-              <Route path="/listings" element={<ListingsPage />} />
+              <Route path="/listings" element={<LegacyListingsRedirect />} />
+              <Route path="/udzravi-qoneba" element={<ListingsPage />} />
+              <Route path="/udzravi-qoneba/*" element={<UdzraviSwitch />} />
               <Route path="/property/:id" element={<PropertyDetailPage />} />
               <Route path="/agents" element={<AgentsPage />} />
               <Route path="/agent/:id" element={<AgentProfilePage />} />
@@ -117,7 +132,7 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
           </motion.div>
         </AnimatePresence>
 
-        {!isAuthPage && !isDashboard && location.pathname !== '/listings' && <Footer />}
+        {!isAuthPage && !isDashboard && !isListingsPath(location.pathname) && <Footer />}
       </div>
     </div>
   );
