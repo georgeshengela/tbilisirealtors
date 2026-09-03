@@ -6,8 +6,8 @@ import {
   DollarSign, Ruler, Bed, Layers, MapPin,
   Image as ImageIcon, Sparkles, Star, Zap, User, Phone, Mail,
   CheckCircle, Loader2, Crown, Key, FileText, Wrench,
-  Flame, Droplets, HardHat, Car, Link2, BadgeCheck,
-  Hash, Package, MoveHorizontal, Download, ExternalLink, Globe2,
+  Flame, Droplets, Car, Link2, BadgeCheck,
+  Hash, MoveHorizontal, Download, ExternalLink, Globe2,
   Languages, MessageSquare, X, Upload,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
@@ -41,6 +41,7 @@ import {
   unpackListingDetails,
   unpackListingFields,
 } from '../lib/listingFormFields';
+import { downloadListingPhoto, downloadListingPhotos, listingPhotoFilename } from '../lib/downloadListingPhotos';
 
 const SECTION_NAV = [
   { id: 'section-contact',  label: 'კონტაქტი',       icon: User       },
@@ -293,7 +294,7 @@ const LIFECYCLE_OPTIONS = [
   { id: 'new',     label: 'new',     note: 'ახლად დამატებული',            color: '#2563eb' },
   { id: 'current', label: 'current', note: 'აქტიური განცხადება',           color: '#10b981' },
   { id: 'old',     label: 'old',     note: 'არქივი — გაიყიდა, გაქირავდა, შეჩერდა, აღარ იყიდება',    color: '#64748b' },
-  { id: 'new_r',   label: 'new R',   note: 'ვადა გავიდა — დასარეკი',        color: '#ef4444' },
+  { id: 'new_r',   label: 'new R',   note: 'ჩაძველდა — განახლება და ზარი სავალდებულოა', color: '#ef4444' },
 ];
 
 const RENT_TERM_OPTIONS = [6, 12, 18, 24];
@@ -411,6 +412,9 @@ export default function AdminAddListingPage() {
   const [importPreview, setImportPreview] = useState<ImportedListingData | null>(null);
   const [importApplied, setImportApplied] = useState(false);
   const [savedNotes, setSavedNotes] = useState<SavedNote[]>([]);
+  const [noteSaving, setNoteSaving] = useState(false);
+  const [noteError, setNoteError] = useState('');
+  const [photoDownloading, setPhotoDownloading] = useState(false);
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState('');
   const [photoDraft, setPhotoDraft] = useState('');
@@ -742,6 +746,62 @@ export default function AdminAddListingPage() {
     appendPhotos(uploaded.map(file => file.url));
   }
 
+  async function persistNotes(next: SavedNote[]) {
+    if (!isEdit || !id) {
+      setSavedNotes(next);
+      return;
+    }
+    await api(`/properties/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ internalNotes: next }),
+    });
+    setSavedNotes(next);
+  }
+
+  async function saveInternalComment() {
+    const text = form.internalNote.trim();
+    if (!text) return;
+    setNoteSaving(true);
+    setNoteError('');
+    const next: SavedNote[] = [
+      {
+        id: `n${Date.now().toString(36)}`,
+        text,
+        author: user?.firstName || user?.name || undefined,
+        createdAt: new Date().toISOString(),
+      },
+      ...savedNotes,
+    ];
+    try {
+      await persistNotes(next);
+      set('internalNote', '');
+    } catch (err) {
+      setNoteError(err instanceof Error ? err.message : 'კომენტარი ვერ შეინახა');
+    } finally {
+      setNoteSaving(false);
+    }
+  }
+
+  async function removeInternalComment(noteId: string) {
+    setNoteError('');
+    try {
+      await persistNotes(savedNotes.filter(note => note.id !== noteId));
+    } catch (err) {
+      setNoteError(err instanceof Error ? err.message : 'კომენტარი ვერ წაიშალა');
+    }
+  }
+
+  async function downloadAllPhotos() {
+    const urls = form.photos.map(photo => photo.url).filter(Boolean);
+    if (!urls.length) return;
+    setPhotoDownloading(true);
+    try {
+      await downloadListingPhotos(urls, id);
+    } finally {
+      setPhotoDownloading(false);
+    }
+  }
+
   function movePhoto(from: number, to: number) {
     setForm(f => {
       if (to < 0 || to >= f.photos.length || from === to) return f;
@@ -776,20 +836,18 @@ export default function AdminAddListingPage() {
     try {
       const allFeatures = [
         ...form.features,
-        ...form.buildingMaterials.map(m => `მასალა: ${m}`),
-        ...form.windowsMaterials.map(w => `კარ-ფანჯ: ${w}`),
         ...form.layout.map(l => `განლაგება: ${l}`),
         ...form.buildingFeatures,
         ...form.badges,
         form.condition, form.buildingStatus, form.projectType,
         ...packListingDetails({
           wetPoint: form.wetPoint,
-          ceilingHeight: form.ceilingHeight,
+          ceilingHeight: '',
           balconyCount: form.balconyCount,
           verandaArea: form.verandaArea,
-          loggiaArea: form.loggiaArea,
-          waitingArea: form.waitingArea,
-          livingRoomArea: form.livingRoomArea,
+          loggiaArea: '',
+          waitingArea: '',
+          livingRoomArea: '',
           storageArea: form.storageArea,
         }),
       ].filter(Boolean);
@@ -1216,13 +1274,6 @@ export default function AdminAddListingPage() {
                         </>
                       )}
                     </div>
-                    {ownerContactsVisible && (
-                      <div className="mt-3">
-                        <label className={labelCls}>შენიშვნა მესაკუთრეზე</label>
-                        <textarea value={form.ownerNote} onChange={e => set('ownerNote', e.target.value)} rows={2}
-                          className={`${inputCls} resize-none`} placeholder="რეესტრი ვის სახელზეა, თანამესაკუთრეები..." readOnly={listingLocked} />
-                      </div>
-                    )}
                   </div>
                 )}
 
@@ -1782,7 +1833,7 @@ export default function AdminAddListingPage() {
                       <div>
                         <label className={labelCls}><Droplets size={13} /> სველი წერტილი</label>
                         <div className="flex gap-2">
-                          {['1','2','3+','საერთო'].map(w =>
+                          {['1','2','3+'].map(w =>
                             chip(w, form.wetPoint === w, () => toggleSingle('wetPoint', w), '#2563eb')
                           )}
                         </div>
@@ -1797,30 +1848,6 @@ export default function AdminAddListingPage() {
                         <div>
                           <label className={labelCls}>ვერანდა (მ²)</label>
                           <input type="number" value={form.verandaArea} onChange={e => set('verandaArea', e.target.value)} className={inputCls} placeholder="12" />
-                        </div>
-                        <div>
-                          <label className={labelCls}>ლოჯია (მ²)</label>
-                          <input type="number" value={form.loggiaArea} onChange={e => set('loggiaArea', e.target.value)} className={inputCls} placeholder="6" />
-                        </div>
-                      </div>
-
-                      {/* Waiting + ceiling */}
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className={labelCls}>მოსაცდელი სივ. (მ²)</label>
-                          <input type="number" value={form.waitingArea} onChange={e => set('waitingArea', e.target.value)} className={inputCls} placeholder="4" />
-                        </div>
-                        <div>
-                          <label className={labelCls}><Hash size={12} /> ჭერის სიმაღლე (მ)</label>
-                          <input type="number" step="0.1" value={form.ceilingHeight} onChange={e => set('ceilingHeight', e.target.value)} className={inputCls} placeholder="2.80" />
-                        </div>
-                      </div>
-
-                      {/* Living room / storage area — the type itself is a tick box in მახასიათებლები */}
-                      <div className="grid sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className={labelCls}>მისაღების ფართი (მ²)</label>
-                          <input type="number" value={form.livingRoomArea} onChange={e => set('livingRoomArea', e.target.value)} className={inputCls} placeholder="25" />
                         </div>
                         <div>
                           <label className={labelCls}>სათავსოს ფართი (მ²)</label>
@@ -2008,26 +2035,6 @@ export default function AdminAddListingPage() {
 
                 <div className="pt-2 border-t border-slate-100">
                   <div className="flex items-center gap-2 mb-3">
-                    <HardHat size={16} className="text-amber-600" />
-                    <h3 className="font-bold text-slate-800 text-sm">სამშენებლო მასალა</h3>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {BUILDING_MATERIALS.map(m => chip(m, form.buildingMaterials.includes(m), () => toggleArr('buildingMaterials', m), '#d97706'))}
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Package size={16} className="text-slate-600" />
-                    <h3 className="font-bold text-slate-800 text-sm">კარ-ფანჯარა</h3>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {WINDOW_MATERIALS.map(w => chip(w, form.windowsMaterials.includes(w), () => toggleArr('windowsMaterials', w), '#475569'))}
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-2 mb-3">
                     <Zap size={16} className="text-yellow-500" />
                     <h3 className="font-bold text-slate-800 text-sm">ქონების მახასიათებლები</h3>
                   </div>
@@ -2088,6 +2095,17 @@ export default function AdminAddListingPage() {
                   <div className="flex items-center gap-2 mb-2">
                     <ImageIcon size={16} className="text-blue-600" />
                     <h3 className="font-bold text-slate-800 text-sm">ფოტოგალერეა</h3>
+                    {form.photos.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => { void downloadAllPhotos(); }}
+                        disabled={photoDownloading}
+                        className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-slate-800 disabled:opacity-50"
+                      >
+                        {photoDownloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
+                        ჩამოტვირთვა
+                      </button>
+                    )}
                   </div>
                   <p className="text-slate-400 text-xs mb-4">
                     გადაათრიეთ რიგითობის შესაცვლელად. მწვანე პწიჩკა — ჩანს საიტზე, წითელი — ჩამალულია.
@@ -2224,6 +2242,14 @@ export default function AdminAddListingPage() {
                             >
                               <ArrowLeft size={13} className="rotate-180" />
                             </button>
+                            <button
+                              type="button"
+                              onClick={() => { void downloadListingPhoto(photo.url, listingPhotoFilename(photo.url, index, id)); }}
+                              className="w-7 h-7 rounded-lg bg-white/95 text-slate-700 flex items-center justify-center"
+                              title="ჩამოტვირთვა"
+                            >
+                              <Download size={13} />
+                            </button>
                             <span className="ml-auto px-1.5 py-0.5 rounded-md bg-black/50 text-white text-[10px] font-bold tabular-nums">
                               {index + 1}
                             </span>
@@ -2254,7 +2280,7 @@ export default function AdminAddListingPage() {
                     <h3 className="font-bold text-slate-800 text-sm">შიდა კომენტარები</h3>
                   </div>
                   <p className="text-slate-400 text-xs mb-4">
-                    რეესტრი ვის სახელზეა, დამატებითი დეტალები — ჩანს მხოლოდ ადმინში.
+                    თითო კომენტარი ინახება ცალკე — ჩანს მხოლოდ ადმინში.
                   </p>
                   <textarea
                     value={form.internalNote}
@@ -2263,6 +2289,18 @@ export default function AdminAddListingPage() {
                     placeholder="ახალი კომენტარი..."
                     className={`${inputCls} resize-none`}
                   />
+                  <div className="mt-2 flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => { void saveInternalComment(); }}
+                      disabled={noteSaving || !form.internalNote.trim()}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 disabled:opacity-40"
+                    >
+                      {noteSaving ? <Loader2 size={13} className="animate-spin" /> : <CheckCircle size={13} />}
+                      შენახვა
+                    </button>
+                    {noteError ? <p className="text-[11px] font-semibold text-red-500">{noteError}</p> : null}
+                  </div>
 
                   {savedNotes.length > 0 && (
                     <div className="mt-3 space-y-2">
@@ -2275,7 +2313,7 @@ export default function AdminAddListingPage() {
                             </span>
                             <button
                               type="button"
-                              onClick={() => setSavedNotes(list => list.filter(n => n.id !== note.id))}
+                              onClick={() => { void removeInternalComment(note.id); }}
                               className="ml-auto text-[10px] font-bold text-slate-300 hover:text-red-500"
                             >
                               წაშლა

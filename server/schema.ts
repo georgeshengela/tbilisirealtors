@@ -119,6 +119,8 @@ export const properties = pgTable('properties', {
   coordinates: jsonb('coordinates').$type<{ lat: number; lng: number }>(),
   viewCount: integer('view_count').default(0),
   listedDate: date('listed_date'),
+  /** Last time a broker refreshed / verified the listing. Aging is measured from here. */
+  refreshedAt: date('refreshed_at'),
   agentId: varchar('agent_id', { length: 50 }),
   agentName: varchar('agent_name', { length: 255 }),
   agentPhone: varchar('agent_phone', { length: 50 }),

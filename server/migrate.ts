@@ -588,6 +588,12 @@ async function migrate() {
       SET rooms = bedrooms
       WHERE rooms IS NULL AND bedrooms IS NOT NULL
     `;
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS refreshed_at DATE`;
+    await client`
+      UPDATE properties
+      SET refreshed_at = COALESCE(listed_date, created_at::date, CURRENT_DATE)
+      WHERE refreshed_at IS NULL
+    `;
 
     console.log('✅ All tables created successfully');
   } catch (err) {

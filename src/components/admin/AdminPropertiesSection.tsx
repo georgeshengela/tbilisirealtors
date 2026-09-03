@@ -113,6 +113,8 @@ export interface AdminPropertyRow {
   lifecycleNote?: string | null;
   lifecycleOutcome?: string | null;
   lifecycleDealPrice?: string | number | null;
+  nextFollowUpAt?: string | null;
+  refreshedAt?: string | null;
   priceHistory?: PriceChangeRow[];
   owner?: PropertyOwnerInfo | null;
   contracts?: PropertyContractDoc[] | null;
@@ -171,7 +173,7 @@ const LIFECYCLE_META: Record<string, { label: string; note: string; color: strin
   new:     { label: 'new',     note: 'ახლად დამატებული, ჯერ დაუმუშავებელი', color: '#2563eb', bg: '#eff6ff' },
   current: { label: 'current', note: 'აქტიურია — გამოქვეყნებულია და იყიდება/ქირავდება', color: '#10b981', bg: '#ecfdf5' },
   old:     { label: 'old',     note: 'არქივი — აირჩიე რატომ: გაიყიდა, გაქირავდა, შეჩერდა, აღარ იყიდება', color: '#64748b', bg: '#f1f5f9' },
-  new_r:   { label: 'new R',   note: 'ვადა გავიდა — თავისუფლდება, დასარეკი და გადასამოწმებელი', color: '#ef4444', bg: '#fef2f2' },
+  new_r:   { label: 'new R',   note: 'ჩაძველდა — განახლება და მესაკუთრესთან ზარი სავალდებულოა (2 დღე)', color: '#ef4444', bg: '#fef2f2' },
 };
 
 const RENT_TERMS = [6, 12, 18, 24];
@@ -711,7 +713,7 @@ const ORIGIN_LABEL: Record<string, string> = {
 
 /* Photo, listing ID and public preview as one tile. */
 function ListingLeadCell({
-  p, onOpen, onPreview,
+  p, onPreview,
 }: {
   p: AdminPropertyRow;
   onOpen: () => void;
@@ -747,8 +749,8 @@ function ListingLeadCell({
       </div>
       <button
         type="button"
-        onClick={onOpen}
-        title="რედაქტირება"
+        onClick={onPreview}
+        title="განცხადების ნახვა"
         className="relative block h-[108px] w-[140px] overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm"
       >
         {photo ? (
@@ -770,15 +772,16 @@ function ListingLeadCell({
           </span>
         )}
       </button>
-      <button
-        type="button"
-        onClick={onPreview}
-        title="განცხადების ნახვა"
+      <a
+        href={propertyHref(p)}
+        target="_blank"
+        rel="noopener noreferrer"
+        title="განცხადების გახსნა ახალ ჩანართში"
         className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline"
       >
         <Eye size={11} />
         ლინკი
-      </button>
+      </a>
     </div>
   );
 }
@@ -1198,7 +1201,13 @@ function LifecycleCell({
 
       {state === 'new_r' && (
         <p className="text-[10px] font-bold text-red-500 mt-0.5 whitespace-nowrap">
-          {days !== null && days < 0 ? `ვადა ${Math.abs(days)} დღის წინ გავიდა` : 'ვადა გავიდა — დაურეკე'}
+          {(() => {
+            const follow = daysUntil(p.nextFollowUpAt);
+            if (follow !== null && follow < 0) return `განახლება ${Math.abs(follow)} დღით ვადაგასულია`;
+            if (follow !== null) return `განახლება საჭიროა · ${follow} დღე`;
+            if (days !== null && days < 0) return `ვადა ${Math.abs(days)} დღის წინ გავიდა`;
+            return 'განახლება საჭიროა — დაურეკე';
+          })()}
         </p>
       )}
 
@@ -1429,7 +1438,7 @@ function OwnerCell({
   async function save() {
     setSaving(true);
     try {
-      await onPatch(p.id, { owner: draft });
+      await onPatch(p.id, { owner: { ...draft, note: owner.note } });
       setEditing(false);
     } finally {
       setSaving(false);
@@ -1495,17 +1504,6 @@ function OwnerCell({
                   />
                 </label>
               ))}
-              <label className="block">
-                <span className="block text-[10px] font-bold text-slate-400 mb-1">შენიშვნა</span>
-                <textarea
-                  value={draft.note ?? ''}
-                  onChange={e => setDraft(d => ({ ...d, note: e.target.value }))}
-                  rows={2}
-                  placeholder="რეესტრი, თანამესაკუთრეები, სპეციფიკა..."
-                  className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 placeholder-slate-300 resize-none focus:outline-none focus:border-blue-400"
-                />
-              </label>
-
               <div className="flex items-center gap-2 pt-1">
                 <button
                   type="button"
@@ -1539,12 +1537,6 @@ function OwnerCell({
                   </div>
                 </div>
               ))}
-              {owner.note && (
-                <div className="pt-2 mt-1 border-t border-slate-100">
-                  <p className="text-[9px] font-bold uppercase tracking-wide text-slate-400 mb-1">შენიშვნა</p>
-                  <p className="text-[11px] text-slate-600 leading-relaxed whitespace-pre-wrap">{owner.note}</p>
-                </div>
-              )}
             </div>
           )}
         </AnchoredPopover>
@@ -2177,7 +2169,7 @@ export default function AdminPropertiesSection({
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-extrabold text-slate-800">
-              {needsCall.length} განცხადებას ვადა გაუვიდა — გადასამოწმებელია
+              {needsCall.length} განცხადებას სჭირდება განახლება — დასარეკია 2 დღეში
             </p>
             <p className="text-[11px] text-slate-500 mt-0.5 truncate">
               {needsCall.slice(0, 3).map(p => p.title || p.id).join(' · ')}

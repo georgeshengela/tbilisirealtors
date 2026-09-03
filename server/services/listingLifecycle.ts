@@ -1,6 +1,6 @@
-import { and, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, or, sql } from 'drizzle-orm';
 import { db } from '../db.js';
-import { properties, propertyPriceHistory } from '../schema.js';
+import { listingTasks, properties, propertyPriceHistory } from '../schema.js';
 
 /**
  * new     — just added, not worked yet
@@ -78,6 +78,29 @@ export function isLifecycleOutcome(value: unknown): value is LifecycleOutcome {
 }
 
 const TERM_OUTCOMES: LifecycleOutcome[] = ['paused', 'rented_us'];
+
+export const REFRESH_TASK_TITLE = 'განახლება — დასარეკი';
+const REFRESH_TASK_NOTE =
+  'განცხადება ჩაძველდა. დაურეკე მესაკუთრეს და განაახლე მაქსიმუმ 2 დღეში (შაბათს ჩაძველებისას — ორშაბათის ჩათვლით).';
+
+export function addDays(startedAt: string, days: number): string {
+  const date = new Date(`${startedAt}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
+/** Two calendar days, bumped to Monday when the deadline lands on a weekend. */
+export function callDeadlineFrom(agedOn: string): string {
+  let due = addDays(agedOn, 2);
+  const weekday = new Date(`${due}T00:00:00Z`).getUTCDay();
+  if (weekday === 6) due = addDays(due, 2);
+  if (weekday === 0) due = addDays(due, 1);
+  return due;
+}
+
+export function isTermOutcome(value: unknown): boolean {
+  return typeof value === 'string' && TERM_OUTCOMES.includes(value as LifecycleOutcome);
+}
 
 function dealPriceOf(value: unknown): string | null {
   if (value === null || value === undefined || value === '') return null;
@@ -227,10 +250,120 @@ export async function recordPriceChange({
 const SWEEP_INTERVAL_MS = 60_000;
 let lastSweep = 0;
 
+export async function completeRefreshTasks(propertyId: string): Promise<void> {
+  await db
+    .update(listingTasks)
+    .set({
+      status: 'done',
+      completedAt: new Date(),
+      completedByName: 'სისტემა',
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(listingTasks.propertyId, propertyId),
+        eq(listingTasks.status, 'open'),
+        eq(listingTasks.title, REFRESH_TASK_TITLE),
+      ),
+    );
+}
+
+async function ensureRefreshTask(row: {
+  id: string;
+  assignedToUserId: number | null;
+  createdByUserId: number | null;
+}, dueAt: string): Promise<void> {
+  const assignee = row.assignedToUserId ?? row.createdByUserId;
+  const [open] = await db
+    .select({ id: listingTasks.id })
+    .from(listingTasks)
+    .where(
+      and(
+        eq(listingTasks.propertyId, row.id),
+        eq(listingTasks.status, 'open'),
+        eq(listingTasks.title, REFRESH_TASK_TITLE),
+      ),
+    )
+    .limit(1);
+  if (open) return;
+
+  await db.insert(listingTasks).values({
+    propertyId: row.id,
+    title: REFRESH_TASK_TITLE,
+    kind: 'call',
+    status: 'open',
+    priority: 'high',
+    assignedToUserId: assignee,
+    dueAt,
+    note: REFRESH_TASK_NOTE,
+    createdByName: 'სისტემა',
+  });
+}
+
 /**
- * A parked rental becomes "new R" the day its term runs out, which is what makes
- * it resurface in the admin list as a call-back reminder. Throttled so it can be
- * called on every listing request.
+ * Live sale/rent listings age into "new R" so brokers must call and refresh them.
+ * Rent: 1 month. Sale / pledge: 2 months. Brokers get 2 days (weekend → Monday).
+ */
+async function markStaleListings(): Promise<number> {
+  const stale = await db
+    .select({
+      id: properties.id,
+      assignedToUserId: properties.assignedToUserId,
+      createdByUserId: properties.createdByUserId,
+    })
+    .from(properties)
+    .where(
+      and(
+        inArray(properties.lifecycleState, ['new', 'current']),
+        or(
+          sql`${properties.lifecycleOutcome} is null`,
+          eq(properties.lifecycleOutcome, 'rented_owner'),
+        ),
+        or(
+          and(
+            inArray(properties.status, ['sale', 'pledge']),
+            sql`COALESCE(${properties.refreshedAt}, ${properties.listedDate}, ${properties.createdAt}::date)
+                <= CURRENT_DATE - INTERVAL '2 months'`,
+          ),
+          and(
+            sql`COALESCE(${properties.status}, 'rent') NOT IN ('sale', 'pledge')`,
+            sql`COALESCE(${properties.refreshedAt}, ${properties.listedDate}, ${properties.createdAt}::date)
+                <= CURRENT_DATE - INTERVAL '1 month'`,
+          ),
+        ),
+      ),
+    )
+    .limit(400);
+
+  if (stale.length === 0) return 0;
+
+  const dueAt = callDeadlineFrom(today());
+  const stamp = new Date();
+  await db
+    .update(properties)
+    .set({
+      lifecycleState: 'new_r',
+      lifecycleUpdatedAt: stamp,
+      nextFollowUpAt: dueAt,
+    })
+    .where(inArray(properties.id, stale.map(row => row.id)));
+
+  for (const row of stale) {
+    try {
+      await ensureRefreshTask(row, dueAt);
+    } catch (err) {
+      console.error(`Refresh task failed for ${row.id}:`, err);
+    }
+  }
+
+  console.log(`↻ ${stale.length} stale listing(s) → "new R" (call by ${dueAt})`);
+  return stale.length;
+}
+
+/**
+ * Parked rentals whose term ran out, plus live listings that aged past the
+ * refresh window, become call-back reminders. Throttled so it can run on
+ * every listing request.
  */
 export async function refreshExpiredRentals(force = false): Promise<number> {
   if (!force && Date.now() - lastSweep < SWEEP_INTERVAL_MS) return 0;
@@ -254,7 +387,9 @@ export async function refreshExpiredRentals(force = false): Promise<number> {
     if (expired.length > 0) {
       console.log(`↻ ${expired.length} paused/rented listing(s) → marked "new R"`);
     }
-    return expired.length;
+
+    const stale = await markStaleListings();
+    return expired.length + stale;
   } catch (err) {
     console.error('Lifecycle sweep failed:', err);
     return 0;

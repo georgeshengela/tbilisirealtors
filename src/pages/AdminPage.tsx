@@ -942,7 +942,7 @@ export default function AdminPage() {
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block text-sm font-extrabold text-slate-900">
-                      {stats?.needsCall} განცხადებას გაუვიდა ვადა — დასარეკია
+                      {stats?.needsCall} განცხადებას სჭირდება განახლება — დასარეკია
                     </span>
                     <span className="block text-[12px] text-slate-500 mt-0.5">
                       {(stats?.freeingSoon ?? 0) > 0
@@ -997,7 +997,7 @@ export default function AdminPage() {
                   { key: 'new', label: 'ახალი', hint: 'ახლახანს დამატებული', accent: '#2563eb' },
                   { key: 'current', label: 'მიმდინარე', hint: 'აქტიური პორტფოლიო', accent: '#059669' },
                   { key: 'old', label: 'ძველი / ქირა', hint: 'ვადიანი ქირავნობა', accent: '#d97706' },
-                  { key: 'new_r', label: 'დასარეკი', hint: 'ვადა ამოიწურა', accent: '#dc2626' },
+                  { key: 'new_r', label: 'დასარეკი', hint: 'განახლება 2 დღეში', accent: '#dc2626' },
                 ].map(item => (
                   <button
                     key={item.key}

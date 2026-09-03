@@ -57,8 +57,11 @@ import {
 } from '../services/importQuality.js';
 import {
   buildLifecycleFields,
+  completeRefreshTasks,
+  isTermOutcome,
   recordPriceChange,
   refreshExpiredRentals,
+  today,
   type PriceSource,
 } from '../services/listingLifecycle.js';
 import { offerCountsForProperties } from '../services/propertyOffers.js';
@@ -693,6 +696,7 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
         coordinates: data.coordinates,
         viewCount: 0,
         listedDate: new Date().toISOString().split('T')[0],
+        refreshedAt: today(),
         agentId: data.agentId,
         agentName: nonempty(data.agentName) || staffAgentName(req.user) || null,
         agentPhone: nonempty(data.agentPhone) || req.user?.phone || null,
@@ -761,8 +765,16 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
     }
 
     const canFlag = can(req.user, 'listings.flags');
+    const agingCall = existing.lifecycleState === 'new_r' && !isTermOutcome(existing.lifecycleOutcome);
+    const keepParked = data.lifecycleState === 'old'
+      || (data.lifecycleState === 'new_r' && isTermOutcome(data.lifecycleOutcome));
     const lifecycle = can(req.user, 'listings.lifecycle')
-      ? buildLifecycleFields(data, existing)
+      ? buildLifecycleFields(
+        agingCall && !keepParked
+          ? { ...data, lifecycleState: data.lifecycleState === 'new' ? 'new' : 'current', lifecycleOutcome: null }
+          : data,
+        existing,
+      )
       : {};
 
     const [updated] = await db
@@ -823,10 +835,18 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
             : null)
           : existing.placementPackage,
         ...lifecycle,
+        refreshedAt: today(),
+        ...(agingCall && !keepParked
+          ? { lifecycleState: 'current', lifecycleOutcome: null, nextFollowUpAt: null }
+          : {}),
         updatedAt: new Date(),
       })
       .where(eq(properties.id, String(req.params.id)))
       .returning();
+
+    if (agingCall && !keepParked) {
+      await completeRefreshTasks(updated.id);
+    }
 
     await recordPriceChange({
       propertyId: updated.id,
@@ -1050,7 +1070,12 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
         res.status(403).json({ error: 'სტატუსის შეცვლის უფლება არ გაქვთ' });
         return;
       }
-      Object.assign(updates, buildLifecycleFields(req.body, existing));
+      const next = buildLifecycleFields(req.body, existing);
+      Object.assign(updates, next);
+      if (next.lifecycleState === 'current' || next.lifecycleState === 'new') {
+        updates.refreshedAt = today();
+        updates.nextFollowUpAt = null;
+      }
     }
 
     const [updated] = await db
@@ -1058,6 +1083,10 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
       .set(updates)
       .where(eq(properties.id, String(req.params.id)))
       .returning();
+
+    if (updated.lifecycleState === 'current' || updated.lifecycleState === 'new') {
+      await completeRefreshTasks(updated.id);
+    }
 
     if (priceChanged) {
       await recordPriceChange({

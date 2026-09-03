@@ -763,8 +763,6 @@ export default function PropertyDetailPage() {
                 )}
               </div>
 
-              <p className="pdp-reply"><span className="pdp-reply__dot" />{t('property.replyTime')}</p>
-
               <div className="pdp-ctas">
                 <a className="pdp-cta is-call" href={`tel:${property.agent.phone}`}>
                   <Phone size={16} strokeWidth={2.2} />{property.agent.phone}
