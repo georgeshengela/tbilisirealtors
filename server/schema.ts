@@ -11,6 +11,7 @@ import {
   numeric,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import type { CadastralRegistry } from './lib/cadastralCode.js';
 
 /**
  * One table for everyone: super admins, admins, managers, brokers and the members
@@ -138,6 +139,8 @@ export const properties = pgTable('properties', {
   showAddress: boolean('show_address').default(true),
   /** Cadastral / NAPR code — public page only for managers and admins. */
   cadastralCode: varchar('cadastral_code', { length: 80 }),
+  /** Last NAPR / my.gov.ge search snapshot — edit form only, never public. */
+  cadastralRegistry: jsonb('cadastral_registry').$type<CadastralRegistry | null>(),
 
   /* Where the listing came from, so admins can open the original ad. */
   source: varchar('source', { length: 30 }),

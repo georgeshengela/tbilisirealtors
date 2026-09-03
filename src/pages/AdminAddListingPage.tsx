@@ -42,6 +42,12 @@ import {
   unpackListingFields,
 } from '../lib/listingFormFields';
 import { downloadListingPhoto, downloadListingPhotos, listingPhotoFilename } from '../lib/downloadListingPhotos';
+import CadastralRegistryPanel from '../components/admin/CadastralRegistryPanel';
+import {
+  isCadastralRegistry,
+  normalizeCadastralCode,
+  type CadastralRegistry,
+} from '../lib/cadastralCode';
 
 const SECTION_NAV = [
   { id: 'section-contact',  label: 'კონტაქტი',       icon: User       },
@@ -415,6 +421,9 @@ export default function AdminAddListingPage() {
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState('');
   const [photoDownloading, setPhotoDownloading] = useState(false);
+  const [cadastralRegistry, setCadastralRegistry] = useState<CadastralRegistry | null>(null);
+  const [cadastralSyncing, setCadastralSyncing] = useState(false);
+  const [cadastralSyncError, setCadastralSyncError] = useState('');
   const [translating, setTranslating] = useState(false);
   const [translateError, setTranslateError] = useState('');
   const [photoDraft, setPhotoDraft] = useState('');
@@ -530,6 +539,8 @@ export default function AdminAddListingPage() {
             : '',
         }));
         setSavedNotes(Array.isArray(data.internalNotes) ? data.internalNotes : []);
+        setCadastralRegistry(isCadastralRegistry(data.cadastralRegistry) ? data.cadastralRegistry : null);
+        setCadastralSyncError('');
         const owner = (data.owner ?? {}) as Record<string, unknown>;
         const hasOwnerContacts = Boolean(
           owner.phone || owner.email || owner.idNumber || owner.address || owner.note,
@@ -582,6 +593,33 @@ export default function AdminAddListingPage() {
       const known = Boolean(findCityArea(nextCity)?.districts.some(d => d.ka === kept));
       return { ...f, city: nextCity, district: known ? kept : '' };
     });
+  }
+
+  async function syncCadastral() {
+    const code = normalizeCadastralCode(form.cadastralCode);
+    if (!code) {
+      setCadastralSyncError('ჩაწერეთ საკადასტრო კოდი');
+      return;
+    }
+    set('cadastralCode', code);
+    setCadastralSyncing(true);
+    setCadastralSyncError('');
+    try {
+      const result = await api('/cadastral-lookup', {
+        method: 'POST',
+        body: JSON.stringify({ code, propertyId: id || undefined }),
+      });
+      if (!isCadastralRegistry(result)) {
+        setCadastralSyncError('საჯარო რეესტრის პასუხი ვერ წაიკითხა');
+        return;
+      }
+      setCadastralRegistry(result);
+      if (result.code) set('cadastralCode', result.code);
+    } catch (err) {
+      setCadastralSyncError(err instanceof Error ? err.message : 'სინქრონიზაცია ვერ მოხდა');
+    } finally {
+      setCadastralSyncing(false);
+    }
   }
 
   function handleStreetPick(hit: StreetSuggestion) {
@@ -663,6 +701,9 @@ export default function AdminAddListingPage() {
       sourceId: data.sourceId || f.sourceId,
     }));
     if (data.title) setTitleManual(true);
+    if (data.cadastralCode && normalizeCadastralCode(data.cadastralCode) !== normalizeCadastralCode(form.cadastralCode)) {
+      setCadastralRegistry(null);
+    }
     setImportApplied(true);
   }
 
@@ -893,7 +934,8 @@ export default function AdminAddListingPage() {
         district:     form.district,
         address:      formatStreetAddress(form.street, form.streetNumber) || form.address,
         showAddress:  form.showAddress,
-        cadastralCode: form.cadastralCode.trim(),
+        cadastralCode: normalizeCadastralCode(form.cadastralCode),
+        cadastralRegistry,
         coordinates:  { lat: form.lat, lng: form.lng },
         images:       form.photos.filter(p => !p.hidden).map(p => p.url),
         hiddenImages: form.photos.filter(p => p.hidden).map(p => p.url),
@@ -1970,6 +2012,13 @@ export default function AdminAddListingPage() {
                         <input type="text" value={form.cadastralCode} onChange={e => set('cadastralCode', e.target.value)}
                           className={inputCls} placeholder="01.13.15.123.456" />
                         <p className="text-xs text-slate-400 mt-1">კოდის ჩაწერა ზრდის განცხადების სანდოობას</p>
+                        <CadastralRegistryPanel
+                          code={form.cadastralCode}
+                          registry={cadastralRegistry}
+                          syncing={cadastralSyncing}
+                          error={cadastralSyncError}
+                          onSync={() => { void syncCadastral(); }}
+                        />
                       </div>
 
                       {/* Exact number goes public only for paid placements */}

@@ -66,6 +66,8 @@ import {
 } from '../services/listingLifecycle.js';
 import { offerCountsForProperties } from '../services/propertyOffers.js';
 import { buildDisplayName, profileFieldsFromBody, splitLegacyName } from '../utils/adminProfile.js';
+import { normalizeCadastralCode, parseCadastralRegistry } from '../lib/cadastralCode.js';
+import { CadastralLookupError, lookupCadastral } from '../services/cadastralLookup.js';
 
 const router = Router();
 
@@ -179,6 +181,11 @@ function canEditListing(actor: PermissionActor, listing: ScopedListing): boolean
 }
 
 /** Strips owner PII / contracts / notes / billing the actor is not cleared for. */
+function cadastralCodeOf(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return normalizeCadastralCode(value).slice(0, 80) || null;
+}
+
 function priceCurrencyOf(value: unknown, fallback: 'GEL' | 'USD' = 'GEL'): 'GEL' | 'USD' {
   const v = String(value ?? '').trim().toUpperCase();
   if (v === 'USD' || v === '$') return 'USD';
@@ -650,6 +657,42 @@ router.get('/properties/:id/price-history', requirePermission('listings.price'),
   }
 });
 
+router.post('/cadastral-lookup', requirePermission('listings.view'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const result = await lookupCadastral(String(req.body?.code ?? ''));
+    const propertyId = req.body?.propertyId ? String(req.body.propertyId) : '';
+    if (propertyId && can(req.user, 'listings.edit')) {
+      const [existing] = await db
+        .select({
+          id: properties.id,
+          createdByUserId: properties.createdByUserId,
+          assignedToUserId: properties.assignedToUserId,
+        })
+        .from(properties)
+        .where(eq(properties.id, propertyId));
+
+      if (existing && canEditListing(req.user!, existing)) {
+        await db
+          .update(properties)
+          .set({
+            cadastralCode: result.code,
+            cadastralRegistry: result,
+            updatedAt: new Date(),
+          })
+          .where(eq(properties.id, propertyId));
+      }
+    }
+    res.json(result);
+  } catch (err) {
+    if (err instanceof CadastralLookupError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
+    console.error('Cadastral lookup error:', err);
+    res.status(502).json({ error: 'საჯარო რეესტრთან კავშირი ვერ მოხერხდა' });
+  }
+});
+
 router.post('/properties', requirePermission('listings.create'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     if (blockedPrivateWrite(req, res)) return;
@@ -709,7 +752,8 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
         contracts: contractsFrom(data.contracts, editorName(req)),
         internalNotes: notesFrom(data.internalNotes, editorName(req)),
         showAddress: data.showAddress ?? true,
-        cadastralCode: typeof data.cadastralCode === 'string' ? data.cadastralCode.trim().slice(0, 80) || null : null,
+        cadastralCode: cadastralCodeOf(data.cadastralCode),
+        cadastralRegistry: parseCadastralRegistry(data.cadastralRegistry),
         source: data.source || null,
         sourceUrl: data.sourceUrl || null,
         sourceId: data.sourceId ? String(data.sourceId) : null,
@@ -823,8 +867,11 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
           : existing.internalNotes,
         showAddress: data.showAddress ?? existing.showAddress,
         cadastralCode: 'cadastralCode' in data
-          ? (typeof data.cadastralCode === 'string' ? data.cadastralCode.trim().slice(0, 80) || null : null)
+          ? cadastralCodeOf(data.cadastralCode)
           : existing.cadastralCode,
+        cadastralRegistry: 'cadastralRegistry' in data
+          ? parseCadastralRegistry(data.cadastralRegistry)
+          : existing.cadastralRegistry,
         source: data.source ?? existing.source,
         sourceUrl: data.sourceUrl ?? existing.sourceUrl,
         sourceId: data.sourceId ? String(data.sourceId) : existing.sourceId,

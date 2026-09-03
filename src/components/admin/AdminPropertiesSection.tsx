@@ -230,11 +230,22 @@ function listingArea(p: AdminPropertyRow): number {
 }
 
 function PriceSize({ p }: { p: AdminPropertyRow }) {
+  const { toUsd } = useAdminUsd();
   const area = listingArea(p);
-  if (!area) return null;
+  const storedPerSqm = Number(p.pricePerSqm);
+  const total = Number(p.price) || 0;
+
+  let perSqmGel = Number.isFinite(storedPerSqm) && storedPerSqm > 0 ? storedPerSqm : 0;
+  if (!perSqmGel && total > 0 && area > 0) {
+    perSqmGel = Math.round(total / area);
+  }
+  if (!perSqmGel) return null;
+
+  const perSqmUsd = toUsd(perSqmGel, p.priceCurrency);
+
   return (
-    <p className="mt-0.5 text-[11px] tabular-nums text-slate-400 whitespace-nowrap">
-      {area.toLocaleString('ka-GE')} კვ.მ
+    <p className="mt-0.5 text-[11px] font-semibold tabular-nums text-slate-500 whitespace-nowrap">
+      / 1m² ${perSqmUsd.toLocaleString('ka-GE')}
     </p>
   );
 }
@@ -278,12 +289,12 @@ function addressLines(p: AdminPropertyRow): string[] {
   return lines.slice(0, 4);
 }
 
-function AddressCell({ p }: { p: AdminPropertyRow }) {
+function AddressCell({ p, compact = false }: { p: AdminPropertyRow; compact?: boolean }) {
   const lines = addressLines(p);
   if (lines.length === 0) return <span className="text-slate-300">—</span>;
 
   return (
-    <div className="min-w-[196px] max-w-[248px]" title={p.address || undefined}>
+    <div className={compact ? 'min-w-0 max-w-full' : 'min-w-[196px] max-w-[248px]'} title={p.address || undefined}>
       {lines.map((line, index) => {
         const isFirst = index === 0;
         const isLast = index === lines.length - 1 && lines.length > 1;
@@ -291,17 +302,21 @@ function AddressCell({ p }: { p: AdminPropertyRow }) {
           <p
             key={`${line}-${index}`}
             className={
-              isFirst
-                ? 'text-[13px] font-bold text-slate-800 leading-[1.35]'
-                : isLast
-                  ? 'mt-0.5 text-[11px] font-medium text-slate-400 leading-[1.35]'
-                  : 'mt-0.5 text-[12px] font-medium text-slate-600 leading-[1.35]'
+              compact
+                ? isFirst
+                  ? 'text-[11px] font-semibold text-slate-600 leading-[1.35]'
+                  : 'mt-0.5 text-[10px] font-medium text-slate-400 leading-[1.35]'
+                : isFirst
+                  ? 'text-[13px] font-bold text-slate-800 leading-[1.35]'
+                  : isLast
+                    ? 'mt-0.5 text-[11px] font-medium text-slate-400 leading-[1.35]'
+                    : 'mt-0.5 text-[12px] font-medium text-slate-600 leading-[1.35]'
             }
           >
             {isFirst ? (
               <span className="inline-flex items-start gap-1">
-                <MapPin size={11} className="mt-[3px] flex-shrink-0 text-blue-500" />
-                <span>{line}</span>
+                <MapPin size={compact ? 10 : 11} className={`mt-[3px] flex-shrink-0 ${compact ? 'text-slate-400' : 'text-blue-500'}`} />
+                <span className={compact ? 'line-clamp-2' : undefined}>{line}</span>
               </span>
             ) : line}
           </p>
@@ -2451,12 +2466,14 @@ export default function AdminPropertiesSection({
                   </td>
                   <td className="py-1.5 px-1.5 align-top min-w-[180px] max-w-[260px]">
                     <p className="text-[12px] font-semibold leading-snug text-slate-800 line-clamp-2">{p.title || '—'}</p>
-                    <p className="mt-0.5 text-[11px] leading-snug text-slate-500">
+                    <div className="mt-1">
+                      <AddressCell p={p} compact />
+                    </div>
+                    <p className="mt-1 text-[11px] leading-snug text-slate-500">
                       {TYPE_LABELS[p.type] || p.type}
                       {p.district ? `, ${p.district}` : ''}
                       {p.city ? `, ${p.city}` : ''}
                     </p>
-                    {!p.title ? <AddressCell p={p} /> : null}
                     {canContracts && (p.contracts?.length ?? 0) > 0 ? (
                       <p className="mt-0.5 text-[10px] font-semibold text-slate-400">ხელშ. {p.contracts!.length}</p>
                     ) : null}

@@ -37,6 +37,7 @@ function toPublic(row: PropertyRow, viewerRole?: string) {
     lifecycleOutcome: _lifecycleOutcome,
     lifecycleDealPrice: _lifecycleDealPrice,
     cadastralCode,
+    cadastralRegistry: _cadastralRegistry,
     moderationStatus: _moderationStatus,
     moderationNote: _moderationNote,
     moderatedByUserId: _moderatedByUserId,

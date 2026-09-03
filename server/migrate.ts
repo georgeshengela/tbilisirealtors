@@ -589,6 +589,7 @@ async function migrate() {
       WHERE rooms IS NULL AND bedrooms IS NOT NULL
     `;
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS refreshed_at DATE`;
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS cadastral_registry JSONB`;
     await client`
       UPDATE properties
       SET refreshed_at = COALESCE(listed_date, created_at::date, CURRENT_DATE)
