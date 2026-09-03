@@ -154,7 +154,7 @@ const DETAIL_PREFIX = {
 } as const;
 
 export type ListingDetailFields = {
-  [K in keyof typeof DETAIL_PREFIX]: string;
+  -readonly [K in keyof typeof DETAIL_PREFIX]: string;
 };
 
 export function packListingDetails(details: ListingDetailFields): string[] {
