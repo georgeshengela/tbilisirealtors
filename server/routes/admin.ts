@@ -176,6 +176,13 @@ function canEditListing(actor: PermissionActor, listing: ScopedListing): boolean
 }
 
 /** Strips owner PII / contracts / notes / billing the actor is not cleared for. */
+function priceCurrencyOf(value: unknown, fallback: 'GEL' | 'USD' = 'GEL'): 'GEL' | 'USD' {
+  const v = String(value ?? '').trim().toUpperCase();
+  if (v === 'USD' || v === '$') return 'USD';
+  if (v === 'GEL' || v === '₾') return 'GEL';
+  return fallback;
+}
+
 function clean<T extends Record<string, unknown>>(req: AuthRequest, listing: T): T {
   return sanitizeListingFor(req.user, listing);
 }
@@ -664,12 +671,14 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
         price: data.price,
         rentPrice: data.rentPrice ?? null,
         pricePerSqm: data.pricePerSqm,
+        priceCurrency: priceCurrencyOf(data.priceCurrency),
         address: data.address,
         city: data.city || 'თბილისი',
         district: data.district,
         type: data.type || 'apartment',
         status: data.status || 'sale',
         bedrooms: data.bedrooms,
+        rooms: data.rooms ?? data.bedrooms ?? null,
         bathrooms: data.bathrooms,
         area: data.area,
         floor: data.floor,
@@ -766,12 +775,16 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
         price: data.price,
         rentPrice: data.rentPrice ?? null,
         pricePerSqm: data.pricePerSqm,
+        priceCurrency: 'priceCurrency' in data
+          ? priceCurrencyOf(data.priceCurrency, existing.priceCurrency === 'USD' ? 'USD' : 'GEL')
+          : (existing.priceCurrency === 'USD' ? 'USD' : 'GEL'),
         address: data.address,
         city: data.city,
         district: data.district,
         type: data.type,
         status: data.status,
         bedrooms: data.bedrooms,
+        rooms: 'rooms' in data ? data.rooms : existing.rooms,
         bathrooms: data.bathrooms,
         area: data.area,
         floor: data.floor,
@@ -1014,6 +1027,12 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
         return;
       }
       updates.price = String(nextPrice);
+      if ('priceCurrency' in req.body) {
+        updates.priceCurrency = priceCurrencyOf(
+          req.body.priceCurrency,
+          existing.priceCurrency === 'USD' ? 'USD' : 'GEL',
+        );
+      }
 
       const area = Number(existing.area);
       if (Number.isFinite(area) && area > 0) {
@@ -1287,6 +1306,7 @@ const listingPreviewColumns = {
   id: properties.id,
   title: properties.title,
   price: properties.price,
+  priceCurrency: properties.priceCurrency,
   rentPrice: properties.rentPrice,
   status: properties.status,
   city: properties.city,

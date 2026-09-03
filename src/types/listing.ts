@@ -4,6 +4,8 @@ export interface Property {
   description: string;
   price: number;
   pricePerSqm: number;
+  /** Currency the asking price is stored in. Does not change with the daily rate. */
+  priceCurrency: 'GEL' | 'USD';
   address: string;
   city: string;
   district: string;
@@ -102,12 +104,14 @@ export type ApiPropertyRow = {
   price: string | number;
   rentPrice?: string | number | null;
   pricePerSqm: string | number | null;
+  priceCurrency?: string | null;
   address: string | null;
   city: string | null;
   district: string | null;
   type: string | null;
   status: string | null;
   bedrooms: number | null;
+  rooms?: number | null;
   bathrooms: number | null;
   area: string | number | null;
   floor: number | null;

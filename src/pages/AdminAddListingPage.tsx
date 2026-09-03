@@ -14,9 +14,9 @@ import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import { useCurrency, FALLBACK_USD_RATE } from '../contexts/CurrencyContext';
 import {
   convertEntryAmount,
-  entryAmountToGel,
   formCurrencyToEntry,
-  gelToEntryAmount,
+  listingMoneyFrom,
+  parsePriceCurrency,
 } from '../lib/moneyEntry';
 import { useFileUpload } from '../hooks/useFileUpload';
 import LocationPickerMap, { type LocationValue } from '../components/LocationPickerMap';
@@ -35,7 +35,10 @@ import {
 import {
   adminReturnPath,
   bedroomsChipFromCount,
+  packListingDetails,
+  parseChipCount,
   roomsChipFromCount,
+  unpackListingDetails,
   unpackListingFields,
 } from '../lib/listingFormFields';
 
@@ -438,24 +441,33 @@ export default function AdminAddListingPage() {
         const data = await api(`/properties/${id}`);
         const coords = data.coordinates as { lat: number; lng: number } | null;
         const unpacked = unpackListingFields(data.amenities, data.features, CHIP_UNPACK_OPTIONS);
+        const extras = unpackListingDetails(unpacked.features);
         setForm(prev => ({
           ...prev,
           title:      data.title || '',
           description: data.description || '',
           descriptionEn: data.descriptionEn || '',
           descriptionRu: data.descriptionRu || '',
-          price:      data.price ? String(gelToEntryAmount(Number(data.price), formCurrencyToEntry('$'), usdRate)) : '',
-          rentPrice:  data.rentPrice ? String(gelToEntryAmount(Number(data.rentPrice), formCurrencyToEntry('$'), usdRate)) : '',
+          price:      data.price ? String(Math.round(Number(data.price))) : '',
+          rentPrice:  data.rentPrice ? String(Math.round(Number(data.rentPrice))) : '',
           pricePerSqm: data.pricePerSqm
-            ? String(gelToEntryAmount(Number(data.pricePerSqm), formCurrencyToEntry('$'), usdRate))
+            ? String(Math.round(Number(data.pricePerSqm)))
             : '',
-          currency: '$',
+          currency: parsePriceCurrency(data.priceCurrency) === 'USD' ? '$' : '₾',
           area:       String(data.area || ''),
           type:       data.type || 'apartment',
           dealTypes:  data.status === 'both' ? ['sale', 'rent'] : [data.status || 'sale'],
-          rooms:      roomsChipFromCount(data.bedrooms) || prev.rooms,
-          bedrooms:   bedroomsChipFromCount(data.bedrooms) || String(data.bedrooms || ''),
-          bathrooms:  String(data.bathrooms || ''),
+          rooms:      roomsChipFromCount(data.rooms ?? data.bedrooms) || prev.rooms,
+          bedrooms:   bedroomsChipFromCount(data.bedrooms) || '',
+          bathrooms:  extras.details.wetPoint || String(data.bathrooms || ''),
+          wetPoint:   extras.details.wetPoint || (Number(data.bathrooms) >= 3 ? '3+' : (data.bathrooms ? String(data.bathrooms) : '')),
+          ceilingHeight: extras.details.ceilingHeight,
+          balconyCount: extras.details.balconyCount,
+          verandaArea: extras.details.verandaArea,
+          loggiaArea: extras.details.loggiaArea,
+          waitingArea: extras.details.waitingArea,
+          livingRoomArea: extras.details.livingRoomArea,
+          storageArea: extras.details.storageArea,
           condition:  unpacked.condition,
           buildingStatus: unpacked.buildingStatus,
           projectType: unpacked.projectType,
@@ -482,7 +494,7 @@ export default function AdminAddListingPage() {
           showAddress: data.showAddress !== false,
           photos:     toPhotoItems(data.images, data.hiddenImages),
           amenities:  unpacked.amenities,
-          features:   unpacked.features,
+          features:   extras.rest,
           agentName:  data.agentName || '',
           agentPhone: data.agentPhone || '',
           agentEmail: data.agentEmail || '',
@@ -510,7 +522,7 @@ export default function AdminAddListingPage() {
           lifecycleNote:  data.lifecycleNote || '',
           lifecycleOutcome: data.lifecycleOutcome || '',
           lifecycleDealPrice: data.lifecycleDealPrice != null
-            ? String(gelToEntryAmount(Number(data.lifecycleDealPrice), formCurrencyToEntry('$'), usdRate))
+            ? String(Math.round(Number(data.lifecycleDealPrice)))
             : '',
         }));
         setSavedNotes(Array.isArray(data.internalNotes) ? data.internalNotes : []);
@@ -523,7 +535,7 @@ export default function AdminAddListingPage() {
       } catch { setError('განცხადების ჩატვირთვა ვერ მოხერხდა'); }
       finally  { setLoading(false); }
     })();
-  }, [isEdit, id, user, api, usdRate]);
+  }, [isEdit, id, user, api]);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm(f => ({ ...f, [key]: value }));
@@ -582,10 +594,10 @@ export default function AdminAddListingPage() {
   }
 
   function applyImportedData(data: ImportedListingData) {
-    const entry = formCurrencyToEntry('$');
-    const gelPrice = Number(data.price) || 0;
-    const gelPerSqm = Number(data.pricePerSqm) || 0;
+    const importedPrice = Number(data.price) || 0;
+    const importedPerSqm = Number(data.pricePerSqm) || 0;
     const areaNum = Number(data.area) || 0;
+    const currency = data.currency === '$' ? '$' : '₾';
 
     setForm(f => ({
       ...f,
@@ -595,13 +607,13 @@ export default function AdminAddListingPage() {
       dealTypes: data.dealType ? [data.dealType] : f.dealTypes,
       buildingStatus: data.buildingStatus || f.buildingStatus,
       condition: data.condition || f.condition,
-      price: gelPrice ? String(gelToEntryAmount(gelPrice, entry, usdRate)) : f.price,
-      pricePerSqm: gelPerSqm
-        ? String(gelToEntryAmount(gelPerSqm, entry, usdRate))
-        : (gelPrice && areaNum > 0
-          ? String(gelToEntryAmount(Math.round(gelPrice / areaNum), entry, usdRate))
+      price: importedPrice ? String(Math.round(importedPrice)) : f.price,
+      pricePerSqm: importedPerSqm
+        ? String(Math.round(importedPerSqm))
+        : (importedPrice && areaNum > 0
+          ? String(Math.round(importedPrice / areaNum))
           : f.pricePerSqm),
-      currency: '$',
+      currency,
       area: data.area || f.area,
       rooms: data.rooms || f.rooms,
       bedrooms: data.bedrooms || f.bedrooms,
@@ -770,6 +782,16 @@ export default function AdminAddListingPage() {
         ...form.buildingFeatures,
         ...form.badges,
         form.condition, form.buildingStatus, form.projectType,
+        ...packListingDetails({
+          wetPoint: form.wetPoint,
+          ceilingHeight: form.ceilingHeight,
+          balconyCount: form.balconyCount,
+          verandaArea: form.verandaArea,
+          loggiaArea: form.loggiaArea,
+          waitingArea: form.waitingArea,
+          livingRoomArea: form.livingRoomArea,
+          storageArea: form.storageArea,
+        }),
       ].filter(Boolean);
 
       const allAmenities = [
@@ -786,8 +808,8 @@ export default function AdminAddListingPage() {
       const newNote = form.internalNote.trim();
 
       const entry = formCurrencyToEntry(form.currency);
-      const priceGel = entryAmountToGel(parseFloat(form.price) || 0, entry, usdRate);
-      const rentGel = form.rentPrice ? entryAmountToGel(parseFloat(form.rentPrice), entry, usdRate) : null;
+      const price = Math.round(parseFloat(form.price) || 0);
+      const rentPrice = form.rentPrice ? Math.round(parseFloat(form.rentPrice)) : null;
       const areaNum = parseFloat(form.area) || 0;
 
       const payload = {
@@ -795,16 +817,18 @@ export default function AdminAddListingPage() {
         description:  form.description,
         descriptionEn: form.descriptionEn,
         descriptionRu: form.descriptionRu,
-        price:        priceGel,
-        rentPrice:    sells && rents && form.rentPrice ? rentGel : null,
+        price,
+        rentPrice:    sells && rents && form.rentPrice ? rentPrice : null,
+        priceCurrency: entry,
         pricePerSqm:  parseFloat(form.pricePerSqm)
-          ? entryAmountToGel(parseFloat(form.pricePerSqm), entry, usdRate)
-          : (priceGel > 0 && areaNum > 0 ? Math.round(priceGel / areaNum) : null),
+          ? Math.round(parseFloat(form.pricePerSqm))
+          : (price > 0 && areaNum > 0 ? Math.round(price / areaNum) : null),
         area:         parseFloat(form.area) || null,
         type:         form.type,
         status:       sells && rents ? 'both' : sells ? 'sale' : 'rent',
-        bedrooms:     parseInt(form.bedrooms || form.rooms) || 0,
-        bathrooms:    parseInt(form.bathrooms || form.wetPoint) || 0,
+        rooms:        parseChipCount(form.rooms),
+        bedrooms:     parseChipCount(form.bedrooms),
+        bathrooms:    parseChipCount(form.bathrooms || form.wetPoint),
         floor:        parseInt(form.floor) || null,
         totalFloors:  parseInt(form.totalFloors) || null,
         city:         form.city,
@@ -855,7 +879,7 @@ export default function AdminAddListingPage() {
           ? (form.lifecycleOutcome || null)
           : null,
         lifecycleDealPrice: isEdit && form.lifecycleOutcome === 'rented_us' && form.lifecycleDealPrice
-          ? entryAmountToGel(parseFloat(form.lifecycleDealPrice), entry, usdRate)
+          ? Math.round(parseFloat(form.lifecycleDealPrice))
           : null,
         priceSource:    form.sourceUrl && !isEdit ? 'import' : 'admin',
       };
@@ -1067,17 +1091,21 @@ export default function AdminAddListingPage() {
                         </div>
                         <div className="text-right">
                           <p className="text-lg font-extrabold text-slate-800">
-                            ₾{Number(importPreview.price).toLocaleString()}
+                            {importPreview.currency}{Number(importPreview.price).toLocaleString()}
                           </p>
                           <p className="text-xs text-slate-500 mt-0.5">
-                            საიტზე: {formatMoney(Number(importPreview.price))}
-                          </p>
-                          <p className="text-[10px] text-blue-600 font-semibold mt-0.5">
-                            ფორმაში ($): {gelToEntryAmount(Number(importPreview.price), 'USD', usdRate).toLocaleString()}
+                            საიტზე: {formatMoney(Number(importPreview.price), listingMoneyFrom({
+                              priceCurrency: importPreview.currency === '$' ? 'USD' : 'GEL',
+                            }))}
                           </p>
                           {importPreview.pricePerSqm && (
                             <p className="text-xs text-slate-400">
-                              ₾{Number(importPreview.pricePerSqm).toLocaleString()}/მ² · საიტზე {formatMoney(Number(importPreview.pricePerSqm), { perSqm: true })}
+                              {importPreview.currency}{Number(importPreview.pricePerSqm).toLocaleString()}/მ² · საიტზე {formatMoney(Number(importPreview.pricePerSqm), {
+                                ...listingMoneyFrom({
+                                  priceCurrency: importPreview.currency === '$' ? 'USD' : 'GEL',
+                                }),
+                                perSqm: true,
+                              })}
                             </p>
                           )}
                         </div>
@@ -1616,7 +1644,7 @@ export default function AdminAddListingPage() {
                       >{c}</button>
                     ))}
                     <p className="text-[11px] text-slate-400 ml-1">
-                      იმპორტი ₾-ში · DB-ში ₾ · საიტზე {form.currency === '$' ? `$ (1 USD = ${usdRate.toFixed(2)} ₾)` : '₾'}
+                      ფასი ფიქსირდება ამ ვალუტაში. მეორე ვალუტა მხოლოდ კურსით გამოჩნდება.
                     </p>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-4">

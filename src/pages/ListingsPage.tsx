@@ -22,6 +22,7 @@ import {
   findDistrictArea,
 } from '../data/districts';
 import type { Property } from '../types/listing';
+import { listingMoneyFrom } from '../lib/moneyEntry';
 import { listingsHref, parseListingsLocation } from '../lib/seoListingsUrl';
 import { propertyHref } from '../lib/seoPropertyUrl';
 
@@ -61,7 +62,7 @@ export default function ListingsPage() {
   const { locale } = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currencySymbol, formatMoney, displayToGel } = useCurrency();
+  const { currencySymbol, formatMoney, displayToGel, listingToGel } = useCurrency();
   const [searchParams] = useSearchParams();
 
   const [showFilters, setShowFilters] = useState(false);
@@ -174,17 +175,19 @@ export default function ListingsPage() {
       /* "both" listings are offered for sale and for rent, so they match either filter. */
       if (filters.status && p.status !== filters.status && p.status !== 'both') return false;
       if (filters.type && p.type !== filters.type) return false;
-      if (filters.bedrooms && p.bedrooms < parseInt(filters.bedrooms)) return false;
+      const roomCount = p.rooms || p.bedrooms;
+      if (filters.bedrooms && roomCount < parseInt(filters.bedrooms)) return false;
       const gelMin = filters.priceMin ? displayToGel(parseFloat(filters.priceMin)) : null;
       const gelMax = filters.priceMax ? displayToGel(parseFloat(filters.priceMax)) : null;
-      if (gelMin && p.price < gelMin) return false;
-      if (gelMax && p.price > gelMax) return false;
+      const gelPrice = listingToGel(p.price, p.priceCurrency);
+      if (gelMin && gelPrice < gelMin) return false;
+      if (gelMax && gelPrice > gelMax) return false;
       if (filters.areaMin && p.area < parseInt(filters.areaMin)) return false;
       if (filters.isPremium && !p.isPremium) return false;
       if (filters.isNew && !p.isNew) return false;
       return true;
     },
-    [filters, search, districtArea, districtPolygon, drawnArea, displayToGel],
+    [filters, search, districtArea, districtPolygon, drawnArea, displayToGel, listingToGel],
   );
 
   /** Everything matching the filter form — this is what the map draws. */
@@ -192,8 +195,8 @@ export default function ListingsPage() {
     const r = properties.filter(p => matches(p, true));
     const q = search.trim();
     switch (sort) {
-      case 'price-desc': r.sort((a, b) => b.price - a.price); break;
-      case 'price-asc': r.sort((a, b) => a.price - b.price); break;
+      case 'price-desc': r.sort((a, b) => listingToGel(b.price, b.priceCurrency) - listingToGel(a.price, a.priceCurrency)); break;
+      case 'price-asc': r.sort((a, b) => listingToGel(a.price, a.priceCurrency) - listingToGel(b.price, b.priceCurrency)); break;
       case 'area-desc': r.sort((a, b) => b.area - a.area); break;
       case 'popular': r.sort((a, b) => b.viewCount - a.viewCount); break;
       default: r.sort((a, b) => new Date(b.listedDate).getTime() - new Date(a.listedDate).getTime());
@@ -211,7 +214,7 @@ export default function ListingsPage() {
       });
     }
     return r;
-  }, [properties, matches, sort, search]);
+  }, [properties, matches, sort, search, listingToGel]);
 
   function tryOpenById() {
     const q = search.trim();
@@ -316,22 +319,27 @@ export default function ListingsPage() {
 
   const formatPrice = useCallback(
     (property: Property) => {
+      const from = listingMoneyFrom(property);
       const sale = formatMoney(property.price, {
+        ...from,
         perMonth: property.status === 'rent',
-        compact: property.price >= 1_000_000,
+        compact: listingToGel(property.price, property.priceCurrency) >= 1_000_000,
       });
       /* Sale + rent listings show both figures side by side. */
       if (property.status === 'both' && property.rentPrice) {
-        return `${sale} · ${formatMoney(property.rentPrice, { perMonth: true })}`;
+        return `${sale} · ${formatMoney(property.rentPrice, { ...from, perMonth: true })}`;
       }
       return sale;
     },
-    [formatMoney],
+    [formatMoney, listingToGel],
   );
 
   const formatPricePerSqm = useCallback(
     (property: Property) =>
-      formatMoney(Math.round(property.price / Math.max(property.area, 1)), { perSqm: true }),
+      formatMoney(Math.round(property.price / Math.max(property.area, 1)), {
+        ...listingMoneyFrom(property),
+        perSqm: true,
+      }),
     [formatMoney],
   );
 

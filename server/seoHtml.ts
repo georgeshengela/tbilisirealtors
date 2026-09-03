@@ -41,6 +41,7 @@ export async function loadPublicProperty(id: string): Promise<PropertyUrlInput |
       status: properties.status,
       type: properties.type,
       bedrooms: properties.bedrooms,
+      rooms: properties.rooms,
       district: properties.district,
       city: properties.city,
       address: properties.address,
@@ -48,6 +49,7 @@ export async function loadPublicProperty(id: string): Promise<PropertyUrlInput |
       area: properties.area,
       price: properties.price,
       rentPrice: properties.rentPrice,
+      priceCurrency: properties.priceCurrency,
       description: properties.description,
       title: properties.title,
       images: properties.images,
@@ -71,6 +73,7 @@ export async function loadPublicPropertyUrls(limit = 500): Promise<{ id: string;
       status: properties.status,
       type: properties.type,
       bedrooms: properties.bedrooms,
+      rooms: properties.rooms,
       district: properties.district,
       city: properties.city,
     })
@@ -139,7 +142,7 @@ export function injectPropertySeo(html: string, input: PropertyUrlInput): string
   out = setPropertyMeta(out, 'product:brand', SITE_NAME);
   out = setPropertyMeta(out, 'product:condition', 'new');
   if (seo.price != null) out = setPropertyMeta(out, 'product:price:amount', String(seo.price));
-  out = setPropertyMeta(out, 'product:price:currency', 'GEL');
+  out = setPropertyMeta(out, 'product:price:currency', seo.priceCurrency);
   out = setPropertyMeta(out, 'product:retailer_item_id', input.id);
   out = setPropertyMeta(out, 'product:availability', 'in stock');
   out = setNamedMeta(out, 'twitter:title', seo.title);
@@ -165,7 +168,7 @@ export function injectPropertySeo(html: string, input: PropertyUrlInput): string
         offers: {
           '@type': 'Offer',
           price: String(seo.price ?? ''),
-          priceCurrency: 'GEL',
+          priceCurrency: seo.priceCurrency,
           availability: 'https://schema.org/InStock',
           url,
         },

@@ -7,7 +7,28 @@ export function formCurrencyToEntry(symbol: string): EntryCurrency {
   return symbol === '$' ? 'USD' : 'GEL';
 }
 
-/** Stored GEL → amount shown in the admin price field. */
+export function parsePriceCurrency(value: unknown): EntryCurrency {
+  const v = String(value ?? '').trim().toUpperCase();
+  if (v === 'USD' || v === '$') return 'USD';
+  return 'GEL';
+}
+
+/** Pass to formatMoney so a USD listing stays $950 when the viewer is in USD. */
+export function listingMoneyFrom(property: { priceCurrency?: string | null }): { from: EntryCurrency } {
+  return { from: parsePriceCurrency(property.priceCurrency) };
+}
+
+/** Convert a listing's stored asking price to GEL for filters and sort. */
+export function listingAmountToGel(
+  amount: number,
+  currency: EntryCurrency | string | null | undefined,
+  usdRate = FALLBACK_USD_RATE,
+): number {
+  if (!amount || !Number.isFinite(amount)) return 0;
+  return parsePriceCurrency(currency) === 'USD' ? Math.round(amount * usdRate) : Math.round(amount);
+}
+
+/** Convert a GEL amount into the admin entry currency. */
 export function gelToEntryAmount(
   gel: number,
   entry: EntryCurrency,
@@ -17,7 +38,7 @@ export function gelToEntryAmount(
   return entry === 'USD' ? Math.round(gel / usdRate) : Math.round(gel);
 }
 
-/** Admin price field value → GEL for database storage. */
+/** Convert an admin entry amount into GEL. */
 export function entryAmountToGel(
   amount: number,
   entry: EntryCurrency,

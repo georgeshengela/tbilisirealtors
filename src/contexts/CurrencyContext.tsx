@@ -20,6 +20,8 @@ interface FormatMoneyOptions {
   perMonth?: boolean;
   perSqm?: boolean;
   compact?: boolean;
+  /** Currency the amount is stored in. Default GEL (projects, market stats). */
+  from?: DisplayCurrency;
 }
 
 interface CurrencyContextValue {
@@ -29,12 +31,14 @@ interface CurrencyContextValue {
   ratesDate: string | null;
   ratesLoading: boolean;
   ratesSource: 'nbg' | 'fallback' | null;
-  formatMoney: (amountGel: number, options?: FormatMoneyOptions) => string;
+  formatMoney: (amount: number, options?: FormatMoneyOptions) => string;
   currencySymbol: string;
   /** Convert a user-entered display amount to stored GEL. */
   displayToGel: (amountDisplay: number) => number;
   /** Convert stored GEL to display currency for form inputs. */
   gelToDisplay: (amountGel: number) => number;
+  /** Convert a listing's asking price to GEL using the live rate. */
+  listingToGel: (amount: number, from?: DisplayCurrency | string | null) => number;
 }
 
 const STORAGE_KEY = 'tr_currency';
@@ -101,18 +105,17 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   const numberLocale = locale === 'ka' ? 'ka-GE' : 'en-US';
 
   const formatMoney = useCallback(
-    (amountGel: number, options: FormatMoneyOptions = {}) => {
-      const { perMonth = false, perSqm = false, compact = false } = options;
+    (amount: number, options: FormatMoneyOptions = {}) => {
+      const { perMonth = false, perSqm = false, compact = false, from = 'GEL' } = options;
+      const usdRate = rates.USD ?? FALLBACK_USD_RATE;
 
-      let value = amountGel;
-      let symbol = '₾';
-      let suffix = '';
-
-      if (currency === 'USD') {
-        const usdRate = rates.USD ?? FALLBACK_USD_RATE;
-        value = amountGel / usdRate;
-        symbol = '$';
+      let value = amount;
+      if (from !== currency) {
+        value = from === 'USD' ? amount * usdRate : amount / usdRate;
       }
+
+      const symbol = currency === 'USD' ? '$' : '₾';
+      let suffix = '';
 
       const formatted = compact
         ? new Intl.NumberFormat(numberLocale, {
@@ -120,7 +123,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
             maximumFractionDigits: 1,
           }).format(value)
         : new Intl.NumberFormat(numberLocale, {
-            maximumFractionDigits: currency === 'USD' ? 0 : 0,
+            maximumFractionDigits: 0,
           }).format(Math.round(value));
 
       if (perMonth) {
@@ -154,6 +157,15 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     [currency, usdRate],
   );
 
+  const listingToGel = useCallback(
+    (amount: number, from?: DisplayCurrency | string | null) => {
+      if (!amount || !Number.isFinite(amount)) return 0;
+      const stored = String(from ?? 'GEL').toUpperCase();
+      return stored === 'USD' || stored === '$' ? Math.round(amount * usdRate) : Math.round(amount);
+    },
+    [usdRate],
+  );
+
   const value = useMemo(
     () => ({
       currency,
@@ -166,8 +178,9 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
       currencySymbol: currency === 'USD' ? '$' : '₾',
       displayToGel,
       gelToDisplay,
+      listingToGel,
     }),
-    [currency, setCurrency, rates, ratesDate, ratesLoading, ratesSource, formatMoney, displayToGel, gelToDisplay],
+    [currency, setCurrency, rates, ratesDate, ratesLoading, ratesSource, formatMoney, displayToGel, gelToDisplay, listingToGel],
   );
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>;

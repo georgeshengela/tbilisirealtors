@@ -1,12 +1,19 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Heart, MapPin, Bed, Bath, Square, Sparkles, ArrowUpRight } from 'lucide-react';
 import type { Property } from '../types/listing';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { listingMoneyFrom } from '../lib/moneyEntry';
 import { useIsFavorite } from '../lib/favorites';
 import { useTranslation } from '../i18n/LocaleContext';
 import { personInitials } from '../lib/personInitials';
-import { propertyHref } from '../lib/seoPropertyUrl';
+import { propertyHref, withEmbedQuery } from '../lib/seoPropertyUrl';
+
+function useListingHref() {
+  const location = useLocation();
+  const embed = new URLSearchParams(location.search).get('embed') === '1';
+  return (property: Property) => withEmbedQuery(propertyHref(property), embed);
+}
 
 interface PropertyCardProps {
   property: Property;
@@ -33,8 +40,8 @@ function usePropertyLabels() {
 
 function useFormatPropertyPrice() {
   const { formatMoney } = useCurrency();
-  return (price: number, status: string) =>
-    formatMoney(price, { perMonth: status === 'rent' });
+  return (property: Property) =>
+    formatMoney(property.price, { ...listingMoneyFrom(property), perMonth: property.status === 'rent' });
 }
 
 /* ─────────────────────────────────────────────────────── Default card ── */
@@ -45,6 +52,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
   const labels = usePropertyLabels();
   const formatPrice = useFormatPropertyPrice();
   const { formatMoney } = useCurrency();
+  const href = useListingHref()(property);
 
   if (variant === 'horizontal') return <HorizontalCard property={property} />;
 
@@ -59,7 +67,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
       onMouseLeave={() => setHovered(false)}
     >
       {/* ── Image area ── */}
-      <Link to={propertyHref(property)} className="relative block overflow-hidden" style={{ aspectRatio: '5/4' }}>
+      <Link to={href} className="relative block overflow-hidden" style={{ aspectRatio: '5/4' }}>
         {/* Skeleton */}
         {!imgLoaded && <div className="absolute inset-0 skeleton" />}
 
@@ -138,7 +146,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
       </Link>
 
       {/* ── Content ── */}
-      <Link to={propertyHref(property)} className="flex flex-col flex-1 p-4">
+      <Link to={href} className="flex flex-col flex-1 p-4">
 
         {/* Price row */}
         <div className="flex items-center justify-between mb-2">
@@ -147,14 +155,14 @@ export default function PropertyCard({ property, variant = 'default' }: Property
               className="font-bold tracking-tight"
               style={{ fontSize: 20, color: '#191c1e', lineHeight: 1.1 }}
             >
-              {formatPrice(property.price, property.status)}
+              {formatPrice(property)}
             </span>
             {property.status === 'sale' && (
               <span
                 className="ml-2 text-[11px] font-semibold px-1.5 py-0.5 rounded-md"
                 style={{ background: '#f0f2f5', color: '#76777d' }}
               >
-                {formatMoney(property.pricePerSqm, { perSqm: true })}
+                {formatMoney(property.pricePerSqm, { ...listingMoneyFrom(property), perSqm: true })}
               </span>
             )}
           </div>
@@ -185,10 +193,10 @@ export default function PropertyCard({ property, variant = 'default' }: Property
 
           {/* Stats + Agent */}
           <div className="flex items-center gap-0">
-            {property.bedrooms > 0 && (
+            {(property.rooms || property.bedrooms) > 0 && (
               <div className="flex items-center gap-1 pr-3" style={{ borderRight: '1px solid #f0f2f5' }}>
                 <Bed size={12} strokeWidth={2} style={{ color: '#b0b2ba' }} />
-                <span className="text-[12px] font-bold" style={{ color: '#191c1e' }}>{property.bedrooms}</span>
+                <span className="text-[12px] font-bold" style={{ color: '#191c1e' }}>{property.rooms || property.bedrooms}</span>
               </div>
             )}
             <div className="flex items-center gap-1 px-3" style={{ borderRight: '1px solid #f0f2f5' }}>
@@ -237,6 +245,7 @@ function HorizontalCard({ property }: { property: Property }) {
   const labels = usePropertyLabels();
   const formatPrice = useFormatPropertyPrice();
   const { formatMoney } = useCurrency();
+  const href = useListingHref()(property);
   return (
     <div
       className="group bg-white rounded-2xl overflow-hidden flex"
@@ -248,7 +257,7 @@ function HorizontalCard({ property }: { property: Property }) {
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#eceef0'; }}
     >
       {/* Image */}
-      <Link to={propertyHref(property)} className="w-52 sm:w-72 flex-shrink-0 relative overflow-hidden">
+      <Link to={href} className="w-52 sm:w-72 flex-shrink-0 relative overflow-hidden">
         <img
           src={property.images[0]}
           alt={property.title}
@@ -274,11 +283,11 @@ function HorizontalCard({ property }: { property: Property }) {
         <div className="flex items-start justify-between gap-3 mb-2">
           <div>
             <span className="font-bold" style={{ fontSize: 20, color: '#191c1e' }}>
-              {formatPrice(property.price, property.status)}
+              {formatPrice(property)}
             </span>
             {property.status === 'sale' && (
               <span className="ml-2 text-[11px] font-semibold px-1.5 py-0.5 rounded-md" style={{ background: '#f0f2f5', color: '#76777d' }}>
-                {formatMoney(property.pricePerSqm, { perSqm: true })}
+                {formatMoney(property.pricePerSqm, { ...listingMoneyFrom(property), perSqm: true })}
               </span>
             )}
           </div>
@@ -291,7 +300,7 @@ function HorizontalCard({ property }: { property: Property }) {
           </button>
         </div>
 
-        <Link to={propertyHref(property)}>
+        <Link to={href}>
           <h3 className="font-semibold text-[#191c1e] hover:text-[#2563eb] transition-colors mb-1.5" style={{ fontSize: 15 }}>
             {property.title}
           </h3>
@@ -303,10 +312,10 @@ function HorizontalCard({ property }: { property: Property }) {
         <p className="line-clamp-2 flex-1 mb-4" style={{ fontSize: 13, color: '#45464d' }}>{property.description}</p>
 
         <div className="flex items-center gap-4 pt-3" style={{ borderTop: '1px solid #f0f2f5', fontSize: 12, color: '#45464d' }}>
-          {property.bedrooms > 0 && (
+          {(property.rooms || property.bedrooms) > 0 && (
             <span className="flex items-center gap-1">
               <Bed size={13} strokeWidth={1.8} style={{ color: '#b0b2ba' }} />
-              <strong style={{ color: '#191c1e' }}>{property.bedrooms}</strong> {t('property.bedsShort')}
+              <strong style={{ color: '#191c1e' }}>{property.rooms || property.bedrooms}</strong> {t('property.bedsShort')}
             </span>
           )}
           <span className="flex items-center gap-1">
@@ -321,7 +330,7 @@ function HorizontalCard({ property }: { property: Property }) {
             <span style={{ color: '#9ea0a7' }}>{property.floor}/{property.totalFloors} {t('property.floorShort')}</span>
           )}
           <Link
-            to={propertyHref(property)}
+            to={href}
             className="ml-auto flex items-center gap-1.5 px-4 py-2 rounded-xl text-[12px] font-bold text-white transition-colors duration-200"
             style={{ background: '#191c1e' }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#2563eb'; }}

@@ -94,12 +94,15 @@ export const properties = pgTable('properties', {
   /* A listing can be offered for sale and for rent at the same time. */
   rentPrice: numeric('rent_price'),
   pricePerSqm: numeric('price_per_sqm'),
+  /* Asking price is stored in this currency and does not move with the daily rate. */
+  priceCurrency: varchar('price_currency', { length: 3 }).notNull().default('GEL'),
   address: varchar('address', { length: 500 }),
   city: varchar('city', { length: 255 }),
   district: varchar('district', { length: 255 }),
   type: varchar('type', { length: 50 }),
   status: varchar('status', { length: 50 }),
   bedrooms: integer('bedrooms'),
+  rooms: integer('rooms'),
   bathrooms: integer('bathrooms'),
   area: numeric('area'),
   floor: integer('floor'),

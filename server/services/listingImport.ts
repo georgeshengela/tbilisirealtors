@@ -1,5 +1,3 @@
-import { usdToGel } from './currency.js';
-
 export interface ImportedListingData {
   source: 'ss.ge' | 'myhome.ge';
   sourceUrl: string;
@@ -371,22 +369,6 @@ function splitStreetAddress(full: string): { street: string; streetNumber: strin
   return { street: trimmed, streetNumber: '' };
 }
 
-async function normalizeImportedPrices(data: ImportedListingData): Promise<ImportedListingData> {
-  const rate = await usdToGel();
-  const toGel = (value: string, fromUsd: boolean) => {
-    const n = Number(value);
-    if (!n) return value;
-    return fromUsd ? String(Math.round(n * rate)) : String(Math.round(n));
-  };
-  const fromUsd = data.currency === '$';
-  return {
-    ...data,
-    price: toGel(data.price, fromUsd),
-    pricePerSqm: toGel(data.pricePerSqm, fromUsd),
-    currency: '₾',
-  };
-}
-
 function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D/g, '');
   if (!digits) return '';
@@ -702,5 +684,5 @@ export async function importListingFromUrl(rawUrl: string): Promise<ImportedList
   data.meta.missingFields = audit.missingFields;
   data.meta.warnings = audit.warnings;
   data.meta.coordsFallback = audit.warnings.includes('coords_defaulted');
-  return await normalizeImportedPrices(data);
+  return data;
 }

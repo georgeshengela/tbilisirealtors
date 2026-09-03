@@ -3489,6 +3489,13 @@ textarea:focus, textarea:focus-visible {
   background: #f6f7fb;
 }
 
+.embed-preview .pdp-page {
+  --pdp-header: 0px;
+  min-height: 100%;
+  padding-top: 0;
+  padding-bottom: 28px;
+}
+
 @media (min-width: 1024px) {
   .pdp-page { --pdp-header: var(--site-header-h); padding-bottom: 40px; }
 }

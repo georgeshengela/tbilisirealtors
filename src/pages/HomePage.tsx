@@ -10,6 +10,7 @@ import { constructionProjects, faqItems } from '../data/mockData';
 import type { Property, BlogPost } from '../types/listing';
 import { useProperties, useBlogPosts } from '../hooks/usePublicData';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { listingMoneyFrom } from '../lib/moneyEntry';
 import { useTranslation } from '../i18n/LocaleContext';
 import ConstructionProjectCard from '../components/ConstructionProjectCard';
 import HomeHero from '../components/HomeHero';
@@ -357,7 +358,7 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
   const accentColor = badge === 'vip' ? '#2563eb' : '#059669';
   const { formatMoney } = useCurrency();
 
-  const priceLabel = formatMoney(property.price, { perMonth: property.status === 'rent' });
+  const priceLabel = formatMoney(property.price, { ...listingMoneyFrom(property), perMonth: property.status === 'rent' });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (images.length <= 1) return;
@@ -485,10 +486,10 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
 
         {/* Stats row */}
         <div className="mt-auto flex items-center gap-0 pt-2" style={{ borderTop: '1px solid #f0f2f5' }}>
-          {property.bedrooms > 0 && (
+          {(property.rooms || property.bedrooms) > 0 && (
             <div className="flex items-center gap-1 pr-2.5" style={{ borderRight: '1px solid #f0f2f5' }}>
               <Bed size={11} strokeWidth={2} style={{ color: '#b0b2ba' }} />
-              <span className="text-[11px] font-bold" style={{ color: '#191c1e' }}>{property.bedrooms}</span>
+              <span className="text-[11px] font-bold" style={{ color: '#191c1e' }}>{property.rooms || property.bedrooms}</span>
             </div>
           )}
           <div className="flex items-center gap-1 px-2.5" style={{ borderRight: '1px solid #f0f2f5' }}>

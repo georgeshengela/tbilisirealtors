@@ -136,6 +136,63 @@ export function bedroomsChipFromCount(n: number | null | undefined): string {
   return value >= 6 ? '6+' : String(value);
 }
 
+/** Chip values like "10+" / "3" → integer for the database. */
+export function parseChipCount(value: string | number | null | undefined): number | null {
+  const n = parseInt(String(value ?? ''), 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+const DETAIL_PREFIX = {
+  wetPoint: 'სველი წერტილი: ',
+  ceilingHeight: 'ჭერი: ',
+  balconyCount: 'აივანი: ',
+  verandaArea: 'ვერანდა: ',
+  loggiaArea: 'ლოჯია: ',
+  waitingArea: 'მოსაცდელი: ',
+  livingRoomArea: 'მისაღები: ',
+  storageArea: 'სათავსო: ',
+} as const;
+
+export type ListingDetailFields = {
+  [K in keyof typeof DETAIL_PREFIX]: string;
+};
+
+export function packListingDetails(details: ListingDetailFields): string[] {
+  return (Object.keys(DETAIL_PREFIX) as (keyof typeof DETAIL_PREFIX)[])
+    .map(key => {
+      const value = details[key]?.trim();
+      return value ? `${DETAIL_PREFIX[key]}${value}` : '';
+    })
+    .filter(Boolean);
+}
+
+export function unpackListingDetails(features: string[]): {
+  details: ListingDetailFields;
+  rest: string[];
+} {
+  const details: ListingDetailFields = {
+    wetPoint: '',
+    ceilingHeight: '',
+    balconyCount: '',
+    verandaArea: '',
+    loggiaArea: '',
+    waitingArea: '',
+    livingRoomArea: '',
+    storageArea: '',
+  };
+  const rest: string[] = [];
+  for (const item of features) {
+    const match = (Object.keys(DETAIL_PREFIX) as (keyof typeof DETAIL_PREFIX)[])
+      .find(key => item.startsWith(DETAIL_PREFIX[key]));
+    if (!match) {
+      rest.push(item);
+      continue;
+    }
+    details[match] = item.slice(DETAIL_PREFIX[match].length).trim();
+  }
+  return { details, rest };
+}
+
 export function adminReturnPath(from: string | null | undefined): string {
   if (!from) return '/admin?section=properties';
   if (from.startsWith('?')) return `/admin${from}`;

@@ -18,6 +18,7 @@ import { submitLead } from '../lib/leads';
 import { applySeo, clipMeta, pageUrl, setJsonLd, SITE_NAME, absoluteImage } from '../lib/seo';
 import { personInitials } from '../lib/personInitials';
 import { listingsHref } from '../lib/seoListingsUrl';
+import { listingMoneyFrom } from '../lib/moneyEntry';
 import { parsePropertyId, propertyHref, propertySeoCopy } from '../lib/seoPropertyUrl';
 
 /** Long descriptions collapse to a few lines until the reader asks for more. */
@@ -206,7 +207,7 @@ export default function PropertyDetailPage() {
           offers: {
             '@type': 'Offer',
             price: String(seo.price ?? property.price),
-            priceCurrency: 'GEL',
+            priceCurrency: property.priceCurrency === 'USD' ? 'USD' : 'GEL',
             availability: 'https://schema.org/InStock',
             url,
           },
@@ -245,7 +246,9 @@ export default function PropertyDetailPage() {
   }, [showGallery, step]);
 
   const share = useCallback(async () => {
-    const url = window.location.href;
+    const url = property
+      ? `${window.location.origin}${propertyHref(property)}`
+      : window.location.href;
     try {
       if (navigator.share) {
         await navigator.share({ title: property?.title ?? document.title, url });
@@ -257,7 +260,7 @@ export default function PropertyDetailPage() {
     } catch {
       /* the reader dismissed the sheet, or the clipboard is unavailable */
     }
-  }, [property?.title]);
+  }, [property]);
 
   const copyListingId = useCallback(async () => {
     if (!property?.id) return;
@@ -303,10 +306,11 @@ export default function PropertyDetailPage() {
   };
 
   const isSale = property.status === 'sale' || property.status === 'both';
-  const price = formatMoney(property.price, { perMonth: property.status === 'rent' });
+  const moneyFrom = listingMoneyFrom(property);
+  const price = formatMoney(property.price, { ...moneyFrom, perMonth: property.status === 'rent' });
   /* A property can be offered for sale and for rent at once. */
   const rentPrice = property.status === 'both' && property.rentPrice
-    ? formatMoney(property.rentPrice, { perMonth: true })
+    ? formatMoney(property.rentPrice, { ...moneyFrom, perMonth: true })
     : null;
   /* Feeds often repeat the street inside the address field, so collapse repeats. */
   const addressLine = [...new Set(
@@ -522,7 +526,7 @@ export default function PropertyDetailPage() {
               <p className="pdp-price__value">{price}</p>
               {rentPrice && <p className="pdp-price__rent">{rentPrice}</p>}
               {isSale && (
-                <p className="pdp-price__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>
+                <p className="pdp-price__sqm">{formatMoney(property.pricePerSqm, { ...moneyFrom, perSqm: true })}</p>
               )}
               <PriceCurrencyToggle className="pdp-price__fx" />
             </div>
@@ -683,15 +687,15 @@ export default function PropertyDetailPage() {
 
                   <div className="pdp-calc__result">
                     <div className="pdp-calc__stat is-lead">
-                      <p className="pdp-calc__value">{formatMoney(Math.round(monthlyPayment))}</p>
+                      <p className="pdp-calc__value">{formatMoney(Math.round(monthlyPayment), moneyFrom)}</p>
                       <p className="pdp-calc__label">{t('property.monthlyEstimate')}</p>
                     </div>
                     <div className="pdp-calc__stat">
-                      <p className="pdp-calc__value">{formatMoney(Math.round(property.price * downPayment / 100))}</p>
+                      <p className="pdp-calc__value">{formatMoney(Math.round(property.price * downPayment / 100), moneyFrom)}</p>
                       <p className="pdp-calc__label">{t('property.downPayment')}</p>
                     </div>
                     <div className="pdp-calc__stat">
-                      <p className="pdp-calc__value">{formatMoney(Math.round(loanPrincipal))}</p>
+                      <p className="pdp-calc__value">{formatMoney(Math.round(loanPrincipal), moneyFrom)}</p>
                       <p className="pdp-calc__label">{t('property.loanAmount')}</p>
                     </div>
                   </div>
@@ -723,7 +727,7 @@ export default function PropertyDetailPage() {
                     <p className="pdp-price__value">{price}</p>
                     {rentPrice && <p className="pdp-price__rent">{rentPrice}</p>}
                     {isSale && (
-                      <p className="pdp-price__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>
+                      <p className="pdp-price__sqm">{formatMoney(property.pricePerSqm, { ...moneyFrom, perSqm: true })}</p>
                     )}
                   </div>
                   <PriceCurrencyToggle align="start" showRate={false} />
@@ -839,7 +843,7 @@ export default function PropertyDetailPage() {
             <p className="pdp-bar__value">{price}</p>
             <PriceCurrencyToggle align="start" showRate={false} className="pdp-bar__fx" />
           </div>
-          {isSale && <p className="pdp-bar__sqm">{formatMoney(property.pricePerSqm, { perSqm: true })}</p>}
+          {isSale && <p className="pdp-bar__sqm">{formatMoney(property.pricePerSqm, { ...moneyFrom, perSqm: true })}</p>}
         </div>
         <a className="pdp-bar__call" href={`tel:${property.agent.phone}`}>
           <Phone size={16} strokeWidth={2.4} />{t('property.callNow')}

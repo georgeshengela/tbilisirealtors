@@ -19,6 +19,7 @@ import { useFavorites } from '../lib/favorites';
 import { MODERATION_COLOR, MODERATION_LABEL } from '../lib/permissions';
 import { useTranslation } from '../i18n/LocaleContext';
 import { useCurrency } from '../contexts/CurrencyContext';
+import { listingMoneyFrom } from '../lib/moneyEntry';
 import { formatShortDate } from '../lib/dateFormat';
 import { listingsHref, listingsHrefFromSearchParams } from '../lib/seoListingsUrl';
 
@@ -38,6 +39,7 @@ interface MyListing {
   id: string;
   title: string;
   price: string | null;
+  priceCurrency?: string | null;
   address: string | null;
   district: string | null;
   images: string[] | null;
@@ -444,7 +446,7 @@ export default function DashboardPage() {
 
                         <div className="flex flex-wrap items-center gap-4 mt-2 text-sm">
                           <span className="font-bold text-blue-600">
-                            {listing.price ? formatMoney(Number(listing.price)) : '—'}
+                            {listing.price ? formatMoney(Number(listing.price), listingMoneyFrom(listing)) : '—'}
                           </span>
                           <span className="inline-flex items-center gap-1.5 text-slate-500">
                             <Eye size={14} />

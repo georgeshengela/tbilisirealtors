@@ -14,6 +14,7 @@ export type PropertyUrlInput = {
   area?: number | string | null;
   price?: number | string | null;
   rentPrice?: number | string | null;
+  priceCurrency?: string | null;
   description?: string | null;
   title?: string | null;
   images?: string[] | null;
@@ -212,6 +213,11 @@ export function propertyHref(input: PropertyUrlInput): string {
   return `${LISTINGS_SEO_ROOT}/${propertySlugKa(input)}/`;
 }
 
+export function withEmbedQuery(href: string, embed: boolean): string {
+  if (!embed) return href;
+  return href.includes('?') ? `${href}&embed=1` : `${href}?embed=1`;
+}
+
 export function propertyHrefEn(input: PropertyUrlInput): string {
   return `${LISTINGS_SEO_ROOT}/${propertySlugEn(input)}/`;
 }
@@ -236,8 +242,19 @@ export type PropertySeoCopy = {
   path: string;
   pathEn: string;
   price: number | null;
+  priceCurrency: 'GEL' | 'USD';
   area: number | null;
 };
+
+function listingCurrency(input: PropertyUrlInput): 'GEL' | 'USD' {
+  const v = String(input.priceCurrency ?? '').trim().toUpperCase();
+  return v === 'USD' || v === '$' ? 'USD' : 'GEL';
+}
+
+function priceLabel(price: number, currency: 'GEL' | 'USD', locale: 'ka' | 'en'): string {
+  if (currency === 'USD') return locale === 'en' ? `$${price}` : `${price} $`;
+  return locale === 'en' ? `${price} GEL` : `${price} ₾`;
+}
 
 export function propertySeoCopy(input: PropertyUrlInput, locale: 'ka' | 'en' = 'ka'): PropertySeoCopy {
   const status = normalizeStatus(input.status);
@@ -246,6 +263,7 @@ export function propertySeoCopy(input: PropertyUrlInput, locale: 'ka' | 'en' = '
   const loc = placeKa(input);
   const area = areaValue(input.area);
   const price = listingPrice(input);
+  const currency = listingCurrency(input);
   const path = propertyHref(input);
   const pathEn = propertyHrefEn(input);
   const address = (input.address || '').trim();
@@ -258,7 +276,7 @@ export function propertySeoCopy(input: PropertyUrlInput, locale: 'ka' | 'en' = '
     const h1 = `${roomBit}${typeLabel} ${deal}${placeBit}`.replace(/\s+/g, ' ').trim();
     const bits = [
       h1,
-      price != null ? `${price} GEL` : '',
+      price != null ? priceLabel(price, currency, 'en') : '',
       area != null ? `${area} m²` : '',
       input.id,
     ].filter(Boolean);
@@ -273,6 +291,7 @@ export function propertySeoCopy(input: PropertyUrlInput, locale: 'ka' | 'en' = '
       path,
       pathEn,
       price,
+      priceCurrency: currency,
       area,
     };
   }
@@ -284,7 +303,7 @@ export function propertySeoCopy(input: PropertyUrlInput, locale: 'ka' | 'en' = '
   const h1 = `${deal} ${roomBit}${typeLabel}${placeBit}`.replace(/\s+/g, ' ').trim();
   const bits = [
     h1,
-    price != null ? `${price} ₾` : '',
+    price != null ? priceLabel(price, currency, 'ka') : '',
     area != null ? `${area} მ²` : '',
     input.id,
   ].filter(Boolean);
@@ -297,6 +316,7 @@ export function propertySeoCopy(input: PropertyUrlInput, locale: 'ka' | 'en' = '
     path,
     pathEn,
     price,
+    priceCurrency: currency,
     area,
   };
 }

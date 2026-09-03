@@ -581,6 +581,13 @@ async function migrate() {
 
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS placement VARCHAR(20) NOT NULL DEFAULT 'free'`;
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS placement_package VARCHAR(80)`;
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS price_currency VARCHAR(3) NOT NULL DEFAULT 'GEL'`;
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS rooms INTEGER`;
+    await client`
+      UPDATE properties
+      SET rooms = bedrooms
+      WHERE rooms IS NULL AND bedrooms IS NOT NULL
+    `;
 
     console.log('✅ All tables created successfully');
   } catch (err) {

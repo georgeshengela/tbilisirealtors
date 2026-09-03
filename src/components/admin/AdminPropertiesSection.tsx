@@ -5,7 +5,7 @@ import {
 import { createPortal } from 'react-dom';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  Search, Plus, Pencil, Trash2, Eye, ExternalLink,
+  Search, Plus, Pencil, Trash2, Eye,
   Star, MapPin, Ruler, User, Phone,
   ArrowUpDown, ArrowUp, ArrowDown, X, Building2, TrendingUp, Home,
   Image as ImageIcon, Calendar, ChevronDown, Check, Copy, History,
@@ -19,6 +19,7 @@ import { roleLabel } from '../../lib/permissions';
 import { useFileUpload, type UploadedFile } from '../../hooks/useFileUpload';
 import { useAdminAuth, useApiRequest } from '../../contexts/AdminAuthContext';
 import { FALLBACK_USD_RATE, useCurrency } from '../../contexts/CurrencyContext';
+import { listingAmountToGel } from '../../lib/moneyEntry';
 import ListingWorkPanel from './desk/ListingWorkPanel';
 import {
   LIFECYCLE_OUTCOMES,
@@ -26,7 +27,7 @@ import {
   isLifecycleOutcome,
   type LifecycleOutcome,
 } from '../../lib/lifecycle';
-import { propertyHref } from '../../lib/seoPropertyUrl';
+import { propertyHref, withEmbedQuery } from '../../lib/seoPropertyUrl';
 
 export interface PriceChangeRow {
   id: number;
@@ -69,12 +70,14 @@ export interface AdminPropertyRow {
   price: string;
   rentPrice?: string | null;
   pricePerSqm: string;
+  priceCurrency?: string | null;
   address?: string | null;
   city: string;
   district: string;
   type: string;
   status: string;
   bedrooms: number;
+  rooms?: number | null;
   bathrooms: number;
   area: string;
   floor: number;
@@ -180,7 +183,7 @@ const PRICE_SOURCE_LABEL: Record<string, string> = {
   system: 'სისტემა',
 };
 
-/** Admin listings table always shows USD (DB still stores GEL). */
+/** Admin listings table always shows USD. GEL listings convert; USD listings stay fixed. */
 function useAdminUsd() {
   const { rates } = useCurrency();
   const usdRate = rates.USD ?? FALLBACK_USD_RATE;
@@ -196,13 +199,42 @@ function useAdminUsd() {
     return Math.round(amountUsd * usdRate);
   };
 
-  const USD = (amountGel: number | string | null | undefined) => {
-    const n = Number(amountGel);
-    if (!Number.isFinite(n) || n === 0) return '—';
-    return `$${gelToUsd(n).toLocaleString('ka-GE')}`;
+  const isUsdListing = (currency?: string | null) =>
+    String(currency ?? '').toUpperCase() === 'USD' || currency === '$';
+
+  const toUsd = (amount: number | string | null | undefined, currency?: string | null) => {
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n === 0) return 0;
+    return isUsdListing(currency) ? Math.round(n) : gelToUsd(n);
   };
 
-  return { USD, gelToUsd, usdToGel, usdRate };
+  const fromUsd = (amountUsd: number, currency?: string | null) => {
+    if (!Number.isFinite(amountUsd) || amountUsd === 0) return 0;
+    return isUsdListing(currency) ? Math.round(amountUsd) : usdToGel(amountUsd);
+  };
+
+  const USD = (amount: number | string | null | undefined, currency?: string | null) => {
+    const n = Number(amount);
+    if (!Number.isFinite(n) || n === 0) return '—';
+    return `$${toUsd(n, currency).toLocaleString('ka-GE')}`;
+  };
+
+  return { USD, gelToUsd, usdToGel, toUsd, fromUsd, isUsdListing, usdRate };
+}
+
+function listingArea(p: AdminPropertyRow): number {
+  const n = Number(p.area);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
+function PriceSize({ p }: { p: AdminPropertyRow }) {
+  const area = listingArea(p);
+  if (!area) return null;
+  return (
+    <p className="mt-0.5 text-[11px] tabular-nums text-slate-400 whitespace-nowrap">
+      {area.toLocaleString('ka-GE')} კვ.მ
+    </p>
+  );
 }
 
 const lifecycleOf = (p: AdminPropertyRow) => (p.lifecycleState && LIFECYCLE_META[p.lifecycleState] ? p.lifecycleState : 'new');
@@ -333,7 +365,7 @@ function fmtDateTime(iso?: string | null) {
 function sortValue(p: AdminPropertyRow, key: SortKey): string | number {
   switch (key) {
     case 'title': return (p.title || '').toLowerCase();
-    case 'price': return Number(p.price) || 0;
+    case 'price': return listingAmountToGel(Number(p.price) || 0, p.priceCurrency);
     case 'pricePerSqm': return Number(p.pricePerSqm) || 0;
     case 'area': return Number(p.area) || 0;
     case 'city': return `${p.district} ${streetOf(p)} ${p.city}`.toLowerCase();
@@ -677,11 +709,17 @@ const ORIGIN_LABEL: Record<string, string> = {
   office: 'ოფისი',
 };
 
-/* Photo, listing ID and public URL as one compact tile. */
-function ListingLeadCell({ p, onOpen }: { p: AdminPropertyRow; onOpen: () => void }) {
+/* Photo, listing ID and public preview as one tile. */
+function ListingLeadCell({
+  p, onOpen, onPreview,
+}: {
+  p: AdminPropertyRow;
+  onOpen: () => void;
+  onPreview: () => void;
+}) {
   const [copied, setCopied] = useState(false);
-  const viewHref = propertyHref(p);
   const photo = p.images?.[0];
+  const photoCount = p.images?.length ?? 0;
 
   async function copyId() {
     try {
@@ -694,7 +732,7 @@ function ListingLeadCell({ p, onOpen }: { p: AdminPropertyRow; onOpen: () => voi
   }
 
   return (
-    <div className="w-[92px]">
+    <div className="w-[148px]">
       <div className="mb-1 flex items-center gap-0.5">
         <button
           type="button"
@@ -711,7 +749,7 @@ function ListingLeadCell({ p, onOpen }: { p: AdminPropertyRow; onOpen: () => voi
         type="button"
         onClick={onOpen}
         title="რედაქტირება"
-        className="relative block h-[52px] w-[80px] overflow-hidden rounded border border-slate-200 bg-slate-100"
+        className="relative block h-[108px] w-[140px] overflow-hidden rounded-xl border border-slate-200 bg-slate-100 shadow-sm"
       >
         {photo ? (
           <img
@@ -722,36 +760,114 @@ function ListingLeadCell({ p, onOpen }: { p: AdminPropertyRow; onOpen: () => voi
           />
         ) : (
           <span className="flex h-full w-full items-center justify-center">
-            <ImageIcon size={14} className="text-slate-300" />
+            <ImageIcon size={22} className="text-slate-300" />
+          </span>
+        )}
+        {photoCount > 1 && (
+          <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-0.5 rounded-md bg-black/65 px-1.5 py-0.5 text-[9px] font-bold text-white">
+            <ImageIcon size={9} />
+            {photoCount}
           </span>
         )}
       </button>
-      <a
-        href={viewHref}
-        target="_blank"
-        rel="noreferrer"
-        title="საიტზე ნახვა"
-        className="mt-0.5 inline-flex items-center gap-0.5 text-[9px] font-semibold text-blue-600 hover:underline"
+      <button
+        type="button"
+        onClick={onPreview}
+        title="განცხადების ნახვა"
+        className="mt-1 inline-flex items-center gap-0.5 text-[10px] font-bold text-blue-600 hover:text-blue-700 hover:underline"
       >
-        <ExternalLink size={9} />
+        <Eye size={11} />
         ლინკი
-      </a>
+      </button>
     </div>
   );
 }
 
-/* One editable money value — displayed in USD, saved as GEL. */
+function ListingPreviewModal({
+  p,
+  onClose,
+  onEdit,
+}: {
+  p: AdminPropertyRow;
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  const [loaded, setLoaded] = useState(false);
+  const src = withEmbedQuery(propertyHref(p), true);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [onClose]);
+
+  return createPortal(
+    <div className="fixed inset-0 z-[90] flex items-center justify-center p-2 sm:p-5">
+      <button type="button" className="absolute inset-0 bg-slate-950/75 backdrop-blur-md" onClick={onClose} aria-label="დახურვა" />
+      <div className="relative flex h-[96vh] w-full max-w-[1280px] flex-col overflow-hidden rounded-3xl bg-white shadow-[0_32px_80px_rgba(15,23,42,0.4)]">
+        <div className="flex items-center gap-3 border-b border-slate-100 bg-white px-4 py-3">
+          <span className="rounded-full bg-slate-100 px-2.5 py-1 font-mono text-[11px] font-bold text-slate-600">
+            #{p.id}
+          </span>
+          <p className="min-w-0 flex-1 truncate text-sm font-bold text-slate-800">
+            {p.title || 'განცხადება'}
+          </p>
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800"
+          >
+            <Pencil size={13} />
+            რედაქტირება
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"
+            aria-label="დახურვა"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="relative min-h-0 flex-1 bg-slate-50">
+          {!loaded && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center text-slate-400">
+              <Loader2 size={28} className="animate-spin" />
+            </div>
+          )}
+          <iframe
+            title={p.title || p.id}
+            src={src}
+            className="h-full w-full border-0"
+            onLoad={() => setLoaded(true)}
+          />
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+/* One editable money value — displayed in USD. USD listings save the typed amount. */
 function InlineMoney({
-  value, label, labelColor, suffix, onSave, delta,
+  value, label, labelColor, suffix, onSave, delta, currency,
 }: {
   value: number | null;
   label: string;
   labelColor: string;
   suffix?: string;
-  onSave: (nextGel: number) => Promise<void>;
+  onSave: (nextStored: number) => Promise<void>;
   delta?: { previous: number; current: number } | null;
+  currency?: string | null;
 }) {
-  const { USD, gelToUsd, usdToGel } = useAdminUsd();
+  const { USD, toUsd, fromUsd } = useAdminUsd();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [saving, setSaving] = useState(false);
@@ -767,14 +883,14 @@ function InlineMoney({
       setEditing(false);
       return;
     }
-    const nextGel = usdToGel(nextUsd);
-    if (nextGel === (value ?? 0)) {
+    const nextStored = fromUsd(nextUsd, currency);
+    if (nextStored === (value ?? 0)) {
       setEditing(false);
       return;
     }
     setSaving(true);
     try {
-      await onSave(nextGel);
+      await onSave(nextStored);
       setEditing(false);
     } finally {
       setSaving(false);
@@ -827,11 +943,11 @@ function InlineMoney({
       </span>
       <button
         type="button"
-        onClick={() => { setDraft(value ? String(gelToUsd(value)) : ''); setEditing(true); }}
+        onClick={() => { setDraft(value ? String(toUsd(value, currency)) : ''); setEditing(true); }}
         title="ფასის შეცვლა ($)"
         className="font-extrabold text-slate-800 hover:text-blue-600 transition-colors text-[13px]"
       >
-        {value ? USD(value) : <span className="text-slate-300">ფასი —</span>}
+        {value ? USD(value, currency) : <span className="text-slate-300">ფასი —</span>}
         {value && suffix ? <span className="text-[10px] font-bold text-slate-400">{suffix}</span> : null}
       </button>
 
@@ -874,6 +990,7 @@ function PriceCell({
           value={current}
           label="იყიდება"
           labelColor="#f59e0b"
+          currency={p.priceCurrency}
           onSave={next => onPatch(p.id, { price: next })}
           delta={previous !== null ? { previous, current } : null}
         />
@@ -885,10 +1002,13 @@ function PriceCell({
           label="ქირავდება"
           labelColor="#10b981"
           suffix="/თვე"
+          currency={p.priceCurrency}
           onSave={next => onPatch(p.id, p.status === 'rent' ? { price: next } : { rentPrice: next })}
           delta={p.status === 'rent' && previous !== null ? { previous, current } : null}
         />
       )}
+
+      <PriceSize p={p} />
 
       <button
         type="button"
@@ -1772,6 +1892,7 @@ export default function AdminPropertiesSection({
   const staffId = searchParams.get('staff') || '';
   const memberQ = searchParams.get('member') || '';
   const [memberDraft, setMemberDraft] = useState(memberQ);
+  const [previewListing, setPreviewListing] = useState<AdminPropertyRow | null>(null);
 
   useEffect(() => { setMemberDraft(memberQ); }, [memberQ]);
 
@@ -2330,7 +2451,11 @@ export default function AdminPropertiesSection({
                   style={state === 'new_r' ? { background: 'rgba(239,68,68,0.045)' } : undefined}
                 >
                   <td className="py-1.5 pl-3 pr-1 align-top">
-                    <ListingLeadCell p={p} onOpen={() => openEdit(p.id)} />
+                    <ListingLeadCell
+                      p={p}
+                      onOpen={() => openEdit(p.id)}
+                      onPreview={() => setPreviewListing(p)}
+                    />
                   </td>
                   <td className="py-1.5 px-1.5 align-top min-w-[180px] max-w-[260px]">
                     <p className="text-[12px] font-semibold leading-snug text-slate-800 line-clamp-2">{p.title || '—'}</p>
@@ -2339,16 +2464,13 @@ export default function AdminPropertiesSection({
                       {p.district ? `, ${p.district}` : ''}
                       {p.city ? `, ${p.city}` : ''}
                     </p>
-                    {p.area ? (
-                      <p className="mt-0.5 text-[10px] text-slate-400">{Number(p.area).toLocaleString('ka-GE')} მ²</p>
-                    ) : null}
                     {!p.title ? <AddressCell p={p} /> : null}
                     {canContracts && (p.contracts?.length ?? 0) > 0 ? (
                       <p className="mt-0.5 text-[10px] font-semibold text-slate-400">ხელშ. {p.contracts!.length}</p>
                     ) : null}
                   </td>
                   <td className="py-1.5 px-1.5 text-center align-middle font-semibold tabular-nums text-slate-700">
-                    {p.bedrooms || '—'}
+                    {p.rooms || p.bedrooms || '—'}
                   </td>
                   <td className="py-1.5 px-1.5 text-center align-middle tabular-nums text-slate-700 whitespace-nowrap">
                     {p.floor ? `${p.floor}${p.totalFloors ? ` (${p.totalFloors})` : ''}` : '—'}
@@ -2358,7 +2480,8 @@ export default function AdminPropertiesSection({
                       ? <PriceCell p={p} onPatch={onPatch} />
                       : (
                         <>
-                          <p className="font-extrabold text-slate-800 whitespace-nowrap">{USD(p.price)}</p>
+                          <p className="font-extrabold text-slate-800 whitespace-nowrap">{USD(p.price, p.priceCurrency)}</p>
+                          <PriceSize p={p} />
                           <p className="text-[10px] font-semibold text-slate-400">{STATUS_LABEL[p.status] || p.status}</p>
                         </>
                       )}
@@ -2493,6 +2616,18 @@ export default function AdminPropertiesSection({
           canAssignOthers={can('listings.assign')}
           canLogCalls={canTasks}
           onClose={() => setWorkPanel(null)}
+        />
+      )}
+
+      {previewListing && (
+        <ListingPreviewModal
+          p={previewListing}
+          onClose={() => setPreviewListing(null)}
+          onEdit={() => {
+            const id = previewListing.id;
+            setPreviewListing(null);
+            openEdit(id);
+          }}
         />
       )}
     </div>

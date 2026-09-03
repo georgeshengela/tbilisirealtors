@@ -74,6 +74,7 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const isDashboard = location.pathname.startsWith('/dashboard');
   const isAdminPage = location.pathname.startsWith('/admin');
+  const isEmbed = new URLSearchParams(location.search).get('embed') === '1';
 
   if (isAdminPage) {
     return (
@@ -93,10 +94,10 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
 
   return (
     <div className={darkMode ? 'dark' : ''}>
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300">
+      <div className={`min-h-screen bg-slate-50 dark:bg-slate-900 transition-colors duration-300${isEmbed ? ' embed-preview' : ''}`}>
         <ScrollToTop />
         <SeoManager />
-        {!isAuthPage && <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />}
+        {!isAuthPage && !isEmbed && <Header darkMode={darkMode} toggleDarkMode={toggleDarkMode} />}
 
         <AnimatePresence mode="wait">
           <motion.div
@@ -132,7 +133,7 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
           </motion.div>
         </AnimatePresence>
 
-        {!isAuthPage && !isDashboard && !isListingsPath(location.pathname) && <Footer />}
+        {!isAuthPage && !isDashboard && !isEmbed && !isListingsPath(location.pathname) && <Footer />}
       </div>
     </div>
   );
