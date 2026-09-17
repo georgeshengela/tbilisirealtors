@@ -29,6 +29,13 @@ function saveBlob(blob: Blob, filename: string) {
   window.setTimeout(() => URL.revokeObjectURL(href), 2000);
 }
 
+/** TS 6 BlobPart expects ArrayBuffer, not Uint8Array<ArrayBufferLike>. */
+function uint8ToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
+}
+
 /** Decode any browser-supported image and re-encode as JPEG. */
 async function blobToJpeg(blob: Blob): Promise<Uint8Array> {
   const bitmap = await createImageBitmap(blob);
@@ -74,7 +81,7 @@ export async function downloadListingPhoto(url: string, filename: string): Promi
   try {
     const data = await fetchAsJpeg(url);
     if (!data?.byteLength) throw new Error('download failed');
-    saveBlob(new Blob([Uint8Array.from(data)], { type: 'image/jpeg' }), jpgName);
+    saveBlob(new Blob([uint8ToArrayBuffer(data)], { type: 'image/jpeg' }), jpgName);
   } catch {
     window.open(cloudinaryJpgUrl(url), '_blank', 'noopener,noreferrer');
   }
@@ -97,7 +104,7 @@ async function zipFromUrls(urls: string[], listingId?: string): Promise<Blob> {
     }
   }
   if (!files.length) throw new Error('zip empty');
-  return new Blob([buildZipStore(files)], { type: 'application/zip' });
+  return new Blob([uint8ToArrayBuffer(buildZipStore(files))], { type: 'application/zip' });
 }
 
 async function zipFromServer(urls: string[], listingId: string | undefined, token: string): Promise<Blob> {
