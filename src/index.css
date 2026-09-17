@@ -917,7 +917,11 @@ body {
   background: #eff6ff;
   color: #2563eb;
 }
-.home-search__trigger-copy { min-width: 0; flex: 1; }
+.home-search__trigger-copy {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+}
 .home-search__label {
   display: block;
   font-size: 10px;
@@ -963,7 +967,7 @@ body {
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.18), 0 0 0 1px rgba(15, 23, 42, 0.06);
 }
 .home-search__pop--wide { min-width: 360px; width: min(400px, calc(100vw - 72px)); }
-.home-search__pop--price { width: 320px; left: auto; right: 0; }
+.home-search__pop--price { width: min(320px, calc(100vw - 48px)); max-width: calc(100vw - 32px); left: auto; right: 0; }
 .home-search__pop-label {
   font-size: 10px;
   font-weight: 800;
@@ -1065,9 +1069,11 @@ body {
   align-items: center;
   gap: 8px;
   margin-bottom: 12px;
+  min-width: 0;
 }
 .home-search__money {
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1090,8 +1096,10 @@ body {
 .home-search__go--mobile {
   padding: 0;
   border-left: none;
+  min-width: 0;
+  width: 100%;
 }
-.home-search__go--mobile .home-search__submit { flex: 1; }
+.home-search__go--mobile .home-search__submit { flex: 1; min-width: 0; }
 .home-search__filter,
 .home-search__submit {
   display: inline-flex;
@@ -1126,21 +1134,31 @@ body {
 }
 .home-search__submit:hover { background: #1e293b; }
 
-.home-search__mobile { padding: 10px 12px 0; display: flex; flex-direction: column; gap: 8px; }
+.home-search__mobile {
+  padding: 10px 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
 @media (min-width: 1024px) {
   .home-search__mobile { display: none; }
 }
 
 .home-search__row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 8px;
+  min-width: 0;
+  width: 100%;
 }
 .home-search__tile {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
+  min-width: 0;
+  overflow: hidden;
   padding: 10px 12px;
   border: 1px solid #e8ebef;
   border-radius: 12px;
@@ -1158,6 +1176,10 @@ body {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+}
+@media (max-width: 400px) {
+  .home-search__tile { padding: 10px 10px; gap: 8px; }
+  .home-search__row .home-search__tile-icon { display: none; }
 }
 
 .home-sheet-backdrop {
@@ -2877,9 +2899,10 @@ textarea:focus, textarea:focus-visible {
 
 .listing-map-row__price-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: 7px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 
 .listing-map-row__price {
@@ -2887,7 +2910,12 @@ textarea:focus, textarea:focus-visible {
   font-weight: 800;
   color: #191c1e;
   letter-spacing: -0.025em;
-  line-height: 1.1;
+  line-height: 1.15;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .listing-map-row__sqm {

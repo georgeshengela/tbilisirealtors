@@ -459,12 +459,15 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
 
       {/* ── White content area ── */}
       <div className="flex flex-col flex-1 p-3">
-        <div className="flex items-start justify-between gap-2 mb-1">
-          <span className="font-extrabold" style={{ fontSize: 16, color: '#191c1e', lineHeight: 1.1, letterSpacing: '-0.01em' }}>
+        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 mb-1 min-w-0">
+          <span
+            className="font-extrabold min-w-0 max-w-full truncate"
+            style={{ fontSize: 15, color: '#191c1e', lineHeight: 1.2, letterSpacing: '-0.02em' }}
+          >
             {priceLabel}
           </span>
           {property.floor && (
-            <span className="text-[10px] font-semibold flex-shrink-0 mt-0.5" style={{ color: '#9ea0a7' }}>
+            <span className="text-[10px] font-semibold whitespace-nowrap ml-auto" style={{ color: '#9ea0a7' }}>
               {property.floor}/{property.totalFloors} {t('property.floorShort')}
             </span>
           )}

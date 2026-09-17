@@ -149,17 +149,17 @@ export default function PropertyCard({ property, variant = 'default' }: Property
       <Link to={href} className="flex flex-col flex-1 p-4">
 
         {/* Price row */}
-        <div className="flex items-center justify-between mb-2">
-          <div>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1 mb-2 min-w-0">
+          <div className="min-w-0 max-w-full">
             <span
-              className="font-bold tracking-tight"
-              style={{ fontSize: 20, color: '#191c1e', lineHeight: 1.1 }}
+              className="font-bold tracking-tight inline-block max-w-full truncate align-bottom"
+              style={{ fontSize: 20, color: '#191c1e', lineHeight: 1.15 }}
             >
               {formatPrice(property)}
             </span>
             {property.status === 'sale' && (
               <span
-                className="ml-2 text-[11px] font-semibold px-1.5 py-0.5 rounded-md"
+                className="ml-2 text-[11px] font-semibold px-1.5 py-0.5 rounded-md whitespace-nowrap"
                 style={{ background: '#f0f2f5', color: '#76777d' }}
               >
                 {formatMoney(property.pricePerSqm, { ...listingMoneyFrom(property), perSqm: true })}
@@ -167,7 +167,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
             )}
           </div>
           {property.floor && (
-            <span className="text-[11px] font-semibold" style={{ color: '#9ea0a7' }}>
+            <span className="text-[11px] font-semibold whitespace-nowrap ml-auto" style={{ color: '#9ea0a7' }}>
               {property.floor}/{property.totalFloors} {labels.floor}
             </span>
           )}
