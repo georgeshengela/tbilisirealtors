@@ -74,6 +74,12 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: 'leads.viewAll', group: 'leads', label: 'გუნდის ყველა ლიდის ნახვა' },
   { key: 'leads.contact', group: 'leads', label: 'ლიდის საკონტაქტო მონაცემები', sensitive: true },
 
+  { key: 'orders.view', group: 'orders', label: 'შეკვეთების ნახვა' },
+  { key: 'orders.create', group: 'orders', label: 'შეკვეთის დამატება' },
+  { key: 'orders.edit', group: 'orders', label: 'შეკვეთის რედაქტირება' },
+  { key: 'orders.status', group: 'orders', label: 'შეკვეთის სტატუსის შეცვლა' },
+  { key: 'orders.delete', group: 'orders', label: 'შეკვეთის წაშლა' },
+
   // Agents
   { key: 'agents.view', group: 'agents', label: 'ბროკერების ნახვა' },
   { key: 'agents.create', group: 'agents', label: 'ბროკერის დამატება' },
@@ -138,6 +144,7 @@ const MANAGER_PERMISSIONS = [
   'agents.view', 'agents.create', 'agents.edit', 'agents.delete',
   'blog.view', 'blog.create', 'blog.edit', 'blog.delete', 'blog.publish',
   'members.view',
+  'orders.view', 'orders.create', 'orders.edit', 'orders.status', 'orders.delete',
   'settings.view', 'dashboard.view', 'analytics.full', 'analytics.imports',
   'uploads.images', 'uploads.documents',
 ];
@@ -148,6 +155,7 @@ const BROKER_PERMISSIONS = [
   'listings.translate', 'listings.tasks',
   // Brokers work the leads handed to them, and need the phone number to do it.
   'leads.view', 'leads.manage', 'leads.contact',
+  'orders.view', 'orders.create', 'orders.edit',
   'dashboard.view',
   'uploads.images', 'uploads.documents',
 ];

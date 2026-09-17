@@ -25,6 +25,7 @@ import UpdatesPage from './pages/UpdatesPage';
 import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPage from './pages/AdminPage';
 import AdminAddListingPage from './pages/AdminAddListingPage';
+import AdminAddOrderPage from './pages/AdminAddOrderPage';
 import AdminProfilePage from './pages/AdminProfilePage';
 import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
 import { UserAuthProvider, useUserAuth } from './contexts/UserAuthContext';
@@ -86,6 +87,8 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
           <Route path="/admin/profile" element={<ProtectedAdminRoute><AdminProfilePage /></ProtectedAdminRoute>} />
           <Route path="/admin/listings/new" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
           <Route path="/admin/listings/:id/edit" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
+          <Route path="/admin/orders/new" element={<ProtectedAdminRoute><AdminAddOrderPage /></ProtectedAdminRoute>} />
+          <Route path="/admin/orders/:id" element={<ProtectedAdminRoute><AdminAddOrderPage /></ProtectedAdminRoute>} />
           <Route path="/admin/*" element={<ProtectedAdminRoute><AdminPage /></ProtectedAdminRoute>} />
         </Routes>
       </>

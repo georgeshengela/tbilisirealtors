@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, type ReactNode } from 'react';
+import { useState, useEffect, useMemo, useRef, type PointerEvent, type ReactNode } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
@@ -8,7 +8,7 @@ import {
   CheckCircle, Loader2, Crown, Key, FileText, Wrench,
   Flame, Droplets, Car, Link2, BadgeCheck,
   Hash, MoveHorizontal, Download, ExternalLink, Globe2,
-  Languages, MessageSquare, X, Upload,
+  Languages, MessageSquare, X, Upload, Maximize2, Minimize2,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import { useCurrency, FALLBACK_USD_RATE } from '../contexts/CurrencyContext';
@@ -23,6 +23,7 @@ import LocationPickerMap, { type LocationValue } from '../components/LocationPic
 import AdminLayout from '../components/admin/AdminLayout';
 import DistrictCombobox from '../components/admin/DistrictCombobox';
 import StreetSuggestInput from '../components/admin/StreetSuggestInput';
+import OwnerSuggestInput, { type OwnerSuggestion } from '../components/admin/OwnerSuggestInput';
 import { CITY_AREAS, canonicalCityName, canonicalDistrictName, findCityArea } from '../data/districts';
 import { formatStreetAddress, parseListingAddress } from '../lib/address';
 import type { StreetSuggestion } from '../lib/geocoding';
@@ -31,6 +32,7 @@ import type { ImportedListingData } from '../types/importListing';
 import {
   LIFECYCLE_OUTCOMES,
   LIFECYCLE_OUTCOME_META,
+  needsDeadline,
 } from '../lib/lifecycle';
 import {
   adminReturnPath,
@@ -42,6 +44,7 @@ import {
   unpackListingFields,
 } from '../lib/listingFormFields';
 import { downloadListingPhoto, downloadListingPhotos, listingPhotoFilename } from '../lib/downloadListingPhotos';
+import { commissionOf, formatCommissionLine } from '../lib/commission';
 import CadastralRegistryPanel from '../components/admin/CadastralRegistryPanel';
 import {
   isCadastralRegistry,
@@ -92,7 +95,7 @@ const PROJECT_TYPES = [
 ];
 
 /* Where the flat sits in the building — ticked, not typed. */
-const LAYOUT_OPTIONS = ['გამჭოლი', 'კუთხის', 'კუთხის-გამჭოლი', 'ცალმხრივი'];
+const LAYOUT_OPTIONS = ['გამჭოლი', 'კუთხის', 'კუთხის-გამჭოლი', 'ცალმხრივი', 'დუპლექსი'];
 
 const PARKING_OPTIONS = [
   'ავტოფარეხი', 'პარკინგის ადგილი', 'ეზოს პარკინგი',
@@ -201,6 +204,99 @@ function FormSection({
   );
 }
 
+const DESC_MIN_H = 96;
+const DESC_MAX_H = 520;
+const DESC_TALL_H = 400;
+
+function ResizableDescriptionField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  defaultHeight,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+  defaultHeight: number;
+}) {
+  const [height, setHeight] = useState(defaultHeight);
+  const [dragging, setDragging] = useState(false);
+  const drag = useRef<{ startY: number; startH: number } | null>(null);
+  const expanded = height >= DESC_TALL_H - 8;
+
+  function clamp(next: number) {
+    return Math.min(DESC_MAX_H, Math.max(DESC_MIN_H, Math.round(next)));
+  }
+
+  function onPointerDown(e: PointerEvent<HTMLDivElement>) {
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { startY: e.clientY, startH: height };
+    setDragging(true);
+  }
+
+  function onPointerMove(e: PointerEvent<HTMLDivElement>) {
+    if (!drag.current) return;
+    setHeight(clamp(drag.current.startH + (e.clientY - drag.current.startY)));
+  }
+
+  function onPointerUp(e: PointerEvent<HTMLDivElement>) {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+    drag.current = null;
+    setDragging(false);
+  }
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <label className={`${labelCls} mb-0`}>{label}</label>
+        <button
+          type="button"
+          onClick={() => setHeight(expanded ? defaultHeight : DESC_TALL_H)}
+          className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2 text-[10px] font-bold text-slate-500 transition hover:border-slate-300 hover:text-slate-800"
+        >
+          {expanded ? <Minimize2 size={11} /> : <Maximize2 size={11} />}
+          {expanded ? 'შეკუმშვა' : 'გაშლა'}
+        </button>
+      </div>
+      <div
+        className={`overflow-hidden rounded-xl border bg-white transition-shadow ${
+          dragging ? 'border-blue-400 shadow-[0_0_0_3px_rgba(37,99,235,0.12)]' : 'border-slate-200'
+        }`}
+      >
+        <textarea
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          style={{ height }}
+          className="w-full resize-none border-0 bg-transparent px-3.5 py-2.5 text-sm text-slate-800 placeholder-slate-400 focus:outline-none"
+          maxLength={3000}
+        />
+        <div
+          role="separator"
+          aria-orientation="horizontal"
+          aria-label={`${label} სიმაღლე`}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          onDoubleClick={() => setHeight(defaultHeight)}
+          className={`flex cursor-ns-resize touch-none select-none items-center justify-center border-t py-1.5 ${
+            dragging ? 'border-blue-200 bg-blue-50' : 'border-slate-100 bg-slate-50 hover:bg-slate-100'
+          }`}
+        >
+          <span className={`h-1 w-10 rounded-full ${dragging ? 'bg-blue-400' : 'bg-slate-300'}`} />
+        </div>
+      </div>
+      <div className="mt-1 text-right text-xs text-slate-400">{value.length}/3000</div>
+    </div>
+  );
+}
+
 function scrollToSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
@@ -224,11 +320,13 @@ interface FormState {
   /* price */
   price: string; rentPrice: string; pricePerSqm: string; currency: string;
   /* dimensions */
-  area: string; rooms: string; bedrooms: string; bathrooms: string;
+  area: string; landArea: string; rooms: string; bedrooms: string; bathrooms: string;
   floor: string; totalFloors: string;
   /* detail */
   projectType: string; ceilingHeight: string;
   wetPoint: string;
+  hasShower: boolean;
+  hasBathtub: boolean;
   balconyCount: string;
   verandaArea: string; loggiaArea: string; waitingArea: string;
   livingRoomArea: string; storageArea: string;
@@ -238,6 +336,7 @@ interface FormState {
   lat: number; lng: number;
   /* Paid listings may publish the exact building number; ours stay approximate. */
   showAddress: boolean;
+  showCadastral: boolean;
   /* features */
   parking: string[]; heating: string[]; hotWater: string[];
   layout: string[];
@@ -272,14 +371,14 @@ const defaultForm: FormState = {
   type: 'apartment', dealTypes: ['sale'],
   buildingStatus: '', condition: '',
   price: '', rentPrice: '', pricePerSqm: '', currency: '$',
-  area: '', rooms: '', bedrooms: '', bathrooms: '',
+  area: '', landArea: '', rooms: '', bedrooms: '', bathrooms: '',
   floor: '', totalFloors: '',
-  projectType: '', ceilingHeight: '', wetPoint: '',
+  projectType: '', ceilingHeight: '', wetPoint: '', hasShower: false, hasBathtub: false,
   balconyCount: '', verandaArea: '', loggiaArea: '', waitingArea: '',
   livingRoomArea: '', storageArea: '',
   city: 'თბილისი', district: '', address: '',
   street: '', streetNumber: '', cadastralCode: '',
-  lat: 41.7151, lng: 44.8271, showAddress: true,
+  lat: 41.7151, lng: 44.8271, showAddress: false, showCadastral: false,
   parking: [], heating: [], hotWater: [], layout: [],
   buildingMaterials: [], windowsMaterials: [],
   furniture: [], propertyAmenities: [], buildingFeatures: [], badges: [],
@@ -391,7 +490,7 @@ export default function AdminAddListingPage() {
   const [searchParams] = useSearchParams();
   const { id }   = useParams();
   const isEdit   = Boolean(id);
-  const { user, can, loading: authLoading } = useAdminAuth();
+  const { user, can, token, loading: authLoading } = useAdminAuth();
   const api = useApiRequest();
   const { formatMoney, rates } = useCurrency();
   const usdRate = rates.USD ?? FALLBACK_USD_RATE;
@@ -421,6 +520,7 @@ export default function AdminAddListingPage() {
   const [noteSaving, setNoteSaving] = useState(false);
   const [noteError, setNoteError] = useState('');
   const [photoDownloading, setPhotoDownloading] = useState(false);
+  const [photoDownloadError, setPhotoDownloadError] = useState('');
   const [cadastralRegistry, setCadastralRegistry] = useState<CadastralRegistry | null>(null);
   const [cadastralSyncing, setCadastralSyncing] = useState(false);
   const [cadastralSyncError, setCadastralSyncError] = useState('');
@@ -468,12 +568,15 @@ export default function AdminAddListingPage() {
             : '',
           currency: parsePriceCurrency(data.priceCurrency) === 'USD' ? '$' : '₾',
           area:       String(data.area || ''),
+          landArea:   data.landArea != null && data.landArea !== '' ? String(data.landArea) : '',
           type:       data.type || 'apartment',
           dealTypes:  data.status === 'both' ? ['sale', 'rent'] : [data.status || 'sale'],
           rooms:      roomsChipFromCount(data.rooms ?? data.bedrooms) || prev.rooms,
           bedrooms:   bedroomsChipFromCount(data.bedrooms) || '',
           bathrooms:  extras.details.wetPoint || String(data.bathrooms || ''),
           wetPoint:   extras.details.wetPoint || (Number(data.bathrooms) >= 3 ? '3+' : (data.bathrooms ? String(data.bathrooms) : '')),
+          hasShower: extras.details.hasShower,
+          hasBathtub: extras.details.hasBathtub,
           ceilingHeight: extras.details.ceilingHeight,
           balconyCount: extras.details.balconyCount,
           verandaArea: extras.details.verandaArea,
@@ -505,6 +608,7 @@ export default function AdminAddListingPage() {
           lat:        coords?.lat ?? 41.7151,
           lng:        coords?.lng ?? 44.8271,
           showAddress: data.showAddress !== false,
+          showCadastral: data.showCadastral === true,
           photos:     toPhotoItems(data.images, data.hiddenImages),
           amenities:  unpacked.amenities,
           features:   extras.rest,
@@ -556,7 +660,13 @@ export default function AdminAddListingPage() {
     setForm(f => ({ ...f, [key]: value }));
 
   function toggleSingle(key: 'condition' | 'buildingStatus' | 'wetPoint' | 'projectType' | 'rooms' | 'bedrooms', val: string) {
-    setForm(f => ({ ...f, [key]: f[key] === val ? '' : val }));
+    setForm(f => {
+      const next = f[key] === val ? '' : val;
+      if (key === 'wetPoint' && !next) {
+        return { ...f, wetPoint: '', hasShower: false, hasBathtub: false };
+      }
+      return { ...f, [key]: next };
+    });
   }
 
   function toggleArr(key: keyof FormState, item: string) {
@@ -632,6 +742,18 @@ export default function AdminAddListingPage() {
       district: hit.district || f.district,
       lat: hit.lat || f.lat,
       lng: hit.lng || f.lng,
+    }));
+  }
+
+  function handleOwnerPick(owner: OwnerSuggestion) {
+    setForm(f => ({
+      ...f,
+      ownerName: owner.name || f.ownerName,
+      ownerPhone: owner.phone || f.ownerPhone,
+      ownerEmail: owner.email || f.ownerEmail,
+      ownerIdNumber: owner.idNumber || f.ownerIdNumber,
+      ownerAddress: owner.address || f.ownerAddress,
+      ownerNote: owner.note || f.ownerNote,
     }));
   }
 
@@ -747,12 +869,16 @@ export default function AdminAddListingPage() {
     try {
       const result = await api('/translate', {
         method: 'POST',
-        body: JSON.stringify({ text: form.description, targets: ['en', 'ru'] }),
+        body: JSON.stringify({ text: form.description }),
       }) as { en?: string; ru?: string };
+      if (!result.en?.trim() || !result.ru?.trim()) {
+        setTranslateError('თარგმანი ცარიელი დაბრუნდა, სცადეთ ხელახლა');
+        return;
+      }
       setForm(f => ({
         ...f,
-        descriptionEn: result.en || f.descriptionEn,
-        descriptionRu: result.ru || f.descriptionRu,
+        descriptionEn: result.en!.trim(),
+        descriptionRu: result.ru!.trim(),
       }));
     } catch (err) {
       setTranslateError(err instanceof Error ? err.message : 'თარგმნა ვერ მოხერხდა');
@@ -836,8 +962,11 @@ export default function AdminAddListingPage() {
     const urls = form.photos.map(photo => photo.url).filter(Boolean);
     if (!urls.length) return;
     setPhotoDownloading(true);
+    setPhotoDownloadError('');
     try {
-      await downloadListingPhotos(urls, id);
+      await downloadListingPhotos(urls, id, token);
+    } catch {
+      setPhotoDownloadError('ფოტოების ZIP ვერ ჩამოიტვირთა');
     } finally {
       setPhotoDownloading(false);
     }
@@ -868,8 +997,18 @@ export default function AdminAddListingPage() {
       scrollToSection('section-type');
       return;
     }
+    if ((form.type === 'house' || form.type === 'villa') && !parseFloat(form.landArea)) {
+      setError('კერძო სახლზე / აგარაკზე მიწის ფართი სავალდებულოა');
+      scrollToSection('section-details');
+      return;
+    }
     if (isEdit && form.lifecycleState === 'old' && !form.lifecycleOutcome) {
       setError('old სტატუსზე აირჩიე ქვეკატეგორია');
+      scrollToSection('section-type');
+      return;
+    }
+    if (isEdit && form.lifecycleState === 'old' && needsDeadline(form.lifecycleOutcome) && !form.rentExpiresAt) {
+      setError('მიუთითე როდემდე გაქირავდა / შეჩერდა');
       scrollToSection('section-type');
       return;
     }
@@ -883,6 +1022,8 @@ export default function AdminAddListingPage() {
         form.condition, form.buildingStatus, form.projectType,
         ...packListingDetails({
           wetPoint: form.wetPoint,
+          hasShower: Boolean(form.wetPoint && form.hasShower),
+          hasBathtub: Boolean(form.wetPoint && form.hasBathtub),
           ceilingHeight: '',
           balconyCount: form.balconyCount,
           verandaArea: form.verandaArea,
@@ -923,6 +1064,9 @@ export default function AdminAddListingPage() {
           ? Math.round(parseFloat(form.pricePerSqm))
           : (price > 0 && areaNum > 0 ? Math.round(price / areaNum) : null),
         area:         parseFloat(form.area) || null,
+        landArea:     (form.type === 'house' || form.type === 'villa')
+          ? (parseFloat(form.landArea) || null)
+          : null,
         type:         form.type,
         status:       sells && rents ? 'both' : sells ? 'sale' : 'rent',
         rooms:        parseChipCount(form.rooms),
@@ -934,6 +1078,7 @@ export default function AdminAddListingPage() {
         district:     form.district,
         address:      formatStreetAddress(form.street, form.streetNumber) || form.address,
         showAddress:  form.showAddress,
+        showCadastral: form.showCadastral,
         cadastralCode: normalizeCadastralCode(form.cadastralCode),
         cadastralRegistry,
         coordinates:  { lat: form.lat, lng: form.lng },
@@ -999,11 +1144,13 @@ export default function AdminAddListingPage() {
 
   const selectedType = PROPERTY_TYPES.find(t => t.id === form.type);
   const sellsAndRents = form.dealTypes.includes('sale') && form.dealTypes.some(d => d !== 'sale');
+  const isSale = form.dealTypes.includes('sale');
+  const priceCommission = isSale ? commissionOf(form.price) : 0;
   const coverPhoto = form.photos.find(p => !p.hidden)?.url;
 
   if (authLoading || !user) return null;
   if (loading) return (
-    <AdminLayout subtitle="იტვირთება..." activeSection="properties" hideAddButton>
+    <AdminLayout subtitle="იტვირთება..." activeSection="properties">
       <div className="container-xl py-24 flex items-center justify-center">
         <Loader2 size={32} className="text-blue-600 animate-spin" />
       </div>
@@ -1048,7 +1195,6 @@ export default function AdminAddListingPage() {
     <AdminLayout
       subtitle={isEdit ? 'განცხადების რედაქტირება' : 'ახალი განცხადება'}
       activeSection="properties"
-      hideAddButton
     >
       <div className="container-xl py-6 sm:py-8 pb-28 lg:pb-10">
         {/* Page header */}
@@ -1291,16 +1437,26 @@ export default function AdminAddListingPage() {
                       </p>
                     )}
                     <div className="grid sm:grid-cols-3 gap-3">
-                      <div>
-                        <label className={labelCls}><User size={12} /> სახელი გვარი</label>
-                        <input type="text" value={form.ownerName} onChange={e => set('ownerName', e.target.value)} className={inputCls} placeholder="ნინო ბერიძე" readOnly={listingLocked} />
-                      </div>
+                      <OwnerSuggestInput
+                        value={form.ownerName}
+                        onChange={v => set('ownerName', v)}
+                        onPick={handleOwnerPick}
+                        disabled={listingLocked}
+                        inputClassName={inputCls}
+                        placeholder="ნინო ბერიძე"
+                        label={<label className={labelCls}><User size={12} /> სახელი გვარი</label>}
+                      />
                       {ownerContactsVisible && (
                         <>
-                          <div>
-                            <label className={labelCls}><Phone size={12} /> ტელეფონი</label>
-                            <input type="text" value={form.ownerPhone} onChange={e => set('ownerPhone', e.target.value)} className={inputCls} placeholder="+995 5XX XXX XXX" readOnly={listingLocked} />
-                          </div>
+                          <OwnerSuggestInput
+                            value={form.ownerPhone}
+                            onChange={v => set('ownerPhone', v)}
+                            onPick={handleOwnerPick}
+                            disabled={listingLocked}
+                            inputClassName={inputCls}
+                            placeholder="+995 5XX XXX XXX"
+                            label={<label className={labelCls}><Phone size={12} /> ტელეფონი</label>}
+                          />
                           <div>
                             <label className={labelCls}><Mail size={12} /> Email</label>
                             <input type="email" value={form.ownerEmail} onChange={e => set('ownerEmail', e.target.value)} className={inputCls} readOnly={listingLocked} />
@@ -1316,6 +1472,9 @@ export default function AdminAddListingPage() {
                         </>
                       )}
                     </div>
+                    <p className="mt-2 text-[11px] text-slate-400">
+                      ტელეფონი ან სახელი ჩაწერე — ამოვა არსებული მესაკუთრეები, მონიშნე და იგივე პირი მიება შემდეგ განცხადებებსაც.
+                    </p>
                   </div>
                 )}
 
@@ -1528,8 +1687,8 @@ export default function AdminAddListingPage() {
                                   if (id === 'paused' && !form.rentExpiresAt) {
                                     set('rentExpiresAt', addDaysISO(new Date().toISOString().slice(0, 10), 7));
                                   }
-                                  if (id === 'rented_us' && !form.rentStartedAt) {
-                                    const start = new Date().toISOString().slice(0, 10);
+                                  if ((id === 'rented_us' || id === 'rented_owner') && !form.rentExpiresAt) {
+                                    const start = form.rentStartedAt || new Date().toISOString().slice(0, 10);
                                     set('rentStartedAt', start);
                                     set('rentTermMonths', '12');
                                     set('rentExpiresAt', addMonthsISO(start, 12));
@@ -1624,9 +1783,35 @@ export default function AdminAddListingPage() {
                       )}
 
                       {form.lifecycleOutcome === 'rented_owner' && (
-                        <p className="text-xs text-teal-800 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5 leading-snug">
-                          განცხადება რჩება გაყიდვაზე და აქტიურ ცხრილში. შიდა ნიშანია, რომ გაქირავებულია — ინვესტიციის ფილტრისთვის.
-                        </p>
+                        <div className="space-y-3">
+                          <p className="text-xs font-bold text-slate-600">როდემდე გაქირავდა</p>
+                          <div className="flex flex-wrap gap-2">
+                            {RENT_TERM_OPTIONS.map(months => chip(
+                              `${months} თვე`,
+                              form.rentTermMonths === String(months),
+                              () => {
+                                const start = form.rentStartedAt || new Date().toISOString().slice(0, 10);
+                                set('rentTermMonths', String(months));
+                                set('rentStartedAt', start);
+                                set('rentExpiresAt', addMonthsISO(start, months));
+                              },
+                              '#0f172a',
+                            ))}
+                          </div>
+                          <label className="block">
+                            <span className="block text-xs font-bold text-slate-600 mb-1.5">თავისუფლდება</span>
+                            <input
+                              type="date"
+                              required
+                              value={form.rentExpiresAt}
+                              onChange={e => { set('rentExpiresAt', e.target.value); set('rentTermMonths', ''); }}
+                              className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-700 focus:outline-none focus:border-blue-400 bg-white"
+                            />
+                          </label>
+                          <p className="text-xs text-teal-800 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5 leading-snug">
+                            ვადამდე რჩება გაყიდვაზე. ამ თარიღზე ავტომატურად გადავა დასარეკი / New R სტატუსში.
+                          </p>
+                        </div>
                       )}
 
                       <label className="block">
@@ -1766,6 +1951,11 @@ export default function AdminAddListingPage() {
                           className={`${inputCls} pr-8`} placeholder="250000" />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">{form.currency}</span>
                       </div>
+                      {priceCommission > 0 && (
+                        <p className="mt-1.5 text-[11px] font-semibold tabular-nums text-slate-500">
+                          {formatCommissionLine(form.price, form.currency)}
+                        </p>
+                      )}
                     </div>
 
                     {sellsAndRents && (
@@ -1794,22 +1984,46 @@ export default function AdminAddListingPage() {
                 <div className="space-y-5">
                   <h3 className="font-bold text-slate-800 text-sm">ზომები</h3>
 
-                      <div>
-                        <label className={labelCls}><MoveHorizontal size={13} /> ფართი <span className="text-red-500">*</span></label>
-                        <div className="relative max-w-[200px]">
-                          <input
-                            type="number"
-                            value={form.area}
-                            onChange={e => {
-                              const area = e.target.value;
-                              setForm(f => {
-                                const sqm = pricePerSqmOf(f.price, area);
-                                return { ...f, area, pricePerSqm: sqm || f.pricePerSqm };
-                              });
-                            }}
-                            className={`${inputCls} pr-10`} placeholder="85" />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">მ²</span>
+                      <div className={`grid gap-4 ${(form.type === 'house' || form.type === 'villa') ? 'sm:grid-cols-2' : ''}`}>
+                        <div>
+                          <label className={labelCls}>
+                            <MoveHorizontal size={13} />
+                            {form.type === 'land' ? 'მიწის ფართი' : 'ფართი'}
+                            {' '}<span className="text-red-500">*</span>
+                          </label>
+                          <div className="relative max-w-[200px]">
+                            <input
+                              type="number"
+                              value={form.area}
+                              onChange={e => {
+                                const area = e.target.value;
+                                setForm(f => {
+                                  const sqm = pricePerSqmOf(f.price, area);
+                                  return { ...f, area, pricePerSqm: sqm || f.pricePerSqm };
+                                });
+                              }}
+                              className={`${inputCls} pr-10`} placeholder="85" />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">მ²</span>
+                          </div>
                         </div>
+                        {(form.type === 'house' || form.type === 'villa') && (
+                          <div>
+                            <label className={labelCls}>
+                              <TreePine size={13} /> მიწის ფართი <span className="text-red-500">*</span>
+                            </label>
+                            <div className="relative max-w-[200px]">
+                              <input
+                                type="number"
+                                value={form.landArea}
+                                onChange={e => set('landArea', e.target.value)}
+                                className={`${inputCls} pr-10`}
+                                placeholder="450"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">მ²</span>
+                            </div>
+                            <p className="mt-1.5 text-[11px] text-slate-400">ნაკვეთის / ეზოს ფართი — შენობის ფართისგან ცალკე</p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Rooms */}
@@ -1879,6 +2093,12 @@ export default function AdminAddListingPage() {
                             chip(w, form.wetPoint === w, () => toggleSingle('wetPoint', w), '#2563eb')
                           )}
                         </div>
+                        {form.wetPoint && (
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {chip('საშხ.', form.hasShower, () => setForm(f => ({ ...f, hasShower: !f.hasShower })), '#0ea5e9')}
+                            {chip('აბაზანა', form.hasBathtub, () => setForm(f => ({ ...f, hasBathtub: !f.hasBathtub })), '#7c3aed')}
+                          </div>
+                        )}
                       </div>
 
                       {/* Balcony count, veranda and loggia area — typed in by hand */}
@@ -1926,22 +2146,18 @@ export default function AdminAddListingPage() {
 
                   <div className="space-y-4">
                     {([
-                      ['description',   'ქართული', 'დეტალური აღწერა ქართულ ენაზე...'],
-                      ['descriptionEn', 'English', 'Detailed description in English...'],
-                      ['descriptionRu', 'Русский', 'Подробное описание на русском...'],
-                    ] as const).map(([key, label, placeholder]) => (
-                      <div key={key}>
-                        <label className={labelCls}>{label}</label>
-                        <textarea
-                          value={form[key]}
-                          onChange={e => set(key, e.target.value)}
-                          rows={key === 'description' ? 5 : 4}
-                          placeholder={placeholder}
-                          className={`${inputCls} resize-none`}
-                          maxLength={3000}
-                        />
-                        <div className="text-right text-xs text-slate-400 mt-1">{form[key].length}/3000</div>
-                      </div>
+                      ['description',   'ქართული', 'დეტალური აღწერა ქართულ ენაზე...', 148],
+                      ['descriptionEn', 'English', 'Detailed description in English...', 128],
+                      ['descriptionRu', 'Русский', 'Подробное описание на русском...', 128],
+                    ] as const).map(([key, label, placeholder, defaultHeight]) => (
+                      <ResizableDescriptionField
+                        key={key}
+                        label={label}
+                        value={form[key]}
+                        onChange={value => set(key, value)}
+                        placeholder={placeholder}
+                        defaultHeight={defaultHeight}
+                      />
                     ))}
                   </div>
                 </div>
@@ -2019,6 +2235,29 @@ export default function AdminAddListingPage() {
                           error={cadastralSyncError}
                           onSync={() => { void syncCadastral(); }}
                         />
+                        <button
+                          type="button"
+                          onClick={() => set('showCadastral', !form.showCadastral)}
+                          className="w-full mt-3 flex items-start gap-3 p-4 rounded-2xl border-2 text-left transition-all"
+                          style={form.showCadastral
+                            ? { background: '#ecfdf5', borderColor: '#10b981' }
+                            : { background: '#fff', borderColor: '#e2e8f0' }}
+                        >
+                          <span
+                            className="w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 mt-0.5"
+                            style={form.showCadastral
+                              ? { background: '#10b981', borderColor: '#10b981' }
+                              : { borderColor: '#cbd5e1' }}
+                          >
+                            {form.showCadastral && <CheckCircle size={12} className="text-white" />}
+                          </span>
+                          <span>
+                            <span className="block text-sm font-bold text-slate-800">აჩვენე საკადასტრო კოდი</span>
+                            <span className="block text-xs text-slate-500 mt-0.5">
+                              გამორთულია — კოდი მხოლოდ ადმინში რჩება. ჩართულია — გამოჩნდება საიტზე.
+                            </span>
+                          </span>
+                        </button>
                       </div>
 
                       {/* Exact number goes public only for paid placements */}
@@ -2041,7 +2280,7 @@ export default function AdminAddListingPage() {
                         <span>
                           <span className="block text-sm font-bold text-slate-800">აჩვენე მისამართი</span>
                           <span className="block text-xs text-slate-500 mt-0.5">
-                            ჩართულია — საიტზე გამოჩნდება ქუჩა და ნომერი. გამორთულია — მხოლოდ უბანი და ქუჩა.
+                            გამორთულია — საიტზე ჩანს ქუჩა (გელოვანი, ცინცაძე…) უბანთან ერთად, სახლის ნომერი არა. ჩართულია — ქუჩა და ნომერი.
                           </span>
                         </span>
                       </button>
@@ -2152,13 +2391,16 @@ export default function AdminAddListingPage() {
                         className="ml-auto inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-slate-800 disabled:opacity-50"
                       >
                         {photoDownloading ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}
-                        ჩამოტვირთვა
+                        {photoDownloading ? 'ZIP…' : `ყველა ZIP (${form.photos.length})`}
                       </button>
                     )}
                   </div>
                   <p className="text-slate-400 text-xs mb-4">
                     გადაათრიეთ რიგითობის შესაცვლელად. მწვანე პწიჩკა — ჩანს საიტზე, წითელი — ჩამალულია.
                   </p>
+                  {photoDownloadError && (
+                    <p className="text-rose-500 text-xs mb-3">{photoDownloadError}</p>
+                  )}
 
                   <input
                     ref={photoInputRef}
@@ -2454,6 +2696,9 @@ export default function AdminAddListingPage() {
 
                   <div className="flex items-center gap-3 text-xs text-slate-500 flex-wrap">
                     {form.area     && <span className="flex items-center gap-1"><Ruler size={11} />{form.area} მ²</span>}
+                    {form.landArea && (form.type === 'house' || form.type === 'villa') && (
+                      <span className="flex items-center gap-1"><TreePine size={11} />მიწა {form.landArea} მ²</span>
+                    )}
                     {form.rooms    && <span className="flex items-center gap-1"><Bed   size={11} />{form.rooms} ოთ.</span>}
                     {form.floor    && <span className="flex items-center gap-1"><Layers size={11} />{form.floor}{form.totalFloors ? `/${form.totalFloors}` : ''}</span>}
                   </div>
@@ -2484,6 +2729,9 @@ export default function AdminAddListingPage() {
                 {[
                   { label: 'ოთახი',   value: form.rooms || '—' },
                   { label: 'ფართი',   value: form.area ? `${form.area}მ²` : '—' },
+                  ...(form.type === 'house' || form.type === 'villa'
+                    ? [{ label: 'მიწის ფართი', value: form.landArea ? `${form.landArea}მ²` : '—' }]
+                    : []),
                   { label: 'სართ.',   value: form.floor || '—' },
                   { label: 'ფოტო',    value: form.photos.length || '—' },
                 ].map(s => (

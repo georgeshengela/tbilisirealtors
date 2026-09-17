@@ -480,9 +480,9 @@ function CallModal({
                   ))}
                 </select>
               </Field>
-              {lifecycleOutcome === 'paused' && (
-                <Field label="დაბრუნდება New R">
-                  <input type="date" value={rentExpiresAt} onChange={event => setRentExpiresAt(event.target.value)} className={inputCls} />
+              {(lifecycleOutcome === 'paused' || lifecycleOutcome === 'rented_owner') && (
+                <Field label={lifecycleOutcome === 'paused' ? 'როდემდეა შეჩერებული' : 'როდემდე გაქირავდა'}>
+                  <input type="date" required value={rentExpiresAt} onChange={event => setRentExpiresAt(event.target.value)} className={inputCls} />
                 </Field>
               )}
               {lifecycleOutcome === 'rented_us' && (
@@ -522,7 +522,7 @@ function CallModal({
               )}
               {outcomeMeta?.staysLive && (
                 <p className="sm:col-span-2 text-[11px] text-teal-700 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2">
-                  რჩება გაყიდვაზე და აქტიურ ცხრილში — შიდა ნიშანი ინვესტიციის ფილტრისთვის.
+                  ვადამდე რჩება გაყიდვაზე. თავისუფლების თარიღზე გადავა დასარეკი / New R.
                 </p>
               )}
             </>

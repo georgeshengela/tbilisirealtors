@@ -4,8 +4,9 @@ import { properties, agents, blogPosts, users } from '../schema.js';
 import { and, count, desc, eq, inArray, ne } from 'drizzle-orm';
 import { toPublicTeamMember } from '../utils/adminProfile.js';
 import { recordPropertyView } from '../services/propertyViews.js';
-import { STAFF_ROLES, canViewCadastral } from '../permissions.js';
+import { STAFF_ROLES } from '../permissions.js';
 import { optionalAuth, type AuthRequest } from '../middleware/auth.js';
+import { toPublicAddress } from '../lib/publicAddress.js';
 
 const router = Router();
 
@@ -25,7 +26,7 @@ const publiclyVisible = and(
  * notes and held-back photos must never reach the public API. Listings that
  * opt out of `showAddress` also lose the exact building number.
  */
-function toPublic(row: PropertyRow, viewerRole?: string) {
+function toPublic(row: PropertyRow, _viewerRole?: string) {
   const {
     owner: _owner,
     contracts: _contracts,
@@ -59,16 +60,10 @@ function toPublic(row: PropertyRow, viewerRole?: string) {
     ...pub
   } = row;
 
-  if (pub.showAddress === false && pub.address) {
-    /* Keep the street, drop anything carrying a house number. */
-    const kept = pub.address
-      .split(',')
-      .map(part => part.trim())
-      .filter(part => part && !/\d/.test(part));
-    pub.address = kept.join(', ') || [pub.district, pub.city].filter(Boolean).join(', ');
-  }
+  pub.address = toPublicAddress(pub.address, pub.showAddress, pub.district, pub.city)
+    || [pub.district, pub.city].filter(Boolean).join(', ');
 
-  if (canViewCadastral(viewerRole) && cadastralCode) {
+  if (pub.showCadastral && cadastralCode) {
     return { ...pub, cadastralCode };
   }
 

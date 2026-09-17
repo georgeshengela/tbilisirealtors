@@ -6,7 +6,7 @@ import {
   rolePermissions, activityLog,
   type PropertyOwner, type PropertyContract, type InternalNote,
 } from '../schema.js';
-import { activeProvider, translateFromGeorgian, type TargetLang } from '../services/translate.js';
+import { activeProvider, translateListingFromGeorgian, TranslateError } from '../services/translate.js';
 import { eq, desc, count, sql, inArray, and, ne, or, ilike, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import {
@@ -68,6 +68,8 @@ import { offerCountsForProperties } from '../services/propertyOffers.js';
 import { buildDisplayName, profileFieldsFromBody, splitLegacyName } from '../utils/adminProfile.js';
 import { normalizeCadastralCode, parseCadastralRegistry } from '../lib/cadastralCode.js';
 import { CadastralLookupError, lookupCadastral } from '../services/cadastralLookup.js';
+import { buildZipStore } from '../lib/zipStore.js';
+import { cloudinaryJpgUrl, ensureJpegBytes, listingPhotoJpgName } from '../lib/photoJpg.js';
 
 const router = Router();
 
@@ -381,6 +383,112 @@ router.get('/stats', requirePermission('dashboard.view'), async (req: AuthReques
 
 // ─── PROPERTIES ────────────────────────────────────────────────────────────────
 
+/** Suggest existing property owners by phone / name so staff can attach the same person to many listings. */
+router.get('/owners/search', requirePermission('listings.owner'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q.trim().slice(0, 80) : '';
+    const digits = q.replace(/\D/g, '');
+    if (q.length < 2 && digits.length < 3) {
+      res.json({ owners: [] });
+      return;
+    }
+
+    const conditions: SQL[] = [sql`${properties.owner} IS NOT NULL`];
+    const portfolio = portfolioCondition(req.user!);
+    if (portfolio) conditions.push(portfolio);
+
+    const fuzzy = `%${q}%`;
+    const matchParts: SQL[] = [
+      sql`coalesce(${properties.owner}->>'name','') ILIKE ${fuzzy}`,
+      sql`coalesce(${properties.owner}->>'phone','') ILIKE ${fuzzy}`,
+      sql`coalesce(${properties.owner}->>'email','') ILIKE ${fuzzy}`,
+      sql`coalesce(${properties.owner}->>'idNumber','') ILIKE ${fuzzy}`,
+    ];
+    if (digits.length >= 3) {
+      matchParts.push(
+        sql`regexp_replace(coalesce(${properties.owner}->>'phone',''), '\\D', '', 'g') LIKE ${`%${digits}%`}`,
+      );
+    }
+    conditions.push(or(...matchParts)!);
+
+    const rows = await db
+      .select({
+        owner: properties.owner,
+        address: properties.address,
+        district: properties.district,
+        city: properties.city,
+      })
+      .from(properties)
+      .where(and(...conditions))
+      .orderBy(desc(properties.updatedAt))
+      .limit(120);
+
+    type Acc = {
+      name: string;
+      phone: string;
+      email: string;
+      idNumber: string;
+      address: string;
+      note: string;
+      listingCount: number;
+      sampleAddress: string;
+    };
+
+    const byKey = new Map<string, Acc>();
+    for (const row of rows) {
+      const owner = row.owner;
+      if (!owner || typeof owner !== 'object') continue;
+      const name = typeof owner.name === 'string' ? owner.name.trim() : '';
+      const phone = typeof owner.phone === 'string' ? owner.phone.trim() : '';
+      const email = typeof owner.email === 'string' ? owner.email.trim() : '';
+      const idNumber = typeof owner.idNumber === 'string' ? owner.idNumber.trim() : '';
+      const address = typeof owner.address === 'string' ? owner.address.trim() : '';
+      const note = typeof owner.note === 'string' ? owner.note.trim() : '';
+      if (!name && !phone && !idNumber) continue;
+
+      const phoneKey = phone.replace(/\D/g, '');
+      const key = phoneKey.length >= 6
+        ? `p:${phoneKey}`
+        : idNumber
+          ? `i:${idNumber}`
+          : `n:${name.toLowerCase()}`;
+
+      const sample = [row.address, row.district, row.city].filter(Boolean).join(', ');
+      const existing = byKey.get(key);
+      if (existing) {
+        existing.listingCount += 1;
+        if (!existing.name && name) existing.name = name;
+        if (!existing.phone && phone) existing.phone = phone;
+        if (!existing.email && email) existing.email = email;
+        if (!existing.idNumber && idNumber) existing.idNumber = idNumber;
+        if (!existing.address && address) existing.address = address;
+        if (!existing.note && note) existing.note = note;
+        if (!existing.sampleAddress && sample) existing.sampleAddress = sample;
+        continue;
+      }
+      byKey.set(key, {
+        name,
+        phone,
+        email,
+        idNumber,
+        address,
+        note,
+        listingCount: 1,
+        sampleAddress: sample.slice(0, 120),
+      });
+    }
+
+    const owners = [...byKey.values()]
+      .sort((a, b) => b.listingCount - a.listingCount || a.name.localeCompare(b.name, 'ka'))
+      .slice(0, 12);
+
+    res.json({ owners });
+  } catch (err) {
+    console.error('Owner search error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/properties', requirePermission('listings.view'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     await refreshExpiredRentals();
@@ -657,6 +765,97 @@ router.get('/properties/:id/price-history', requirePermission('listings.price'),
   }
 });
 
+const PHOTO_ZIP_MAX = 40;
+const PHOTO_ZIP_BYTES = 15 * 1024 * 1024;
+
+function isSafePhotoUrl(raw: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.local') || host.endsWith('.internal')) return false;
+  if (!host.includes('.')) return false;
+  if (/^(127|10|0|169\.254)\./.test(host)) return false;
+  if (/^192\.168\./.test(host)) return false;
+  if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(host)) return false;
+  return true;
+}
+
+async function fetchPhotoBytes(url: string): Promise<Uint8Array | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 20000);
+  try {
+    const res = await fetch(cloudinaryJpgUrl(url), {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        Accept: 'image/jpeg,image/*,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (compatible; TBILISIREALTOR/1.0)',
+      },
+    });
+    if (!res.ok) return null;
+    const type = res.headers.get('content-type') || '';
+    if (type && !type.startsWith('image/') && !type.includes('octet-stream')) return null;
+    const buffer = new Uint8Array(await res.arrayBuffer());
+    if (!buffer.byteLength || buffer.byteLength > PHOTO_ZIP_BYTES) return null;
+    try {
+      return await ensureJpegBytes(buffer);
+    } catch {
+      return null;
+    }
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+router.post('/photos/zip', requirePermission('listings.view'), async (req: AuthRequest, res: Response): Promise<void> => {
+  const listingId = typeof req.body?.listingId === 'string' ? req.body.listingId.replace(/[^\w.-]/g, '').slice(0, 40) : '';
+  const rawUrls: unknown[] = Array.isArray(req.body?.urls) ? req.body.urls : [];
+  const urls = [...new Set(
+    rawUrls
+      .filter((item): item is string => typeof item === 'string')
+      .map((item) => item.trim())
+      .filter(isSafePhotoUrl),
+  )].slice(0, PHOTO_ZIP_MAX);
+
+  if (!urls.length) {
+    res.status(400).json({ error: 'ფოტოები ვერ მოიძებნა' });
+    return;
+  }
+
+  try {
+    const files: { name: string; data: Uint8Array }[] = [];
+    for (let i = 0; i < urls.length; i += 4) {
+      const batch = urls.slice(i, i + 4);
+      const parts = await Promise.all(batch.map(url => fetchPhotoBytes(url)));
+      parts.forEach((data, offset) => {
+        if (!data) return;
+        files.push({ name: listingPhotoJpgName(i + offset, listingId), data });
+      });
+    }
+
+    if (!files.length) {
+      res.status(502).json({ error: 'Photo download failed' });
+      return;
+    }
+
+    const zip = buildZipStore(files);
+    const filename = `${listingId || 'listing'}-photos-jpg.zip`;
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(Buffer.from(zip));
+  } catch (err) {
+    console.error('Photo zip error:', err);
+    res.status(500).json({ error: 'ZIP ვერ შეიქმნა' });
+  }
+});
+
 router.post('/cadastral-lookup', requirePermission('listings.view'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const result = await lookupCadastral(String(req.body?.code ?? ''));
@@ -727,6 +926,7 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
         rooms: data.rooms ?? data.bedrooms ?? null,
         bathrooms: data.bathrooms,
         area: data.area,
+        landArea: data.landArea ?? null,
         floor: data.floor,
         totalFloors: data.totalFloors,
         yearBuilt: data.yearBuilt,
@@ -752,6 +952,7 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
         contracts: contractsFrom(data.contracts, editorName(req)),
         internalNotes: notesFrom(data.internalNotes, editorName(req)),
         showAddress: data.showAddress ?? true,
+        showCadastral: data.showCadastral === true,
         cadastralCode: cadastralCodeOf(data.cadastralCode),
         cadastralRegistry: parseCadastralRegistry(data.cadastralRegistry),
         source: data.source || null,
@@ -843,6 +1044,7 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
         rooms: 'rooms' in data ? data.rooms : existing.rooms,
         bathrooms: data.bathrooms,
         area: data.area,
+        landArea: data.landArea ?? null,
         floor: data.floor,
         totalFloors: data.totalFloors,
         yearBuilt: data.yearBuilt,
@@ -866,6 +1068,7 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
           ? notesFrom(data.internalNotes, editorName(req))
           : existing.internalNotes,
         showAddress: data.showAddress ?? existing.showAddress,
+        showCadastral: data.showCadastral === true,
         cadastralCode: 'cadastralCode' in data
           ? cadastralCodeOf(data.cadastralCode)
           : existing.cadastralCode,
@@ -1054,6 +1257,7 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
     }
 
     if ('showAddress' in req.body) updates.showAddress = Boolean(req.body.showAddress);
+    if ('showCadastral' in req.body) updates.showCadastral = Boolean(req.body.showCadastral);
     if ('owner' in req.body) updates.owner = ownerFrom(req.body.owner);
     if ('contracts' in req.body) updates.contracts = contractsFrom(req.body.contracts, editorName(req));
     if ('internalNotes' in req.body) updates.internalNotes = notesFrom(req.body.internalNotes, editorName(req));
@@ -1156,10 +1360,6 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
 // Georgian description → English + Russian, for the translate button in the form
 router.post('/translate', requirePermission('listings.translate'), async (req: AuthRequest, res: Response): Promise<void> => {
   const text = typeof req.body?.text === 'string' ? req.body.text : '';
-  const requested: TargetLang[] = Array.isArray(req.body?.targets)
-    ? req.body.targets.filter((lang: unknown): lang is TargetLang => lang === 'en' || lang === 'ru')
-    : ['en', 'ru'];
-
   if (!text.trim()) {
     res.status(400).json({ error: 'ჯერ ქართული აღწერა შეავსეთ' });
     return;
@@ -1167,18 +1367,20 @@ router.post('/translate', requirePermission('listings.translate'), async (req: A
 
   if (!activeProvider()) {
     res.status(501).json({
-      error: 'თარგმნის სერვისი არ არის კონფიგურირებული — დაამატეთ OPENAI_API_KEY, DEEPL_API_KEY ან GOOGLE_TRANSLATE_API_KEY',
+      error: 'თარგმნის სერვისი არ არის კონფიგურირებული — დაამატეთ OPENROUTER_API_KEY',
     });
     return;
   }
 
   try {
-    const entries = await Promise.all(
-      requested.map(async lang => [lang, await translateFromGeorgian(text, lang)] as const),
-    );
-    res.json(Object.fromEntries(entries));
+    const pair = await translateListingFromGeorgian(text);
+    res.json(pair);
   } catch (err) {
     console.error('Translate error:', err);
+    if (err instanceof TranslateError) {
+      res.status(err.status).json({ error: err.message });
+      return;
+    }
     res.status(502).json({ error: 'თარგმნა ვერ მოხერხდა, სცადეთ ხელახლა' });
   }
 });

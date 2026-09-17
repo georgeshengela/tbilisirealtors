@@ -4,7 +4,7 @@ import { listingTasks, properties, propertyPriceHistory } from '../schema.js';
 
 /**
  * new     — just added, not worked yet
- * current — live and actively offered (also: sold-while-rented via rented_owner)
+ * current — live and actively offered (also: rented_owner until its end date)
  * old     — parked with a reason: sold, withdrawn, paused, or we rented it
  * new_r   — pause/rental term ran out: call the owner and re-check
  */
@@ -77,7 +77,7 @@ export function isLifecycleOutcome(value: unknown): value is LifecycleOutcome {
   return typeof value === 'string' && (LIFECYCLE_OUTCOMES as readonly string[]).includes(value);
 }
 
-const TERM_OUTCOMES: LifecycleOutcome[] = ['paused', 'rented_us'];
+const TERM_OUTCOMES: LifecycleOutcome[] = ['paused', 'rented_us', 'rented_owner'];
 
 export const REFRESH_TASK_TITLE = 'განახლება — დასარეკი';
 const REFRESH_TASK_NOTE =
@@ -108,12 +108,29 @@ function dealPriceOf(value: unknown): string | null {
   return Number.isFinite(n) && n >= 0 ? String(n) : null;
 }
 
+function termDates(
+  input: LifecycleInput,
+  current: {
+    rentStartedAt?: string | null;
+    rentExpiresAt?: string | null;
+    rentTermMonths?: number | null;
+  } | undefined,
+  fallbackMonths: number | null,
+): { termMonths: number | null; startedAt: string; expiresAt: string | null } {
+  const months = Number(input.rentTermMonths ?? current?.rentTermMonths ?? fallbackMonths);
+  const termMonths = Number.isFinite(months) && months > 0 ? Math.round(months) : null;
+  const startedAt = asDateOnly(input.rentStartedAt) ?? asDateOnly(current?.rentStartedAt) ?? today();
+  const explicitEnd = asDateOnly(input.rentExpiresAt);
+  const expiresAt = explicitEnd
+    ?? (termMonths ? addMonths(startedAt, termMonths) : asDateOnly(current?.rentExpiresAt));
+  return { termMonths, startedAt, expiresAt };
+}
+
 /**
  * Turns whatever the admin form sent into a consistent lifecycle record.
  *
  * "old" always carries a reason. Owner-rented-while-for-sale (`rented_owner`)
- * stays live as `current` so it does not disappear into the archive or the
- * public listing feed.
+ * stays live as `current` until the required end date, then becomes new_r.
  */
 export function buildLifecycleFields(
   input: LifecycleInput,
@@ -139,11 +156,14 @@ export function buildLifecycleFields(
   const stamp = new Date();
 
   if (outcome === 'rented_owner') {
+    const { termMonths, startedAt, expiresAt } = termDates(input, current, 12);
     return {
-      lifecycleState: requested === 'new' ? 'new' : 'current',
-      rentTermMonths: null,
-      rentStartedAt: null,
-      rentExpiresAt: null,
+      lifecycleState: expiresAt && expiresAt <= today()
+        ? 'new_r'
+        : (requested === 'new' ? 'new' : 'current'),
+      rentTermMonths: termMonths,
+      rentStartedAt: startedAt,
+      rentExpiresAt: expiresAt,
       lifecycleNote: note,
       lifecycleUpdatedAt: stamp,
       lifecycleOutcome: 'rented_owner',
@@ -196,11 +216,7 @@ export function buildLifecycleFields(
     };
   }
 
-  const months = Number(input.rentTermMonths ?? current?.rentTermMonths);
-  const termMonths = Number.isFinite(months) && months > 0 ? Math.round(months) : null;
-  const startedAt = asDateOnly(input.rentStartedAt) ?? asDateOnly(current?.rentStartedAt) ?? today();
-  const explicitEnd = asDateOnly(input.rentExpiresAt);
-  const expiresAt = explicitEnd ?? (termMonths ? addMonths(startedAt, termMonths) : null);
+  const { termMonths, startedAt, expiresAt } = termDates(input, current, 12);
 
   return {
     lifecycleState: expiresAt && expiresAt <= today() ? 'new_r' : requested === 'new_r' ? 'new_r' : 'old',
@@ -315,10 +331,7 @@ async function markStaleListings(): Promise<number> {
     .where(
       and(
         inArray(properties.lifecycleState, ['new', 'current']),
-        or(
-          sql`${properties.lifecycleOutcome} is null`,
-          eq(properties.lifecycleOutcome, 'rented_owner'),
-        ),
+        sql`${properties.lifecycleOutcome} is null`,
         or(
           and(
             inArray(properties.status, ['sale', 'pledge']),
@@ -370,22 +383,38 @@ export async function refreshExpiredRentals(force = false): Promise<number> {
   lastSweep = Date.now();
 
   try {
+    const dueAt = callDeadlineFrom(today());
     const expired = await db
       .update(properties)
-      .set({ lifecycleState: 'new_r', lifecycleUpdatedAt: new Date() })
+      .set({
+        lifecycleState: 'new_r',
+        lifecycleUpdatedAt: new Date(),
+        nextFollowUpAt: dueAt,
+      })
       .where(
         and(
-          eq(properties.lifecycleState, 'old'),
+          sql`${properties.lifecycleState} <> 'new_r'`,
           isNotNull(properties.rentExpiresAt),
           sql`${properties.rentExpiresAt} <= CURRENT_DATE`,
           sql`(${properties.lifecycleOutcome} is null
-               or ${properties.lifecycleOutcome} in ('paused', 'rented_us'))`,
+               or ${properties.lifecycleOutcome} in ('paused', 'rented_us', 'rented_owner'))`,
         ),
       )
-      .returning({ id: properties.id });
+      .returning({
+        id: properties.id,
+        assignedToUserId: properties.assignedToUserId,
+        createdByUserId: properties.createdByUserId,
+      });
 
     if (expired.length > 0) {
-      console.log(`↻ ${expired.length} paused/rented listing(s) → marked "new R"`);
+      for (const row of expired) {
+        try {
+          await ensureRefreshTask(row, dueAt);
+        } catch (err) {
+          console.error(`Refresh task failed for ${row.id}:`, err);
+        }
+      }
+      console.log(`↻ ${expired.length} paused/rented listing(s) → "new R" (call by ${dueAt})`);
     }
 
     const stale = await markStaleListings();

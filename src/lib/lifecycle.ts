@@ -22,7 +22,7 @@ export const LIFECYCLE_OUTCOME_META: Record<LifecycleOutcome, {
 }> = {
   paused: {
     label: 'დროებით შეჩერებულია',
-    hint: 'ვერ დავუკავშირდით — რამდენიმე დღით გადავადება, შემდეგ New R',
+    hint: 'მიუთითე როდემდე — ვადაზე ავტომატურად გადავა დასარეკში (New R)',
     needsResume: true,
   },
   sold_owner: {
@@ -43,16 +43,25 @@ export const LIFECYCLE_OUTCOME_META: Record<LifecycleOutcome, {
   },
   rented_owner: {
     label: 'გაქირავდა',
-    hint: 'იყიდება, მაგრამ მესაკუთრემ გააქირავა — რჩება გაყიდვაზე, შიდა ნიშნით',
+    hint: 'მიუთითე როდემდე გაქირავდა — ვადაზე გადავა დასარეკში (New R)',
     staysLive: true,
+    needsResume: true,
+    needsTerm: true,
   },
   rented_us: {
     label: 'გავაქირავეთ',
-    hint: 'ჩვენი ჩართულობით გააქირავა — ვადა და ქირის ფასი სტატისტიკისთვის',
+    hint: 'მიუთითე როდემდე გავაქირავეთ — ვადაზე გადავა დასარეკში (New R)',
+    needsResume: true,
     needsTerm: true,
     needsPrice: true,
   },
 };
+
+export const DEADLINE_OUTCOMES = ['paused', 'rented_owner', 'rented_us'] as const;
+
+export function needsDeadline(value: unknown): boolean {
+  return typeof value === 'string' && (DEADLINE_OUTCOMES as readonly string[]).includes(value);
+}
 
 export function isLifecycleOutcome(value: unknown): value is LifecycleOutcome {
   return typeof value === 'string' && (LIFECYCLE_OUTCOMES as readonly string[]).includes(value);

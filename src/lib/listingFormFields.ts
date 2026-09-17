@@ -153,17 +153,28 @@ const DETAIL_PREFIX = {
   storageArea: 'სათავსო: ',
 } as const;
 
+const DETAIL_FLAGS = {
+  hasShower: 'საშხ.',
+  hasBathtub: 'აბაზანა',
+} as const;
+
 export type ListingDetailFields = {
   -readonly [K in keyof typeof DETAIL_PREFIX]: string;
+} & {
+  -readonly [K in keyof typeof DETAIL_FLAGS]: boolean;
 };
 
 export function packListingDetails(details: ListingDetailFields): string[] {
-  return (Object.keys(DETAIL_PREFIX) as (keyof typeof DETAIL_PREFIX)[])
+  const valued = (Object.keys(DETAIL_PREFIX) as (keyof typeof DETAIL_PREFIX)[])
     .map(key => {
       const value = details[key]?.trim();
       return value ? `${DETAIL_PREFIX[key]}${value}` : '';
     })
     .filter(Boolean);
+  const flags = (Object.keys(DETAIL_FLAGS) as (keyof typeof DETAIL_FLAGS)[])
+    .filter(key => details[key])
+    .map(key => DETAIL_FLAGS[key]);
+  return [...valued, ...flags];
 }
 
 export function unpackListingDetails(features: string[]): {
@@ -172,6 +183,8 @@ export function unpackListingDetails(features: string[]): {
 } {
   const details: ListingDetailFields = {
     wetPoint: '',
+    hasShower: false,
+    hasBathtub: false,
     ceilingHeight: '',
     balconyCount: '',
     verandaArea: '',
@@ -182,6 +195,12 @@ export function unpackListingDetails(features: string[]): {
   };
   const rest: string[] = [];
   for (const item of features) {
+    const flag = (Object.keys(DETAIL_FLAGS) as (keyof typeof DETAIL_FLAGS)[])
+      .find(key => item === DETAIL_FLAGS[key] || item.startsWith(`${DETAIL_FLAGS[key]}:`));
+    if (flag) {
+      details[flag] = true;
+      continue;
+    }
     const match = (Object.keys(DETAIL_PREFIX) as (keyof typeof DETAIL_PREFIX)[])
       .find(key => item.startsWith(DETAIL_PREFIX[key]));
     if (!match) {

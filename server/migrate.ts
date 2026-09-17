@@ -555,14 +555,37 @@ async function migrate() {
      * introduced by this release are listed, and only missing ones are appended —
      * a permission an admin deliberately removed earlier stays removed.
      */
+    await client`
+      CREATE TABLE IF NOT EXISTS orders (
+        id VARCHAR(50) PRIMARY KEY,
+        client_name VARCHAR(255) NOT NULL,
+        client_phone VARCHAR(50) NOT NULL,
+        deal_type VARCHAR(20) NOT NULL,
+        budget_amount NUMERIC NOT NULL,
+        budget_currency VARCHAR(3) NOT NULL DEFAULT 'USD',
+        origin JSONB NOT NULL DEFAULT '[]'::jsonb,
+        status VARCHAR(20) NOT NULL DEFAULT 'new',
+        comments JSONB NOT NULL DEFAULT '[]'::jsonb,
+        viewings JSONB NOT NULL DEFAULT '[]'::jsonb,
+        answers JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_by_user_id INTEGER,
+        created_by_name VARCHAR(255),
+        assigned_to_user_id INTEGER,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    await client`CREATE INDEX IF NOT EXISTS orders_status_idx ON orders (status, created_at DESC)`;
+    await client`CREATE INDEX IF NOT EXISTS orders_phone_idx ON orders (client_phone)`;
+
     const LEAD_DESK = ['leads.view', 'leads.manage', 'leads.assign', 'leads.viewAll', 'leads.contact'];
+    const ORDER_DESK = ['orders.view', 'orders.create', 'orders.edit', 'orders.status', 'orders.delete'];
 
     const NEW_ROLE_PERMISSIONS: Record<string, string[]> = {
-      super_admin: LEAD_DESK,
-      admin: ['listings.tasks', 'listings.tasksAll', 'analytics.imports', ...LEAD_DESK],
-      manager: ['listings.tasks', 'listings.tasksAll', 'analytics.imports', ...LEAD_DESK],
-      // A broker works the leads handed to them; distribution stays with managers.
-      broker: ['listings.tasks', 'leads.view', 'leads.manage', 'leads.contact'],
+      super_admin: [...LEAD_DESK, ...ORDER_DESK],
+      admin: ['listings.tasks', 'listings.tasksAll', 'analytics.imports', ...LEAD_DESK, ...ORDER_DESK],
+      manager: ['listings.tasks', 'listings.tasksAll', 'analytics.imports', ...LEAD_DESK, ...ORDER_DESK],
+      broker: ['listings.tasks', 'leads.view', 'leads.manage', 'leads.contact', 'orders.view', 'orders.create', 'orders.edit'],
     };
 
     for (const [role, keys] of Object.entries(NEW_ROLE_PERMISSIONS)) {
@@ -590,6 +613,8 @@ async function migrate() {
     `;
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS refreshed_at DATE`;
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS cadastral_registry JSONB`;
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS show_cadastral BOOLEAN DEFAULT false`;
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS land_area NUMERIC`;
     await client`
       UPDATE properties
       SET refreshed_at = COALESCE(listed_date, created_at::date, CURRENT_DATE)

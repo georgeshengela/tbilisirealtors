@@ -567,6 +567,7 @@ export const en = {
     districtLabel: 'District',
     cadastralCode: 'Cadastral code',
     areaFull: 'Area',
+    landAreaFull: 'Land area',
     bedroomsFull: 'Bedrooms',
     similarShort: 'Similar',
     overview: 'Overview',

@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate, Link, Navigate } from 'react-route
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight, ArrowUpRight, Bath, Bed, Building2, Calendar, CheckCircle2, ChevronLeft, ChevronRight,
-  Copy, Eye, Hash, Heart, Home, Layers, Mail, MapPin, Maximize2, Phone, Ruler, Share2, Sparkles, Square, Star, X,
+  Copy, Eye, Hash, Heart, Home, Layers, Mail, MapPin, Maximize2, Phone, Ruler, Share2, Sparkles, Square, Star, TreePine, X,
 } from 'lucide-react';
 import { useProperty, useProperties } from '../hooks/usePublicData';
 import PropertyMap from '../components/PropertyMap';
@@ -20,6 +20,7 @@ import { personInitials } from '../lib/personInitials';
 import { listingsHref } from '../lib/seoListingsUrl';
 import { listingMoneyFrom } from '../lib/moneyEntry';
 import { parsePropertyId, propertyHref, propertySeoCopy } from '../lib/seoPropertyUrl';
+import { formatPublicLocationLine } from '../lib/address';
 
 /** Long descriptions collapse to a few lines until the reader asks for more. */
 const CLAMP_AT_CHARS = 460;
@@ -199,7 +200,12 @@ export default function PropertyDetailPage() {
           datePosted: property.listedDate,
           address: {
             '@type': 'PostalAddress',
-            streetAddress: property.address || undefined,
+            streetAddress: formatPublicLocationLine(
+              property.address,
+              property.district,
+              property.city,
+              property.showAddress,
+            ) || undefined,
             addressLocality: property.city || undefined,
             addressRegion: property.district || undefined,
             addressCountry: 'GE',
@@ -312,13 +318,12 @@ export default function PropertyDetailPage() {
   const rentPrice = property.status === 'both' && property.rentPrice
     ? formatMoney(property.rentPrice, { ...moneyFrom, perMonth: true })
     : null;
-  /* Feeds often repeat the street inside the address field, so collapse repeats. */
-  const addressLine = [...new Set(
-    [property.address, property.district, property.city]
-      .filter(Boolean)
-      .flatMap(part => part.split(',').map(piece => piece.trim()))
-      .filter(Boolean),
-  )].join(', ');
+  const addressLine = formatPublicLocationLine(
+    property.address,
+    property.district,
+    property.city,
+    property.showAddress,
+  );
   const description = (property.description ?? '').trim();
   const isLong = description.length > CLAMP_AT_CHARS;
 
@@ -332,6 +337,7 @@ export default function PropertyDetailPage() {
 
   const facts = [
     { icon: Square, value: `${property.area} მ²`, label: t('property.areaFull') },
+    property.landArea ? { icon: TreePine, value: `${property.landArea} მ²`, label: t('property.landAreaFull') } : null,
     property.rooms ? { icon: Layers, value: String(property.rooms), label: t('property.rooms') } : null,
     property.bedrooms > 0 ? { icon: Bed, value: String(property.bedrooms), label: t('property.bedroomsFull') } : null,
     property.bathrooms > 0 ? { icon: Bath, value: String(property.bathrooms), label: t('property.bathroomFull') } : null,
@@ -358,6 +364,7 @@ export default function PropertyDetailPage() {
       legend: t('property.groupInterior'),
       rows: [
         { label: t('property.areaFull'), value: `${property.area} მ²` },
+        property.landArea ? { label: t('property.landAreaFull'), value: `${property.landArea} მ²` } : null,
         property.floor != null ? { label: t('property.floorFull'), value: `${property.floor}${property.totalFloors ? `/${property.totalFloors}` : ''}` } : null,
         property.condition ? { label: t('property.condition'), value: property.condition } : null,
         property.balconyCount ? { label: t('property.balcony'), value: `${property.balconyCount}${property.balconyArea ? ` · ${property.balconyArea} მ²` : ''}` } : null,
@@ -638,7 +645,7 @@ export default function PropertyDetailPage() {
                 <PropertyMap
                   lat={property.coordinates.lat}
                   lng={property.coordinates.lng}
-                  address={property.address}
+                  address={addressLine}
                   district={property.district}
                   city={property.city}
                   height={320}

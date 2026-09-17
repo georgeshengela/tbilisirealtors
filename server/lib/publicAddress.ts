@@ -1,13 +1,8 @@
-/**
- * Split a stored listing address into street + house number, and drop the
- * city / country tokens that often get concatenated on import.
- */
-
 const COUNTRY = /^(საქართველო|georgia)$/i;
 const HOUSE_NUMBER = /(?:N|№|#)?\s*\d+[ა-ჰa-zA-Z]?[-/]?\d*[ა-ჰa-zA-Z]?/u;
 const TRAILING_HOUSE_NUMBERS = /(?:[\s,]+(?:N|№|#)?\s*\d+[ა-ჰa-zA-Z]?[-/]?\d*[ა-ჰa-zA-Z]?)+$/u;
 
-export function stripHouseNumbers(value: string): string {
+function stripHouseNumbers(value: string): string {
   return value.replace(TRAILING_HOUSE_NUMBERS, '').trim();
 }
 
@@ -53,7 +48,6 @@ export function parseListingAddress(
   };
 }
 
-/** Public site: street stays visible; house number only when staff opts in. */
 export function toPublicAddress(
   address: string | null | undefined,
   showExact: boolean | null | undefined,
@@ -64,32 +58,4 @@ export function toPublicAddress(
   if (!raw) return '';
   if (showExact !== false) return raw;
   return parseListingAddress(raw, city ?? '', district ?? '').street || stripHouseNumbers(raw);
-}
-
-/** Deduped line for PDP / cards: street, district, city. */
-export function formatPublicLocationLine(
-  address: string | null | undefined,
-  district?: string | null,
-  city?: string | null,
-  showExact: boolean | null | undefined = true,
-): string {
-  const street = toPublicAddress(address, showExact, district, city);
-  return [...new Set(
-    [street, district, city]
-      .filter(Boolean)
-      .flatMap(part => String(part).split(',').map(piece => piece.trim()))
-      .filter(Boolean),
-  )].join(', ');
-}
-
-export function formatStreetAddress(street: string, streetNumber: string): string {
-  return [street.trim(), streetNumber.trim()].filter(Boolean).join(' ');
-}
-
-/** Pull a trailing house number off a typed street query: „ბერბუკის 7“. */
-export function splitStreetQuery(query: string): { street: string; number: string } {
-  const trimmed = query.trim();
-  const match = trimmed.match(/^(.*?)[\s,]+(\d+[ა-ჰa-zA-Z]?[-/]?\d*[ა-ჰa-zA-Z]?)$/u);
-  if (match?.[1]?.trim()) return { street: match[1].trim(), number: match[2] };
-  return { street: trimmed, number: '' };
 }

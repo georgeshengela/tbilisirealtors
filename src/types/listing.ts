@@ -9,6 +9,8 @@ export interface Property {
   address: string;
   city: string;
   district: string;
+  /** When false, public pages keep the street and hide the house number. */
+  showAddress?: boolean;
   type: 'apartment' | 'house' | 'commercial' | 'land' | 'villa' | 'hotel';
   /** "both" means the same property is offered for sale and for rent. */
   status: 'sale' | 'rent' | 'both' | 'pledge' | 'daily_rent';
@@ -21,6 +23,8 @@ export interface Property {
   bathrooms: number;
   rooms?: number;
   area: number;
+  /** Yard / plot m² for houses and villas. */
+  landArea?: number | null;
   floor?: number;
   totalFloors?: number;
   yearBuilt?: number;
@@ -108,12 +112,14 @@ export type ApiPropertyRow = {
   address: string | null;
   city: string | null;
   district: string | null;
+  showAddress?: boolean | null;
   type: string | null;
   status: string | null;
   bedrooms: number | null;
   rooms?: number | null;
   bathrooms: number | null;
   area: string | number | null;
+  landArea?: string | number | null;
   floor: number | null;
   totalFloors: number | null;
   yearBuilt: number | null;

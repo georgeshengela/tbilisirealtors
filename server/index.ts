@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import authRoutes from './routes/auth.js';
 import accountRoutes from './routes/account.js';
 import adminRoutes from './routes/admin.js';
+import orderRoutes from './routes/orders.js';
 import deskRoutes from './routes/desk.js';
 import analyticsRoutes from './routes/analytics.js';
 import ratesRoutes from './routes/rates.js';
@@ -61,6 +62,7 @@ app.use('/api/account', accountRoutes);
 // Both sit under /api/admin, so they have to be mounted before the catch-all router.
 app.use('/api/admin/desk', deskRoutes);
 app.use('/api/admin/analytics', analyticsRoutes);
+app.use('/api/admin', orderRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/rates', ratesRoutes);
 app.use('/api/geo', geoRoutes);

@@ -5,14 +5,13 @@ import AdminFooter from './AdminFooter';
 interface AdminLayoutProps {
   subtitle: string;
   activeSection?: AdminNavSection;
-  hideAddButton?: boolean;
   children: ReactNode;
 }
 
-export default function AdminLayout({ subtitle, activeSection, hideAddButton, children }: AdminLayoutProps) {
+export default function AdminLayout({ subtitle, activeSection, children }: AdminLayoutProps) {
   return (
     <div className="admin-shell min-h-screen flex flex-col">
-      <AdminHeader subtitle={subtitle} activeSection={activeSection} hideAddButton={hideAddButton} />
+      <AdminHeader subtitle={subtitle} activeSection={activeSection} />
       <main className="flex-1">{children}</main>
       <AdminFooter />
     </div>

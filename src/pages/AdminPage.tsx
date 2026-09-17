@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  LayoutDashboard, Building2, Users, Settings, LogOut, Plus,
+  LayoutDashboard, Building2, ClipboardList, Users, Settings, LogOut, Plus,
   Pencil, Trash2, X, Eye, TrendingUp, UserCheck,
   BookOpen, Search, CheckCircle, XCircle, Shield, Home,
   Star, Zap, Sparkles, Image as ImageIcon,
@@ -12,6 +12,7 @@ import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import AdminPropertiesSection, {
   type AdminPropertyRow, type ListingsSummary, type ListingStaffOption, type PropertyPatch,
 } from '../components/admin/AdminPropertiesSection';
+import AdminOrdersSection from '../components/admin/AdminOrdersSection';
 import AdminBrokersSection, { type BrokerRow } from '../components/admin/AdminBrokersSection';
 import AdminDeskSection, { type DeskTab } from '../components/admin/desk/AdminDeskSection';
 import AdminAnalyticsSection, {
@@ -20,6 +21,7 @@ import AdminAnalyticsSection, {
 import AdminPricesSection from '../components/admin/prices/AdminPricesSection';
 import StaffPermissionEditor from '../components/admin/StaffPermissionEditor';
 import BrandLogo from '../components/BrandLogo';
+import AdminNavBar from '../components/admin/AdminNavBar';
 import AdminFooter from '../components/admin/AdminFooter';
 import { formatGeorgianLongDate, formatGeorgianShortDate } from '../lib/dateFormat';
 import { propertyHref } from '../lib/seoPropertyUrl';
@@ -93,16 +95,17 @@ interface MemberRow {
 interface Setting { key: string; value: string; label: string; }
 
 type Section =
-  | 'dashboard' | 'properties' | 'desk' | 'analytics' | 'prices' | 'agents'
+  | 'dashboard' | 'orders' | 'properties' | 'desk' | 'analytics' | 'prices' | 'agents'
   | 'blog' | 'staff' | 'members' | 'settings';
 
 const SECTIONS: Section[] = [
-  'dashboard', 'properties', 'desk', 'analytics', 'prices', 'agents', 'blog', 'staff', 'members', 'settings',
+  'dashboard', 'orders', 'properties', 'desk', 'analytics', 'prices', 'agents', 'blog', 'staff', 'members', 'settings',
 ];
 
 /** A section unlocks as soon as the actor holds any one of these permissions. */
 const SECTION_PERMISSIONS: Record<Section, string[]> = {
   dashboard: ['dashboard.view'],
+  orders: ['orders.view'],
   properties: ['listings.view'],
   desk: ['listings.tasks', 'listings.moderate', 'listings.assign', 'analytics.full', 'leads.view'],
   analytics: ['analytics.full', 'analytics.imports'],
@@ -558,6 +561,7 @@ export default function AdminPage() {
 
   const allNavItems: { id: Section; label: string; icon: LucideIcon; badge?: number }[] = [
     { id: 'dashboard', label: 'მთავარი', icon: LayoutDashboard },
+    { id: 'orders', label: 'შეკვეთები', icon: ClipboardList },
     { id: 'properties', label: 'განცხადებები', icon: Building2 },
     { id: 'desk', label: 'დესკი', icon: Headphones, badge: stats?.pendingModeration ?? 0 },
     { id: 'analytics', label: 'ანალიტიკა', icon: BarChart3 },
@@ -571,6 +575,12 @@ export default function AdminPage() {
 
   // The server enforces the same rules; this only keeps unreachable tabs hidden.
   const navItems = allNavItems.filter(item => canSection(item.id));
+
+  function goSection(id: Section) {
+    setSection(id);
+    setSearch('');
+    navigate(id === 'dashboard' ? '/admin' : `/admin?section=${id}`);
+  }
 
   // Settings edits carry a hard admin floor server-side, so mirror it in the form.
   const canEditSettings = can('settings.edit') && meetsAdminFloor(user?.role ?? '');
@@ -646,43 +656,12 @@ export default function AdminPage() {
                 border: '1px solid rgba(255,255,255,0.08)',
               }}
             >
-              {navItems.map(item => {
-                const active = section === item.id;
-                return (
-                  <button
-                    key={item.id}
-                    onClick={() => { setSection(item.id); setSearch(''); }}
-                    className="relative inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-all duration-200"
-                    style={
-                      active
-                        ? {
-                            background: 'rgba(255,255,255,0.12)',
-                            color: '#fff',
-                          }
-                        : { color: 'rgba(148,163,184,0.9)' }
-                    }
-                    onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = '#e2e8f0'; }}
-                    onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = 'rgba(148,163,184,0.9)'; }}
-                  >
-                    {active && (
-                      <span
-                        className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full"
-                        style={{ background: '#2563eb' }}
-                      />
-                    )}
-                    <item.icon size={14} strokeWidth={active ? 2.3 : 2} className={active ? undefined : 'opacity-75'} />
-                    {item.label}
-                    {Boolean(item.badge) && (
-                      <span
-                        className="ml-0.5 inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-bold text-white"
-                        style={{ background: '#f59e0b' }}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              <AdminNavBar
+                items={navItems}
+                activeId={section}
+                onSelect={id => goSection(id as Section)}
+                variant="desktop"
+              />
             </nav>
 
             {/* Actions */}
@@ -807,40 +786,12 @@ export default function AdminPage() {
             className="lg:hidden flex items-center gap-1.5 pb-3.5 overflow-x-auto"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
           >
-            {navItems.map(item => {
-              const active = section === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => { setSection(item.id); setSearch(''); }}
-                  className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all"
-                  style={
-                    active
-                      ? {
-                          background: 'rgba(37, 99, 235,0.25)',
-                          color: '#fff',
-                          border: '1px solid rgba(37, 99, 235,0.4)',
-                        }
-                      : {
-                          background: 'rgba(255,255,255,0.04)',
-                          color: 'rgba(148,163,184,0.95)',
-                          border: '1px solid rgba(255,255,255,0.07)',
-                        }
-                  }
-                >
-                  <item.icon size={13} strokeWidth={active ? 2.2 : 2} />
-                  {item.label}
-                  {Boolean(item.badge) && (
-                    <span
-                      className="inline-flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold text-white"
-                      style={{ background: '#f59e0b' }}
-                    >
-                      {item.badge}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            <AdminNavBar
+              items={navItems}
+              activeId={section}
+              onSelect={id => goSection(id as Section)}
+              variant="mobile"
+            />
           </nav>
         </div>
       </header>
@@ -900,10 +851,22 @@ export default function AdminPage() {
                           ახალი განცხადება
                         </button>
                       )}
+                      {can('orders.create') && (
+                        <button type="button" onClick={() => navigate('/admin/orders/new')} className="admin-dash-cta admin-dash-cta--ghost">
+                          <ClipboardList size={15} />
+                          ახალი შეკვეთა
+                        </button>
+                      )}
                       {can('listings.view') && (
-                        <button type="button" onClick={() => setSection('properties')} className="admin-dash-cta admin-dash-cta--ghost">
+                        <button type="button" onClick={() => goSection('properties')} className="admin-dash-cta admin-dash-cta--ghost">
                           <Building2 size={15} />
                           განცხადებები
+                        </button>
+                      )}
+                      {can('orders.view') && (
+                        <button type="button" onClick={() => goSection('orders')} className="admin-dash-cta admin-dash-cta--ghost">
+                          <ClipboardList size={15} />
+                          შეკვეთები
                         </button>
                       )}
                       {can('listings.moderate') && Boolean(stats?.pendingModeration) && (
@@ -1163,6 +1126,7 @@ export default function AdminPage() {
                     <div className="space-y-2">
                       {[
                         { label: 'ახალი განცხადება', sub: 'ფორმა + ფოტოები', color: '#2563eb', soft: '#eff6ff', icon: Plus, action: () => navigate('/admin/listings/new') },
+                        { label: 'შეკვეთები', sub: 'კლიენტები და სტატუსები', color: '#2563eb', soft: '#eff6ff', icon: ClipboardList, action: () => setSection('orders') },
                         { label: 'განცხადებების ცხრილი', sub: 'რედაქტირება / ფასები', color: '#059669', soft: '#ecfdf5', icon: Building2, action: () => setSection('properties') },
                         { label: 'ბროკერების მართვა', sub: 'პროფილები და პორტფოლიო', color: '#d97706', soft: '#fffbeb', icon: UserCheck, action: () => setSection('agents') },
                         { label: 'ბლოგი', sub: 'სტატიები და გიდები', color: '#7c3aed', soft: '#f5f3ff', icon: BookOpen, action: () => setSection('blog') },
@@ -1198,6 +1162,9 @@ export default function AdminPage() {
 
             </div>
           )}
+
+          {/* ── ORDERS ── */}
+          {section === 'orders' && <AdminOrdersSection />}
 
           {/* ── PROPERTIES ── */}
           {section === 'properties' && (

@@ -9,6 +9,7 @@ import {
   type PropertyUrlInput,
 } from '../src/lib/seoPropertyUrl.ts';
 import { SITE_NAME, SITE_URL, absoluteImage, clipMeta, pageUrl } from '../src/lib/seo.ts';
+import { toPublicAddress } from './lib/publicAddress.js';
 
 const publiclyVisible = and(
   eq(properties.moderationStatus, 'approved'),
@@ -24,14 +25,8 @@ function escapeHtml(value: string): string {
 }
 
 function publicAddress(address: string | null | undefined, showAddress: boolean | null | undefined, district?: string | null, city?: string | null): string {
-  if (showAddress === false && address) {
-    const kept = address
-      .split(',')
-      .map(part => part.trim())
-      .filter(part => part && !/\d/.test(part));
-    return kept.join(', ') || [district, city].filter(Boolean).join(', ');
-  }
-  return address || '';
+  return toPublicAddress(address, showAddress, district, city)
+    || [district, city].filter(Boolean).join(', ');
 }
 
 export async function loadPublicProperty(id: string): Promise<PropertyUrlInput | null> {

@@ -1,21 +1,23 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Building2, Users, Settings, LogOut, Plus,
+  LayoutDashboard, Building2, ClipboardList, Users, Settings, LogOut, Plus,
   BookOpen, Shield, Sparkles, ExternalLink, Headphones, UserCog, BarChart3, LineChart,
   type LucideIcon,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../../contexts/AdminAuthContext';
 import { roleLabel } from '../../lib/permissions';
 import BrandLogo from '../BrandLogo';
+import AdminNavBar from './AdminNavBar';
 
 export type AdminNavSection =
-  | 'dashboard' | 'properties' | 'desk' | 'analytics' | 'prices' | 'agents'
+  | 'dashboard' | 'orders' | 'properties' | 'desk' | 'analytics' | 'prices' | 'agents'
   | 'blog' | 'staff' | 'members' | 'settings';
 
 /** A section unlocks as soon as the actor holds any one of its permissions. */
-const NAV_ITEMS: { id: AdminNavSection; label: string; icon: LucideIcon; permissions: string[] }[] = [
+const NAV_ITEMS: { id: AdminNavSection; label: string; icon: LucideIcon; permissions: string[]; badge?: number }[] = [
   { id: 'dashboard', label: 'მთავარი', icon: LayoutDashboard, permissions: ['dashboard.view'] },
+  { id: 'orders', label: 'შეკვეთები', icon: ClipboardList, permissions: ['orders.view'] },
   { id: 'properties', label: 'განცხადებები', icon: Building2, permissions: ['listings.view'] },
   {
     id: 'desk',
@@ -45,10 +47,9 @@ const NAV_ITEMS: { id: AdminNavSection; label: string; icon: LucideIcon; permiss
 interface AdminHeaderProps {
   subtitle: string;
   activeSection?: AdminNavSection;
-  hideAddButton?: boolean;
 }
 
-export default function AdminHeader({ subtitle, activeSection = 'properties', hideAddButton = false }: AdminHeaderProps) {
+export default function AdminHeader({ subtitle, activeSection = 'properties' }: AdminHeaderProps) {
   const navigate = useNavigate();
   const { user, logout, can } = useAdminAuth();
   const api = useApiRequest();
@@ -79,7 +80,9 @@ export default function AdminHeader({ subtitle, activeSection = 'properties', hi
 
   if (!user) return null;
 
-  const navItems = NAV_ITEMS.filter(item => item.permissions.some(permission => can(permission)));
+  const navItems = NAV_ITEMS
+    .filter(item => item.permissions.some(permission => can(permission)))
+    .map(item => item.id === 'desk' && deskAlerts > 0 ? { ...item, badge: deskAlerts } : item);
 
   function goToSection(id: AdminNavSection) {
     navigate(id === 'dashboard' ? '/admin' : `/admin?section=${id}`);
@@ -122,45 +125,16 @@ export default function AdminHeader({ subtitle, activeSection = 'properties', hi
             className="hidden lg:flex items-center p-1 rounded-2xl flex-shrink-0"
             style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
           >
-            {navItems.map(item => {
-              const active = activeSection === item.id;
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => goToSection(item.id)}
-                  className="relative inline-flex items-center gap-2 px-4 py-2 rounded-xl text-[13px] font-semibold whitespace-nowrap transition-all duration-200"
-                  style={
-                    active
-                      ? { background: 'rgba(255,255,255,0.12)', color: '#fff' }
-                      : { color: 'rgba(148,163,184,0.9)' }
-                  }
-                  onMouseEnter={e => { if (!active) (e.currentTarget as HTMLElement).style.color = '#e2e8f0'; }}
-                  onMouseLeave={e => { if (!active) (e.currentTarget as HTMLElement).style.color = 'rgba(148,163,184,0.9)'; }}
-                >
-                  {active && (
-                    <span
-                      className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full"
-                      style={{ background: '#2563eb' }}
-                    />
-                  )}
-                  <item.icon size={14} strokeWidth={active ? 2.3 : 2} className={active ? undefined : 'opacity-75'} />
-                  {item.label}
-                  {item.id === 'desk' && deskAlerts > 0 && (
-                    <span
-                      className="inline-flex min-w-[18px] items-center justify-center rounded-full px-1 text-[10px] font-extrabold text-white"
-                      style={{ background: '#ef4444' }}
-                    >
-                      {deskAlerts > 99 ? '99+' : deskAlerts}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
+            <AdminNavBar
+              items={navItems}
+              activeId={activeSection}
+              onSelect={id => goToSection(id as AdminNavSection)}
+              variant="desktop"
+            />
           </nav>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {!hideAddButton && can('listings.create') && (
+            {can('listings.create') && (
               <button
                 type="button"
                 onClick={() => navigate('/admin/listings/new')}
@@ -233,41 +207,12 @@ export default function AdminHeader({ subtitle, activeSection = 'properties', hi
           className="lg:hidden flex items-center gap-1.5 pb-3.5 overflow-x-auto"
           style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
         >
-          {navItems.map(item => {
-            const active = activeSection === item.id;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => goToSection(item.id)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold whitespace-nowrap flex-shrink-0 transition-all"
-                style={
-                  active
-                    ? {
-                        background: 'rgba(37, 99, 235,0.25)',
-                        color: '#fff',
-                        border: '1px solid rgba(37, 99, 235,0.4)',
-                      }
-                    : {
-                        background: 'rgba(255,255,255,0.04)',
-                        color: 'rgba(148,163,184,0.95)',
-                        border: '1px solid rgba(255,255,255,0.07)',
-                      }
-                }
-              >
-                <item.icon size={13} strokeWidth={active ? 2.2 : 2} />
-                {item.label}
-                {item.id === 'desk' && deskAlerts > 0 && (
-                  <span
-                    className="inline-flex min-w-[16px] items-center justify-center rounded-full px-1 text-[9px] font-extrabold text-white"
-                    style={{ background: '#ef4444' }}
-                  >
-                    {deskAlerts > 99 ? '99+' : deskAlerts}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+          <AdminNavBar
+            items={navItems}
+            activeId={activeSection}
+            onSelect={id => goToSection(id as AdminNavSection)}
+            variant="mobile"
+          />
         </nav>
       </div>
     </header>

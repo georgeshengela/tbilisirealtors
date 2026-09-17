@@ -567,6 +567,7 @@ export const ka = {
     districtLabel: 'რაიონი',
     cadastralCode: 'საკადასტრო კოდი (არ. სავ.)',
     areaFull: 'ფართობი',
+    landAreaFull: 'მიწის ფართი',
     bedroomsFull: 'საძინებლები',
     similarShort: 'მსგავსი',
     overview: 'მიმოხილვა',

@@ -106,6 +106,8 @@ export const properties = pgTable('properties', {
   rooms: integer('rooms'),
   bathrooms: integer('bathrooms'),
   area: numeric('area'),
+  /** Yard / plot m² — used for private houses and villas alongside building `area`. */
+  landArea: numeric('land_area'),
   floor: integer('floor'),
   totalFloors: integer('total_floors'),
   yearBuilt: integer('year_built'),
@@ -137,8 +139,9 @@ export const properties = pgTable('properties', {
 
   /* Paid listings may show the exact street number; ours stay approximate. */
   showAddress: boolean('show_address').default(true),
-  /** Cadastral / NAPR code — public page only for managers and admins. */
+  /** Cadastral / NAPR code — public only when showCadastral is on. */
   cadastralCode: varchar('cadastral_code', { length: 80 }),
+  showCadastral: boolean('show_cadastral').default(false),
   /** Last NAPR / my.gov.ge search snapshot — edit form only, never public. */
   cadastralRegistry: jsonb('cadastral_registry').$type<CadastralRegistry | null>(),
 
@@ -458,3 +461,41 @@ export type ModerationTemplate = typeof moderationTemplates.$inferSelect;
 export type ListingImportAttempt = typeof listingImports.$inferSelect;
 export type Lead = typeof leads.$inferSelect;
 export type LeadEvent = typeof leadEvents.$inferSelect;
+
+export interface OrderComment {
+  id: string;
+  text: string;
+  author?: string;
+  createdAt: string;
+}
+
+export interface OrderViewing {
+  id: string;
+  shownAt: string;
+  listingIds: string[];
+  note?: string;
+  author?: string;
+  createdAt: string;
+}
+
+/** Client order / შეკვეთა — broker intake, manager-owned status. */
+export const orders = pgTable('orders', {
+  id: varchar('id', { length: 50 }).primaryKey(),
+  clientName: varchar('client_name', { length: 255 }).notNull(),
+  clientPhone: varchar('client_phone', { length: 50 }).notNull(),
+  dealType: varchar('deal_type', { length: 20 }).notNull(),
+  budgetAmount: numeric('budget_amount').notNull(),
+  budgetCurrency: varchar('budget_currency', { length: 3 }).notNull().default('USD'),
+  origin: jsonb('origin').$type<string[]>().notNull().default([]),
+  status: varchar('status', { length: 20 }).notNull().default('new'),
+  comments: jsonb('comments').$type<OrderComment[]>().notNull().default([]),
+  viewings: jsonb('viewings').$type<OrderViewing[]>().notNull().default([]),
+  answers: jsonb('answers').$type<Record<string, unknown>>().notNull().default({}),
+  createdByUserId: integer('created_by_user_id'),
+  createdByName: varchar('created_by_name', { length: 255 }),
+  assignedToUserId: integer('assigned_to_user_id'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
+
+export type Order = typeof orders.$inferSelect;
