@@ -1,266 +1,227 @@
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import { CheckCircle, Award, Users, Building2, TrendingUp, ArrowRight, Star } from 'lucide-react';
-import { useAgents } from '../hooks/usePublicData';
+import {
+  ArrowRight,
+  Building2,
+  Globe2,
+  Handshake,
+  Home,
+  Landmark,
+  MapPin,
+} from 'lucide-react';
+import { useTranslation } from '../i18n/LocaleContext';
+import { listingsHref } from '../lib/seoListingsUrl';
+
+const PAGE_BG = '#f7f9fb';
+const CARD_BORDER = '#e6e8ea';
+const CARD_SHADOW = '0 10px 32px rgba(15,23,42,0.06)';
 
 export default function AboutPage() {
-  const { data: agents } = useAgents();
-  const values = [
-    {
-      icon: CheckCircle,
-      title: 'სანდოობა',
-      desc: 'ყველა განცხადება ვერიფიცირებულია. გამჭვირვალე პროცესი, სანდო ბიზნეს-გარემო.',
-      color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600',
-    },
-    {
-      icon: Award,
-      title: 'ხარისხი',
-      desc: 'მაღალი სტანდარტები. ჩვენი კლიენტები ღებულობენ ყველაზე ხარისხიან სერვისს.',
-      color: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600',
-    },
-    {
-      icon: Users,
-      title: 'გამოცდილება',
-      desc: '2018 წლიდან ვეხმარებით ქართველ ოჯახებს სახლის პოვნაში.',
-      color: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600',
-    },
-    {
-      icon: TrendingUp,
-      title: 'ინოვაცია',
-      desc: 'თანამედროვე ტექნოლოგიები, AI ანალიტიკა, ვირტუალური ტურები.',
-      color: 'bg-blue-50 dark:bg-blue-900/20 text-blue-600',
-    },
+  const { t } = useTranslation();
+
+  const foci = [
+    { icon: Home, label: t('about.focusResidential') },
+    { icon: Landmark, label: t('about.focusCommercial') },
+    { icon: Building2, label: t('about.focusInvestment') },
   ];
 
-  const milestones = [
-    { year: '2018', title: 'დასაბამი', desc: 'TBILISIREALTOR.GE-ის დაარსება თბილისში.' },
-    { year: '2020', title: 'გაფართოება', desc: 'ბათუმი, ქუთაისი და სხვა ქალაქების დამატება.' },
-    { year: '2022', title: 'მობაილ აპი', desc: 'iOS და Android აპლიკაციის გამოშვება.' },
-    { year: '2024', title: 'AI ანალიტიკა', desc: 'ხელოვნური ინტელექტის ჩართვა ბაზრის ანალიზში.' },
-    { year: '2026', title: 'ახლა', desc: '12,400+ განცხადება, 350+ აგენტი, 8,200+ კლიენტი.' },
+  const work = [
+    { icon: Handshake, label: t('about.workBuy') },
+    { icon: Building2, label: t('about.workAnalysis') },
+    { icon: Globe2, label: t('about.workDeals') },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900">
-      {/* Hero */}
-      <div className="relative min-h-[60vh] flex items-center justify-center overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            src="https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1920&q=80"
-            alt="About Hero"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-br from-slate-900/90 to-blue-900/70" />
-        </div>
-
-        <div className="relative z-10 text-center container-xl max-w-4xl px-6 pt-24">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-            <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">ჩვენს შესახებ</span>
-            <h1 className="text-4xl lg:text-6xl font-bold text-white mt-3 mb-6">
-              საქართველოს #1<br />
-              <span className="gradient-text">უძრავი განცხადების</span><br />
-              პლატფორმა
-            </h1>
-            <p className="text-slate-300 text-xl leading-relaxed">
-              2018 წლიდან ვეხმარებით ქართველ ოჯახებს და ინვესტორებს ოცნების განცხადების პოვნაში
+    <div className="min-h-screen page-under-header" style={{ background: PAGE_BG }}>
+      <section className="relative overflow-hidden">
+        <img
+          src="/5e6a55c3201bd.jpg"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-[center_35%]"
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(90deg, rgba(11,18,32,0.78) 0%, rgba(11,18,32,0.58) 48%, rgba(11,18,32,0.42) 100%)',
+          }}
+        />
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(11,18,32,0.18) 0%, rgba(11,18,32,0.12) 40%, rgba(11,18,32,0.35) 100%)',
+          }}
+        />
+        <div className="container-xl relative py-16 sm:py-20 lg:py-[88px]">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="max-w-3xl"
+          >
+            <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-blue-300">
+              {t('about.badge')}
             </p>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Mission */}
-      <section className="py-20 bg-white dark:bg-slate-900">
-        <div className="container-xl">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            <motion.div
-              initial={{ opacity: 0, x: -30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-            >
-              <span className="text-blue-600 text-sm font-semibold uppercase tracking-widest">მისია</span>
-              <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-2 mb-6">
-                ჩვენი მისიაა<br />სახლის პოვნის<br />გამარტივება
-              </h2>
-              <p className="text-slate-600 dark:text-slate-300 text-lg leading-relaxed mb-6">
-                TBILISIREALTOR.GE შექმნილია იმისთვის, რომ ყველა ადამიანს ჰქონდეს 
-                თანაბარი წვდომა განცხადების ბაზარზე. ჩვენ ვაერთიანებთ ტექნოლოგიებს, 
-                გამოცდილ პროფესიონალებს და გამჭვირვალე პროცესებს.
-              </p>
-              <div className="space-y-3">
-                {[
-                  'ყველა განცხადება ვერიფიცირებულია ჩვენი გუნდის მიერ',
-                  'გამჭვირვალე გარიგებები, დაფარული გადასახადების გარეშე',
-                  '24/7 მხარდაჭერა ყველა კლიენტისთვის',
-                ].map((item) => (
-                  <div key={item} className="flex items-center gap-3">
-                    <CheckCircle size={20} className="text-emerald-500 flex-shrink-0" />
-                    <span className="text-slate-700 dark:text-slate-300">{item}</span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, x: 30 }}
-              whileInView={{ opacity: 1, x: 0 }}
-              viewport={{ once: true }}
-              className="relative"
-            >
-              <div className="rounded-3xl overflow-hidden shadow-2xl">
-                <img
-                  src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=800&q=80"
-                  alt="Our Team"
-                  className="w-full"
-                />
-              </div>
-              <div className="absolute -bottom-5 -left-5 bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-xl border border-slate-100 dark:border-slate-700">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center">
-                    <Star size={22} className="text-white" fill="white" />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-bold text-slate-900 dark:text-white">4.9/5</p>
-                    <p className="text-sm text-slate-500">კლიენტის შეფასება</p>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
-      {/* Stats */}
-      <section className="py-20 bg-slate-900">
-        <div className="container-xl">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              { value: '12,400+', label: 'განცხადება', icon: Building2 },
-              { value: '8,200+', label: 'კლიენტი', icon: Users },
-              { value: '350+', label: 'გამოცდ. აგენტი', icon: Award },
-              { value: '5,800+', label: 'გარიგება', icon: CheckCircle },
-            ].map((stat, i) => (
-              <motion.div
-                key={stat.label}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="text-center"
-              >
-                <div className="w-14 h-14 bg-blue-600/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <stat.icon size={24} className="text-blue-400" />
-                </div>
-                <p className="text-4xl font-bold text-white mb-2">{stat.value}</p>
-                <p className="text-slate-400">{stat.label}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Values */}
-      <section className="py-20 bg-white dark:bg-slate-900">
-        <div className="container-xl">
-          <div className="text-center mb-12">
-            <span className="text-blue-600 text-sm font-semibold uppercase tracking-widest">ფასეულობები</span>
-            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-2">ჩვენი პრინციპები</h2>
-          </div>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {values.map((val, i) => (
-              <motion.div
-                key={val.title}
-                initial={{ opacity: 0, y: 16 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.1 }}
-                className="bg-slate-50 dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700"
-              >
-                <div className={`w-14 h-14 rounded-2xl ${val.color} flex items-center justify-center mb-5`}>
-                  <val.icon size={26} />
-                </div>
-                <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-3">{val.title}</h3>
-                <p className="text-slate-500 dark:text-slate-400 leading-relaxed">{val.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Timeline */}
-      <section className="py-20 bg-slate-50 dark:bg-slate-800">
-        <div className="container-xl">
-          <div className="text-center mb-12">
-            <span className="text-blue-600 text-sm font-semibold uppercase tracking-widest">ისტორია</span>
-            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-2">ჩვენი გზა</h2>
-          </div>
-          <div className="relative">
-            <div className="absolute left-8 top-0 bottom-0 w-0.5 bg-blue-200 dark:bg-blue-800" />
-            <div className="space-y-8">
-              {milestones.map((m, i) => (
-                <motion.div
-                  key={m.year}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.1 }}
-                  className="flex gap-6"
+            <h1 className="mt-3 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-[56px] lg:leading-[1.05]">
+              {t('about.title')}
+            </h1>
+            <p className="mt-3 max-w-xl text-base font-medium tracking-tight text-white/75 sm:text-lg">
+              {t('about.tagline')}
+            </p>
+            <div className="mt-7 flex flex-wrap gap-2">
+              {foci.map(item => (
+                <span
+                  key={item.label}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3.5 py-1.5 text-[12.5px] font-semibold text-white backdrop-blur-sm"
                 >
-                  <div className="relative flex-shrink-0">
-                    <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-600/20 z-10 relative">
-                      <span className="text-white font-bold text-sm">{m.year}</span>
-                    </div>
-                  </div>
-                  <div className="bg-white dark:bg-slate-800 rounded-2xl p-5 flex-1 border border-slate-100 dark:border-slate-700 shadow-sm">
-                    <h3 className="font-bold text-slate-900 dark:text-white text-lg mb-2">{m.title}</h3>
-                    <p className="text-slate-500 dark:text-slate-400">{m.desc}</p>
-                  </div>
-                </motion.div>
+                  <item.icon size={13} strokeWidth={2.2} className="text-blue-200" />
+                  {item.label}
+                </span>
               ))}
             </div>
-          </div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Team */}
-      <section className="py-20 bg-white dark:bg-slate-900">
-        <div className="container-xl">
-          <div className="text-center mb-12">
-            <span className="text-blue-600 text-sm font-semibold uppercase tracking-widest">გუნდი</span>
-            <h2 className="text-3xl lg:text-4xl font-bold text-slate-900 dark:text-white mt-2">ჩვენი გუნდი</h2>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {agents.map((agent, i) => (
-              <motion.div
-                key={agent.id}
-                initial={{ opacity: 0, y: 12 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: i * 0.05, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+      <div className="container-xl py-10 sm:py-12 lg:py-16">
+        <div className="grid items-start gap-6 lg:grid-cols-12 lg:gap-10">
+          <motion.div
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="lg:col-span-7"
+          >
+            <p className="text-xl font-medium leading-relaxed text-slate-800 sm:text-[22px] sm:leading-[1.55]">
+              {t('about.p1')}
+            </p>
+            <div className="mt-6 space-y-5 text-[16px] leading-8 text-slate-600">
+              <p>{t('about.p2')}</p>
+              <p>{t('about.p3')}</p>
+            </div>
+          </motion.div>
+
+          <motion.ul
+            initial={{ opacity: 0, y: 14 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="grid gap-3 lg:col-span-5"
+          >
+            {work.map(item => (
+              <li
+                key={item.label}
+                className="flex items-center gap-4 rounded-2xl border bg-white px-5 py-5"
+                style={{ borderColor: CARD_BORDER, boxShadow: CARD_SHADOW }}
               >
-                <Link to={`/agent/${agent.id}`} className="group text-center block">
-                  <div className="relative mb-3 mx-auto w-24 h-24">
-                    <img
-                      src={agent.photo}
-                      alt={agent.name}
-                      className="w-full h-full rounded-2xl object-cover shadow-md group-hover:shadow-lg transition-shadow"
-                    />
-                  </div>
-                  <p className="font-semibold text-slate-800 dark:text-white text-sm group-hover:text-blue-600 transition-colors">
-                    {agent.name}
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">{agent.specialization[0]}</p>
-                </Link>
-              </motion.div>
+                <span
+                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+                  style={{ background: 'rgba(37,99,235,0.08)' }}
+                >
+                  <item.icon size={20} strokeWidth={2.1} className="text-blue-600" />
+                </span>
+                <span className="text-[15px] font-bold leading-snug text-slate-800">
+                  {item.label}
+                </span>
+              </li>
             ))}
+          </motion.ul>
+        </div>
+
+        <motion.section
+          initial={{ opacity: 0, y: 16 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="relative mt-10 overflow-hidden rounded-[28px] lg:mt-14"
+          style={{ background: '#0f172a' }}
+        >
+          <div
+            className="pointer-events-none absolute -right-16 top-0 h-64 w-64 rounded-full opacity-40"
+            style={{ background: 'radial-gradient(circle, rgba(37,99,235,0.45) 0%, transparent 70%)' }}
+          />
+          <div className="relative grid lg:grid-cols-12">
+            <div className="lg:col-span-8 p-7 sm:p-9 lg:p-11">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-blue-300">
+                {t('about.usLabel')} · {t('about.nyCity')}
+              </p>
+              <p className="mt-4 max-w-3xl text-[16px] leading-8 text-white">
+                {t('about.p5')}
+              </p>
+            </div>
+            <div className="flex flex-col justify-center gap-6 border-t border-white/10 p-7 sm:p-9 lg:col-span-4 lg:border-l lg:border-t-0 lg:p-11">
+              <div className="flex items-start gap-3">
+                <MapPin size={18} className="mt-0.5 shrink-0 text-blue-300" />
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-white/40">
+                    {t('about.usLabel')}
+                  </p>
+                  <p className="mt-1 text-lg font-extrabold text-white">{t('about.nyCity')}</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <Landmark size={18} className="mt-0.5 shrink-0 text-blue-300" />
+                <p className="text-[15px] font-semibold leading-snug text-white">
+                  {t('about.kwFirm')}
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="text-center mt-10">
-            <Link to="/agents" className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold transition-all">
-              ყველა სპეციალისტი
-              <ArrowRight size={18} />
+        </motion.section>
+
+        <div className="mt-6 grid gap-5 md:grid-cols-2 lg:mt-8">
+          {[t('about.p4'), t('about.p6')].map((text, i) => (
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, y: 14 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: i * 0.06 }}
+              className="rounded-[28px] border bg-white p-7 sm:p-8"
+              style={{ borderColor: CARD_BORDER, boxShadow: CARD_SHADOW }}
+            >
+              <span
+                className="mb-5 flex h-11 w-11 items-center justify-center rounded-2xl"
+                style={{ background: i === 0 ? 'rgba(37,99,235,0.08)' : 'rgba(15,23,42,0.06)' }}
+              >
+                {i === 0
+                  ? <Handshake size={18} className="text-blue-600" />
+                  : <Globe2 size={18} className="text-slate-800" />}
+              </span>
+              <p className="text-[15.5px] leading-8 text-slate-600">{text}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        <motion.footer
+          initial={{ opacity: 0, y: 14 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-6 flex flex-col items-start justify-between gap-6 rounded-[28px] border bg-white p-7 sm:p-8 lg:mt-8 lg:flex-row lg:items-center"
+          style={{ borderColor: CARD_BORDER, boxShadow: CARD_SHADOW }}
+        >
+          <div className="max-w-3xl">
+            <p className="text-lg font-extrabold tracking-tight text-slate-900">
+              {t('about.title')}
+            </p>
+            <p className="mt-1 text-sm font-medium text-slate-500">{t('about.tagline')}</p>
+            <p className="mt-3 text-[15px] leading-7 text-slate-600">{t('about.p7')}</p>
+          </div>
+          <div className="flex shrink-0 flex-wrap gap-2.5">
+            <Link
+              to={listingsHref()}
+              className="inline-flex items-center gap-2 rounded-xl bg-slate-900 px-5 py-3 text-sm font-bold text-white transition-colors hover:bg-slate-800"
+            >
+              {t('about.ctaListings')}
+              <ArrowRight size={16} strokeWidth={2.4} />
+            </Link>
+            <Link
+              to="/contact"
+              className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition-colors hover:bg-slate-50"
+            >
+              <MapPin size={15} strokeWidth={2.3} />
+              {t('about.ctaContact')}
             </Link>
           </div>
-        </div>
-      </section>
+        </motion.footer>
+      </div>
     </div>
   );
 }

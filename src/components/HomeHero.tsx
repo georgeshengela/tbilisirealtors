@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bed, ChevronDown, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
@@ -214,6 +214,11 @@ export default function HomeHero() {
     </>
   );
 
+  const heroTagParts = String(t('home.heroTagline'))
+    .split('. ')
+    .map(part => part.replace(/\.$/, '').trim())
+    .filter(Boolean);
+
   return (
     <section className="home-hero page-under-header">
       <div className="container-xl">
@@ -223,12 +228,20 @@ export default function HomeHero() {
               <img className="home-hero__photo" src="/5e6a55c3201bd.jpg" alt="" />
               <div className="home-hero__veil" />
               <div className="home-hero__copy">
-                <p className="home-hero__kicker">{t('home.liveCount')}</p>
-                <h1 className="home-hero__title">
-                  {t('home.heroTitle')}{' '}
-                  <em>{t('home.heroTitleAccent')}</em>
-                </h1>
-                <p className="home-hero__sub">{t('home.heroSubtitle')}</p>
+                <div className="home-hero__mast">
+                  <h1 className="home-hero__title">
+                    {t('home.heroTitle')}
+                    <span className="home-hero__line">{t('home.heroTitleAccent')}</span>
+                  </h1>
+                  <p className="home-hero__tagline">
+                    {heroTagParts.map((part, i) => (
+                      <Fragment key={part}>
+                        {i > 0 && <span className="home-hero__tag-sep" aria-hidden="true" />}
+                        <span>{part}</span>
+                      </Fragment>
+                    ))}
+                  </p>
+                </div>
               </div>
             </div>
 
