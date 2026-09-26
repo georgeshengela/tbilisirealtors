@@ -530,7 +530,7 @@ export default function AdminAddListingPage() {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
-  const { upload, uploading, error: uploadError } = useFileUpload();
+  const { upload, uploading, progress, error: uploadError } = useFileUpload();
 
   useEffect(() => {
     if (!authLoading && !user) navigate('/admin/login');
@@ -2405,9 +2405,9 @@ export default function AdminAddListingPage() {
                   <input
                     ref={photoInputRef}
                     type="file"
-                    accept="image/*"
+                    accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp"
                     multiple
-                    hidden
+                    className="sr-only"
                     onChange={e => { void uploadPhotos(e.target.files); e.target.value = ''; }}
                   />
 
@@ -2432,9 +2432,11 @@ export default function AdminAddListingPage() {
                       <Upload size={22} className="mx-auto text-slate-300" />
                     )}
                     <p className="text-sm font-bold text-slate-600 mt-2">
-                      {uploading ? 'იტვირთება...' : 'ჩააგდეთ ფოტოები აქ ან დააჭირეთ ასარჩევად'}
+                      {uploading
+                        ? (progress ? `იტვირთება ${progress.done} / ${progress.total}` : 'იტვირთება...')
+                        : 'ჩააგდეთ ფოტოები აქ ან დააჭირეთ — რამდენიმე ერთად'}
                     </p>
-                    <p className="text-[11px] text-slate-400 mt-1">JPG, PNG, WEBP — მაქს. 12MB თითო</p>
+                    <p className="text-[11px] text-slate-400 mt-1">JPG, PNG, WEBP — მაქს. 12MB თითო, ერთდროულად რამდენიმე</p>
                   </div>
 
                   {uploadError && (

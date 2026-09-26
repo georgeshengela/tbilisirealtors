@@ -63,6 +63,19 @@ function commentsOf(value: unknown, author: string): OrderComment[] {
     .filter((item): item is OrderComment => Boolean(item));
 }
 
+function listingIdsOf(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of value) {
+    const id = String(item ?? '').trim().replace(/^#/, '').slice(0, 50);
+    if (id.length < 4 || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out.slice(0, 40);
+}
+
 function viewingsOf(value: unknown, author: string): OrderViewing[] {
   if (!Array.isArray(value)) return [];
   return value
@@ -92,6 +105,8 @@ function publicOrder(row: typeof orders.$inferSelect) {
     budgetAmount: row.budgetAmount != null ? Number(row.budgetAmount) : 0,
     comments: row.comments ?? [],
     viewings: row.viewings ?? [],
+    requestedListingIds: row.requestedListingIds ?? [],
+    offeredListingIds: row.offeredListingIds ?? [],
     origin: row.origin ?? [],
   };
 }
@@ -198,6 +213,8 @@ router.post('/orders', requirePermission('orders.create'), async (req: AuthReque
         createdAt: new Date().toISOString(),
       }],
       viewings: [],
+      requestedListingIds: listingIdsOf(req.body?.requestedListingIds),
+      offeredListingIds: listingIdsOf(req.body?.offeredListingIds),
       answers: {},
       createdByUserId: req.user?.id ?? null,
       createdByName: author,
@@ -270,6 +287,8 @@ router.put('/orders/:id', requirePermission('orders.edit'), async (req: AuthRequ
       status,
       comments,
       viewings: 'viewings' in req.body ? viewingsOf(req.body.viewings, author) : existing.viewings,
+      requestedListingIds: 'requestedListingIds' in req.body ? listingIdsOf(req.body.requestedListingIds) : existing.requestedListingIds,
+      offeredListingIds: 'offeredListingIds' in req.body ? listingIdsOf(req.body.offeredListingIds) : existing.offeredListingIds,
       updatedAt: new Date(),
     }).where(eq(orders.id, existing.id)).returning();
 
@@ -307,6 +326,8 @@ router.patch('/orders/:id', requirePermission('orders.edit'), async (req: AuthRe
       updates.status = next;
     }
     if ('viewings' in req.body) updates.viewings = viewingsOf(req.body.viewings, author);
+    if ('requestedListingIds' in req.body) updates.requestedListingIds = listingIdsOf(req.body.requestedListingIds);
+    if ('offeredListingIds' in req.body) updates.offeredListingIds = listingIdsOf(req.body.offeredListingIds);
     if ('comments' in req.body) updates.comments = commentsOf(req.body.comments, author);
     if ('assignedToUserId' in req.body) updates.assignedToUserId = Number(req.body.assignedToUserId) || null;
 

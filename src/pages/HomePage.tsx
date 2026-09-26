@@ -640,6 +640,61 @@ export default function HomePage() {
 
       <HomeHero />
 
+      {/* ══════════════════════════════════════════════════════
+          NEW CONSTRUCTION PROJECTS
+      ══════════════════════════════════════════════════════ */}
+      <section className="py-8 sm:py-10 lg:py-12 bg-white">
+        <div className="container-xl">
+          <InViewFade>
+            <SectionTitle
+              icon={HardHat}
+              title={t('home.sections.projects')}
+              linkTo="/projects"
+              linkLabel={t('home.sections.projectsAll')}
+            />
+          </InViewFade>
+
+          <InViewFade delay={0.04}>
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 -mt-2 mb-4 sm:mb-5">
+              {[
+                { label: t('home.projectChips.presale'), color: '#2563eb', bg: '#eff6ff' },
+                { label: t('home.projectChips.noCommission'), color: '#059669', bg: '#ecfdf5' },
+                { label: t('home.projectChips.freeConsult'), color: '#d97706', bg: '#fff7ed' },
+              ].map(chip => (
+                <span
+                  key={chip.label}
+                  className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-[9px] sm:text-[10px] font-bold"
+                  style={{ background: chip.bg, color: chip.color, border: `1px solid ${chip.color}22` }}
+                >
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+          </InViewFade>
+
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            {constructionProjects.map((project, i) => (
+              <InViewFade key={project.id} delay={0.06 + i * 0.04}>
+                <ConstructionProjectCard project={project} />
+              </InViewFade>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <AdStrip bg="#f7f9fb">
+        <AdBanner
+          sponsor="Archi Group"
+          title={t('home.ads.archiTitle')}
+          subtitle={t('home.ads.archiSubtitle')}
+          ctaLabel={t('home.ads.viewProject')}
+          ctaHref="/project/panorama-residence"
+          variant="light"
+          icon={HardHat}
+          image="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&q=80"
+        />
+      </AdStrip>
+
       {/* SUPER VIP LISTINGS */}
       {featured.length > 0 && (
       <section className="relative py-10 sm:py-16 lg:py-20" style={{ background: '#fff' }}>
@@ -697,61 +752,6 @@ export default function HomePage() {
           ctaHref="/udzravi-qoneba/?vip=true"
           variant="blue"
           icon={Rocket}
-        />
-      </AdStrip>
-
-      {/* ══════════════════════════════════════════════════════
-          NEW CONSTRUCTION PROJECTS
-      ══════════════════════════════════════════════════════ */}
-      <section className="py-8 sm:py-10 lg:py-12 bg-white">
-        <div className="container-xl">
-          <InViewFade>
-            <SectionTitle
-              icon={HardHat}
-              title={t('home.sections.projects')}
-              linkTo="/projects"
-              linkLabel={t('home.sections.projectsAll')}
-            />
-          </InViewFade>
-
-          <InViewFade delay={0.04}>
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 -mt-2 mb-4 sm:mb-5">
-              {[
-                { label: t('home.projectChips.presale'), color: '#2563eb', bg: '#eff6ff' },
-                { label: t('home.projectChips.noCommission'), color: '#059669', bg: '#ecfdf5' },
-                { label: t('home.projectChips.freeConsult'), color: '#d97706', bg: '#fff7ed' },
-              ].map(chip => (
-                <span
-                  key={chip.label}
-                  className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-[9px] sm:text-[10px] font-bold"
-                  style={{ background: chip.bg, color: chip.color, border: `1px solid ${chip.color}22` }}
-                >
-                  {chip.label}
-                </span>
-              ))}
-            </div>
-          </InViewFade>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-            {constructionProjects.map((project, i) => (
-              <InViewFade key={project.id} delay={0.06 + i * 0.04}>
-                <ConstructionProjectCard project={project} />
-              </InViewFade>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <AdStrip bg="#f7f9fb">
-        <AdBanner
-          sponsor="Archi Group"
-          title={t('home.ads.archiTitle')}
-          subtitle={t('home.ads.archiSubtitle')}
-          ctaLabel={t('home.ads.viewProject')}
-          ctaHref="/project/panorama-residence"
-          variant="light"
-          icon={HardHat}
-          image="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&q=80"
         />
       </AdStrip>
 

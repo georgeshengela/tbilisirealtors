@@ -615,6 +615,8 @@ async function migrate() {
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS cadastral_registry JSONB`;
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS show_cadastral BOOLEAN DEFAULT false`;
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS land_area NUMERIC`;
+    await client`ALTER TABLE orders ADD COLUMN IF NOT EXISTS requested_listing_ids JSONB NOT NULL DEFAULT '[]'::jsonb`;
+    await client`ALTER TABLE orders ADD COLUMN IF NOT EXISTS offered_listing_ids JSONB NOT NULL DEFAULT '[]'::jsonb`;
     await client`
       UPDATE properties
       SET refreshed_at = COALESCE(listed_date, created_at::date, CURRENT_DATE)

@@ -6,13 +6,14 @@ import {
   BookOpen, Search, CheckCircle, XCircle, Shield, Home,
   Star, Zap, Sparkles, Image as ImageIcon,
   Phone, Globe, RefreshCw, ArrowUpRight, MapPin, Clock,
-  ExternalLink, Headphones, UserCog, Ban, Lock, BarChart3, LineChart, type LucideIcon,
+  ExternalLink, Headphones, UserCog, Ban, Lock, BarChart3, LineChart, HardHat, type LucideIcon,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import AdminPropertiesSection, {
   type AdminPropertyRow, type ListingsSummary, type ListingStaffOption, type PropertyPatch,
 } from '../components/admin/AdminPropertiesSection';
 import AdminOrdersSection from '../components/admin/AdminOrdersSection';
+import AdminProjectsSection from '../components/admin/AdminProjectsSection';
 import AdminBrokersSection, { type BrokerRow } from '../components/admin/AdminBrokersSection';
 import AdminDeskSection, { type DeskTab } from '../components/admin/desk/AdminDeskSection';
 import AdminAnalyticsSection, {
@@ -95,16 +96,17 @@ interface MemberRow {
 interface Setting { key: string; value: string; label: string; }
 
 type Section =
-  | 'dashboard' | 'orders' | 'properties' | 'desk' | 'analytics' | 'prices' | 'agents'
+  | 'dashboard' | 'projects' | 'orders' | 'properties' | 'desk' | 'analytics' | 'prices' | 'agents'
   | 'blog' | 'staff' | 'members' | 'settings';
 
 const SECTIONS: Section[] = [
-  'dashboard', 'orders', 'properties', 'desk', 'analytics', 'prices', 'agents', 'blog', 'staff', 'members', 'settings',
+  'dashboard', 'projects', 'orders', 'properties', 'desk', 'analytics', 'prices', 'agents', 'blog', 'staff', 'members', 'settings',
 ];
 
 /** A section unlocks as soon as the actor holds any one of these permissions. */
 const SECTION_PERMISSIONS: Record<Section, string[]> = {
   dashboard: ['dashboard.view'],
+  projects: ['dashboard.view', 'listings.view'],
   orders: ['orders.view'],
   properties: ['listings.view'],
   desk: ['listings.tasks', 'listings.moderate', 'listings.assign', 'analytics.full', 'leads.view'],
@@ -561,6 +563,7 @@ export default function AdminPage() {
 
   const allNavItems: { id: Section; label: string; icon: LucideIcon; badge?: number }[] = [
     { id: 'dashboard', label: 'მთავარი', icon: LayoutDashboard },
+    { id: 'projects', label: 'პროექტები', icon: HardHat },
     { id: 'orders', label: 'შეკვეთები', icon: ClipboardList },
     { id: 'properties', label: 'განცხადებები', icon: Building2 },
     { id: 'desk', label: 'დესკი', icon: Headphones, badge: stats?.pendingModeration ?? 0 },
@@ -1125,6 +1128,7 @@ export default function AdminPage() {
                     <p className="admin-panel__sub mb-4">ხშირად გამოყენებული ბრძანებები</p>
                     <div className="space-y-2">
                       {[
+                        { label: 'პროექტები', sub: 'დეველოპერები და კომპლექსები', color: '#0f172a', soft: '#f1f5f9', icon: HardHat, action: () => setSection('projects') },
                         { label: 'ახალი განცხადება', sub: 'ფორმა + ფოტოები', color: '#2563eb', soft: '#eff6ff', icon: Plus, action: () => navigate('/admin/listings/new') },
                         { label: 'შეკვეთები', sub: 'კლიენტები და სტატუსები', color: '#2563eb', soft: '#eff6ff', icon: ClipboardList, action: () => setSection('orders') },
                         { label: 'განცხადებების ცხრილი', sub: 'რედაქტირება / ფასები', color: '#059669', soft: '#ecfdf5', icon: Building2, action: () => setSection('properties') },
@@ -1162,6 +1166,8 @@ export default function AdminPage() {
 
             </div>
           )}
+
+          {section === 'projects' && <AdminProjectsSection />}
 
           {/* ── ORDERS ── */}
           {section === 'orders' && <AdminOrdersSection />}

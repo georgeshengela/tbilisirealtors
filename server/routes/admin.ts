@@ -494,7 +494,8 @@ router.get('/properties', requirePermission('listings.view'), async (req: AuthRe
     await refreshExpiredRentals();
 
     const page = Math.max(1, parseInt(String(req.query.page ?? '1')) || 1);
-    const limit = Math.min(200, parseInt(String(req.query.limit ?? '20')) || 20);
+    const idsParam = typeof req.query.ids === 'string' ? req.query.ids.trim() : '';
+    const limit = Math.min(200, parseInt(String(req.query.limit ?? (idsParam ? '80' : '20'))) || 20);
     const offset = (page - 1) * limit;
     const conditions: SQL[] = [];
 
@@ -548,6 +549,11 @@ router.get('/properties', requirePermission('listings.view'), async (req: AuthRe
         sql`coalesce(${properties.owner}->>'name','') ILIKE ${fuzzy}`,
         sql`coalesce(${properties.owner}->>'phone','') ILIKE ${fuzzy}`,
       ));
+    }
+
+    if (idsParam) {
+      const ids = [...new Set(idsParam.split(/[,\s]+/).map(s => s.trim()).filter(Boolean))].slice(0, 80);
+      if (ids.length) conditions.push(inArray(properties.id, ids));
     }
 
     const where = conditions.length ? and(...conditions) : undefined;

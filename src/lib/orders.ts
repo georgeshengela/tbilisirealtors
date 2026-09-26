@@ -47,6 +47,8 @@ export interface OrderRow {
   status: OrderStatus;
   comments: OrderComment[];
   viewings: OrderViewing[];
+  requestedListingIds: string[];
+  offeredListingIds: string[];
   createdByUserId?: number | null;
   createdByName?: string | null;
   assignedToUserId?: number | null;

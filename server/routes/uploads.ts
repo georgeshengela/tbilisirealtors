@@ -42,6 +42,14 @@ function uniqueName(original: string, ext: string): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}-${safeBase(original)}${ext}`;
 }
 
+async function mapPool<T, R>(items: T[], size: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(...await Promise.all(items.slice(i, i + size).map(fn)));
+  }
+  return out;
+}
+
 function uploadPhoto(file: Express.Multer.File): Promise<{
   url: string;
   name: string;
@@ -132,7 +140,7 @@ router.post('/', upload.array('files', 20), async (req: AuthRequest, res: Respon
 
   try {
     if (photos.length) await ensureWatermark();
-    const uploadedPhotos = await Promise.all(photos.map(uploadPhoto));
+    const uploadedPhotos = await mapPool(photos, 3, uploadPhoto);
     const savedContracts = contracts.map(saveContract);
     res.json({ files: [...uploadedPhotos, ...savedContracts] });
   } catch (err) {
@@ -150,6 +158,10 @@ router.use((err: Error, _req: AuthRequest, res: Response, next: NextFunction) =>
   }
   if ((err as { code?: string }).code === 'LIMIT_FILE_SIZE') {
     res.status(413).json({ error: 'ფაილი 12MB-ზე დიდია' });
+    return;
+  }
+  if ((err as { code?: string }).code === 'LIMIT_FILE_COUNT') {
+    res.status(413).json({ error: 'ერთდროულად მაქსიმუმ 20 ფაილი' });
     return;
   }
   console.error('Upload error:', err);

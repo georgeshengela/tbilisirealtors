@@ -133,6 +133,7 @@ export const en = {
   },
   nav: {
     listings: 'Listings',
+    projects: 'Projects',
     newProjects: 'New projects',
     agents: 'Brokers',
     team: 'Our team',
@@ -786,7 +787,7 @@ export const en = {
     totalFloors: 'Total floors',
     yearBuilt: 'Year built',
     addPhotos: 'Upload photos',
-    photosHint: 'The first photo becomes the cover. Up to 15 photos.',
+    photosHint: 'The first photo becomes the cover. Select several files at once. Up to 15 photos.',
     cover: 'Cover',
     send: 'Submit for review',
     resubmit: 'Save and resubmit',

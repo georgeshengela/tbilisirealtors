@@ -490,6 +490,8 @@ export const orders = pgTable('orders', {
   status: varchar('status', { length: 20 }).notNull().default('new'),
   comments: jsonb('comments').$type<OrderComment[]>().notNull().default([]),
   viewings: jsonb('viewings').$type<OrderViewing[]>().notNull().default([]),
+  requestedListingIds: jsonb('requested_listing_ids').$type<string[]>().notNull().default([]),
+  offeredListingIds: jsonb('offered_listing_ids').$type<string[]>().notNull().default([]),
   answers: jsonb('answers').$type<Record<string, unknown>>().notNull().default({}),
   createdByUserId: integer('created_by_user_id'),
   createdByName: varchar('created_by_name', { length: 255 }),

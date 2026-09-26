@@ -64,7 +64,7 @@ export default function SubmitListingPage() {
 
   const { user, token } = useUserAuth();
   const request = useAccountRequest();
-  const { upload, uploading, error: uploadError } = useFileUpload(token);
+  const { upload, uploading, progress, error: uploadError } = useFileUpload(token);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -385,10 +385,10 @@ export default function SubmitListingPage() {
             <input
               ref={fileInput}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp,image/gif,.jpg,.jpeg,.png,.webp"
               multiple
-              hidden
-              onChange={e => void addPhotos(e.target.files)}
+              className="sr-only"
+              onChange={e => { void addPhotos(e.target.files); e.target.value = ''; }}
             />
 
             <button
@@ -400,7 +400,11 @@ export default function SubmitListingPage() {
               {uploading
                 ? <Loader2 size={22} className="animate-spin" />
                 : <ImagePlus size={22} />}
-              <span className="text-sm font-semibold">{t('submit.addPhotos')}</span>
+              <span className="text-sm font-semibold">
+                {uploading
+                  ? (progress ? `${t('submit.addPhotos')} ${progress.done}/${progress.total}` : t('submit.addPhotos'))
+                  : t('submit.addPhotos')}
+              </span>
             </button>
 
             {form.images.length > 0 && (

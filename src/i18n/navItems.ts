@@ -1,8 +1,4 @@
-import {
-  Users, Sparkles, Building2, Briefcase, Scale, Phone,
-  Award, Ruler, Hammer, Landmark,
-  type LucideIcon,
-} from 'lucide-react';
+import { Users, Sparkles, Briefcase, Scale, Phone, Award, HardHat, Ruler, Hammer, Landmark, type LucideIcon } from 'lucide-react';
 
 export interface NavMegaItem {
   label: string;
@@ -43,9 +39,9 @@ type TFn = (key: string, vars?: Record<string, string | number>) => string;
 export function buildNavItems(t: TFn): NavItem[] {
   return [
     {
-      label: t('nav.newProjects'),
-      href: '/udzravi-qoneba/?new=true',
-      icon: Building2,
+      label: t('nav.projects'),
+      href: '/projects',
+      icon: HardHat,
       badge: 'NEW',
     },
     {

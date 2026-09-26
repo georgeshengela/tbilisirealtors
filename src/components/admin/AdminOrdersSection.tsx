@@ -13,6 +13,8 @@ import {
   type OrderRow,
   type OrderStatus,
 } from '../../lib/orders';
+import ListingPeekModal from './ListingPeekModal';
+import { OrderListingThumbs, useOrderListings, type OrderListingCard } from './OrderListingIds';
 
 const originLabel = (ids: string[]) => ids
   .map(id => ORDER_ORIGINS.find(item => item.id === id)?.label ?? id)
@@ -58,6 +60,12 @@ export default function AdminOrdersSection() {
   useEffect(() => { void load(); }, [statusFilter, dealFilter]);
 
   const visible = useMemo(() => rows, [rows]);
+  const listingIds = useMemo(
+    () => [...new Set(rows.flatMap(row => [...(row.requestedListingIds ?? []), ...(row.offeredListingIds ?? [])]))],
+    [rows],
+  );
+  const listings = useOrderListings(listingIds);
+  const [peek, setPeek] = useState<OrderListingCard | null>(null);
 
   async function changeStatus(row: OrderRow, status: OrderStatus) {
     try {
@@ -158,6 +166,8 @@ export default function AdminOrdersSection() {
                 <th className="py-2 pr-3">გარიგება</th>
                 <th className="py-2 pr-3">ბიუჯეტი</th>
                 <th className="py-2 pr-3">წარმომავლობა</th>
+                <th className="py-2 pr-3">მოთხოვნილი</th>
+                <th className="py-2 pr-3">შეთავაზებული</th>
                 <th className="py-2 pr-3">სტატუსი</th>
                 <th className="py-2 pr-3">ავტორი</th>
                 <th className="py-2 pr-3">კომენტარი</th>
@@ -166,10 +176,10 @@ export default function AdminOrdersSection() {
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={10} className="py-12 text-center text-slate-400"><Loader2 className="mx-auto animate-spin" /></td></tr>
+                <tr><td colSpan={12} className="py-12 text-center text-slate-400"><Loader2 className="mx-auto animate-spin" /></td></tr>
               ) : visible.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-12 text-center">
+                  <td colSpan={12} className="py-12 text-center">
                     <ClipboardList size={28} className="mx-auto text-slate-200 mb-2" />
                     <p className="text-sm font-semibold text-slate-500">შეკვეთა ჯერ არ არის</p>
                   </td>
@@ -198,6 +208,12 @@ export default function AdminOrdersSection() {
                       {row.budgetCurrency === 'GEL' ? `${Number(row.budgetAmount).toLocaleString('ka-GE')} ₾` : `$${Number(row.budgetAmount).toLocaleString('ka-GE')}`}
                     </td>
                     <td className="py-2.5 pr-3 text-[11px] text-slate-500 max-w-[140px]">{originLabel(row.origin)}</td>
+                    <td className="py-2.5 pr-3">
+                      <OrderListingThumbs ids={row.requestedListingIds ?? []} listings={listings} onOpen={setPeek} />
+                    </td>
+                    <td className="py-2.5 pr-3">
+                      <OrderListingThumbs ids={row.offeredListingIds ?? []} listings={listings} onOpen={setPeek} />
+                    </td>
                     <td className="py-2.5 pr-3">
                       {canStatus ? (
                         <select
@@ -239,6 +255,7 @@ export default function AdminOrdersSection() {
           </table>
         </div>
       </div>
+      {peek && <ListingPeekModal listing={peek} onClose={() => setPeek(null)} />}
     </div>
   );
 }

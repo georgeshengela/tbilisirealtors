@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, ClipboardList, Users, Settings, LogOut, Plus,
-  BookOpen, Shield, Sparkles, ExternalLink, Headphones, UserCog, BarChart3, LineChart,
+  BookOpen, Shield, Sparkles, ExternalLink, Headphones, UserCog, BarChart3, LineChart, HardHat,
   type LucideIcon,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../../contexts/AdminAuthContext';
@@ -11,12 +11,13 @@ import BrandLogo from '../BrandLogo';
 import AdminNavBar from './AdminNavBar';
 
 export type AdminNavSection =
-  | 'dashboard' | 'orders' | 'properties' | 'desk' | 'analytics' | 'prices' | 'agents'
+  | 'dashboard' | 'projects' | 'orders' | 'properties' | 'desk' | 'analytics' | 'prices' | 'agents'
   | 'blog' | 'staff' | 'members' | 'settings';
 
 /** A section unlocks as soon as the actor holds any one of its permissions. */
 const NAV_ITEMS: { id: AdminNavSection; label: string; icon: LucideIcon; permissions: string[]; badge?: number }[] = [
   { id: 'dashboard', label: 'მთავარი', icon: LayoutDashboard, permissions: ['dashboard.view'] },
+  { id: 'projects', label: 'პროექტები', icon: HardHat, permissions: ['dashboard.view', 'listings.view'] },
   { id: 'orders', label: 'შეკვეთები', icon: ClipboardList, permissions: ['orders.view'] },
   { id: 'properties', label: 'განცხადებები', icon: Building2, permissions: ['listings.view'] },
   {

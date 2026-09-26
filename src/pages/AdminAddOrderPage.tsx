@@ -4,6 +4,7 @@ import {
   ArrowLeft, CheckCircle, Loader2, MessageSquare, Phone, Plus, X,
 } from 'lucide-react';
 import AdminLayout from '../components/admin/AdminLayout';
+import OrderListingIdsField from '../components/admin/OrderListingIds';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import {
   ORDER_DEAL_META,
@@ -38,6 +39,8 @@ export default function AdminAddOrderPage() {
   const [comment, setComment] = useState('');
   const [comments, setComments] = useState<OrderComment[]>([]);
   const [viewings, setViewings] = useState<OrderViewing[]>([]);
+  const [requestedListingIds, setRequestedListingIds] = useState<string[]>([]);
+  const [offeredListingIds, setOfferedListingIds] = useState<string[]>([]);
   const [status, setStatus] = useState<OrderStatus>('new');
   const [author, setAuthor] = useState('');
   const [showId, setShowId] = useState(id || '');
@@ -67,6 +70,8 @@ export default function AdminAddOrderPage() {
         setComments(data.comments ?? []);
         setComment('');
         setViewings(data.viewings ?? []);
+        setRequestedListingIds(data.requestedListingIds ?? []);
+        setOfferedListingIds(data.offeredListingIds ?? []);
         setStatus(data.status);
         setAuthor(data.createdByName || '');
         setShowId(data.id);
@@ -121,6 +126,8 @@ export default function AdminAddOrderPage() {
             origin,
             comments,
             viewings,
+            requestedListingIds,
+            offeredListingIds,
             comment: comment.trim() || undefined,
             ...(canStatus ? { status } : {}),
           }),
@@ -136,6 +143,8 @@ export default function AdminAddOrderPage() {
             budgetCurrency,
             origin,
             comment,
+            requestedListingIds,
+            offeredListingIds,
           }),
         }) as OrderRow;
         navigate(`/admin/orders/${created.id}`, { replace: true });
@@ -278,6 +287,21 @@ export default function AdminAddOrderPage() {
                       })}
                     </div>
                   </div>
+                </section>
+
+                <section className="bg-white rounded-2xl border border-slate-100 shadow-sm p-5 space-y-5">
+                  <OrderListingIdsField
+                    label="მოთხოვნილი"
+                    hint="განცხადების ID, რომლითაც კლიენტმა დაგვირეკა ან რომელიც თვითონ მოითხოვა."
+                    ids={requestedListingIds}
+                    onChange={setRequestedListingIds}
+                  />
+                  <OrderListingIdsField
+                    label="შეთავაზებული"
+                    hint="განცხადებების ID-ები, რომლებიც ამ კლიენტს შევთავაზეთ. Enter ან დამატება — საიტზე არსებობა მოწმდება."
+                    ids={offeredListingIds}
+                    onChange={setOfferedListingIds}
+                  />
                 </section>
 
                 {isEdit && canStatus && (

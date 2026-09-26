@@ -3,7 +3,7 @@ services:
     name: tbilisirealtor
     runtime: node
     buildCommand: npm install && npm run build
-    startCommand: npm start
+    startCommand: npm run db:migrate && npm start
     envVars:
       - key: NODE_ENV
         value: production

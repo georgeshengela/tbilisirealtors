@@ -8,41 +8,52 @@ export interface UploadedFile {
   kind: 'image' | 'pdf';
 }
 
+const CHUNK = 5;
+
 /**
  * Posts files to the upload route and hands back their public URLs.
- * Defaults to the admin session; pass a token to upload as a public member.
+ * Large batches go up in chunks so the picker can send 10–20 photos at once.
  */
 export function useFileUpload(tokenOverride?: string | null) {
   const { token: adminToken } = useAdminAuth();
   const token = tokenOverride ?? adminToken;
   const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const upload = useCallback(async (files: File[] | FileList): Promise<UploadedFile[]> => {
     const list = Array.from(files);
     if (!list.length) return [];
 
-    const body = new FormData();
-    list.forEach(file => body.append('files', file));
-
     setUploading(true);
     setError(null);
+    setProgress({ done: 0, total: list.length });
+    const collected: UploadedFile[] = [];
+
     try {
-      const res = await fetch('/api/uploads', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body,
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'ატვირთვა ვერ მოხერხდა');
-      return data.files as UploadedFile[];
+      for (let i = 0; i < list.length; i += CHUNK) {
+        const chunk = list.slice(i, i + CHUNK);
+        const body = new FormData();
+        chunk.forEach(file => body.append('files', file));
+        const res = await fetch('/api/uploads', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body,
+        });
+        const data = await res.json().catch(() => ({}));
+          if (!res.ok) throw new Error(data.error || 'ატვირთვა ვერ მოხერხდა');
+        collected.push(...((data.files as UploadedFile[]) ?? []));
+        setProgress({ done: Math.min(i + chunk.length, list.length), total: list.length });
+      }
+      return collected;
     } catch (err) {
       setError(err instanceof Error ? err.message : 'ატვირთვა ვერ მოხერხდა');
-      return [];
+      return collected;
     } finally {
       setUploading(false);
+      setProgress(null);
     }
   }, [token]);
 
-  return { upload, uploading, error, clearError: () => setError(null) };
+  return { upload, uploading, progress, error, clearError: () => setError(null) };
 }
