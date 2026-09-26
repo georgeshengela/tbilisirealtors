@@ -453,6 +453,8 @@ export default function ListingsPage() {
                   <option value="">{t('common.all')}</option>
                   <option value="sale">{t('propertyStatus.sale')}</option>
                   <option value="rent">{t('propertyStatus.rent')}</option>
+                  <option value="daily_rent">{t('propertyStatus.daily_rent')}</option>
+                  <option value="pledge">{t('home.dealTypes.mortgage')}</option>
                 </select>
               </Field>
 
@@ -483,14 +485,16 @@ export default function ListingsPage() {
                   <option value="apartment">{t('propertyTypes.apartment')}</option>
                   <option value="house">{t('propertyTypes.house')}</option>
                   <option value="villa">{t('propertyTypes.villa')}</option>
+                  <option value="land">{t('propertyTypes.land')}</option>
                   <option value="commercial">{t('propertyTypes.commercial')}</option>
+                  <option value="hotel">{t('home.propertyTypes.hotel')}</option>
                 </select>
               </Field>
 
               <Field label={t('listings.bedrooms')}>
                 <select value={filters.bedrooms} onChange={e => setF('bedrooms', e.target.value)} className="listings-filter-input">
                   <option value="">{t('common.any')}</option>
-                  {['1', '2', '3', '4'].map(n => <option key={n} value={n}>{n}+</option>)}
+                  {['1', '2', '3', '4', '5'].map(n => <option key={n} value={n}>{n}+</option>)}
                 </select>
               </Field>
 

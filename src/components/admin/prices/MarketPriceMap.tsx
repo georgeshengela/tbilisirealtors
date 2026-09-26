@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, Tooltip, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { DistrictPriceRow, MapMode } from './types';
+import { OSM_TILE_ATTR, OSM_TILE_URL } from '../../../lib/mapTiles';
 
 const CITY_CENTERS: Record<string, [number, number]> = {
   'თბილისი': [41.7151, 44.8271],
@@ -136,8 +137,8 @@ export default function MarketPriceMap({
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
-          attribution='&copy; OpenStreetMap &middot; CARTO'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution={OSM_TILE_ATTR}
+          url={OSM_TILE_URL}
         />
         <MapFit districts={districts} mode={mode} />
 

@@ -4,6 +4,7 @@ import { Loader2, MapPin, Search, X } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { createPropertyIcon } from '../lib/leafletSetup';
 import { searchAddress, reverseGeocode, type GeocodingResult } from '../lib/geocoding';
+import { OSM_TILE_ATTR, OSM_TILE_URL } from '../lib/mapTiles';
 
 export interface LocationValue {
   lat: number;
@@ -172,8 +173,8 @@ export default function LocationPickerMap({ value, onChange, height = 420 }: Loc
           style={{ height: '100%', width: '100%', zIndex: 0 }}
         >
           <TileLayer
-            attribution='&copy; OpenStreetMap'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution={OSM_TILE_ATTR}
+            url={OSM_TILE_URL}
           />
           <MapClickHandler onPick={handleMapPick} />
           <MapViewController lat={coords.lat} lng={coords.lng} />

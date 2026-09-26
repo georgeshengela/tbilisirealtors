@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { defaultPropertyIcon } from '../lib/leafletSetup';
+import { OSM_TILE_ATTR, OSM_TILE_URL } from '../lib/mapTiles';
 
 interface PropertyMapProps {
   lat: number;
@@ -48,8 +49,8 @@ export default function PropertyMap({
         style={{ height: '100%', width: '100%', zIndex: 0 }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={OSM_TILE_ATTR}
+          url={OSM_TILE_URL}
         />
         <MapViewController lat={lat} lng={lng} zoom={zoom} />
         <Marker position={[lat, lng]} icon={defaultPropertyIcon}>

@@ -4,6 +4,7 @@ import type { Marker as LeafletMarker } from 'leaflet';
 import { ExternalLink, MapPin } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import { officeIcon } from '../lib/leafletSetup';
+import { OSM_TILE_ATTR, OSM_TILE_URL } from '../lib/mapTiles';
 import { CONTACT } from '../data/contactInfo';
 import { useTranslation } from '../i18n/LocaleContext';
 
@@ -58,8 +59,8 @@ export default function OfficeMap({ height = 420, className = '' }: OfficeMapPro
         style={{ height: '100%', width: '100%', zIndex: 0 }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &middot; <a href="https://leafletjs.com/">Leaflet</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          attribution={OSM_TILE_ATTR}
+          url={OSM_TILE_URL}
         />
         <MapReady lat={lat} lng={lng} zoom={16} />
         <OpenOfficePopup markerRef={markerRef} />

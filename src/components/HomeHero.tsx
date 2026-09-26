@@ -1,26 +1,19 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Bed, ChevronDown, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Bed, ChevronDown, Hash, MapPin, Search, SlidersHorizontal, X } from 'lucide-react';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useLocale, useTranslation } from '../i18n/LocaleContext';
 import {
   bedroomOptions,
-  cityFilterOptions,
-  dealTypeOptions,
   propertyTypeFilterOptions,
 } from '../i18n/labels';
-import { districtLabel, findCityArea, findDistrictArea } from '../data/districts';
+import { CITY_AREAS, districtLabel, findCityArea, findDistrictArea } from '../data/districts';
+import { isExactListingId } from '../lib/listingId';
+import { fetchProperties, fetchPropertyById } from '../lib/publicApi';
 import { listingsHref } from '../lib/seoListingsUrl';
-
-const POPULAR_AREAS = [
-  { city: 'თბილისი', district: 'ვაკე', count: 842 },
-  { city: 'თბილისი', district: 'საბურთალო', count: 614 },
-  { city: 'თბილისი', district: 'ისანი', count: 398 },
-  { city: 'თბილისი', district: 'ნაძალადევი', count: 271 },
-  { city: 'ბათუმი', district: 'რუსთაველი', count: 503 },
-  { city: 'ბათუმი', district: 'ძველი ბათუმი', count: 389 },
-] as const;
+import { propertyHref } from '../lib/seoPropertyUrl';
+import type { Property } from '../types/listing';
 
 const PRICE_PRESETS_GEL = [50000, 100000, 200000, 350000, 500000, 1000000];
 
@@ -45,17 +38,24 @@ export default function HomeHero() {
   const navigate = useNavigate();
   const { formatMoney, currencySymbol, displayToGel, gelToDisplay } = useCurrency();
 
-  const propertyTypeShortOpts = useMemo(() => propertyTypeFilterOptions(t, true), [t]);
   const propertyTypeOpts = useMemo(() => propertyTypeFilterOptions(t), [t]);
-  const dealTypeOpts = useMemo(() => dealTypeOptions(t).filter(d => d.v === 'sale' || d.v === 'rent'), [t]);
+  const dealTypeOpts = useMemo(() => [
+    { v: 'sale', l: t('propertyStatus.sale') },
+    { v: 'rent', l: t('propertyStatus.rent') },
+    { v: 'daily_rent', l: t('propertyStatus.daily_rent') },
+    { v: 'pledge', l: t('home.dealTypes.mortgage') },
+  ], [t]);
   const bedroomOpts = useMemo(() => bedroomOptions(t), [t]);
-  const cityOpts = useMemo(() => cityFilterOptions(t), [t]);
 
-  const [tab, setTab] = useState<'sale' | 'rent'>('sale');
+  const [tab, setTab] = useState('sale');
   const [form, setForm] = useState(EMPTY_FORM);
   const [openField, setOpenField] = useState<OpenField>(null);
   const [mobileSheet, setMobileSheet] = useState<Sheet>(null);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [listingId, setListingId] = useState('');
+  const [idError, setIdError] = useState('');
+  const [idBusy, setIdBusy] = useState(false);
+  const [districtQuery, setDistrictQuery] = useState('');
   const panelRef = useRef<HTMLDivElement>(null);
 
   const pricePresets = useMemo(
@@ -67,18 +67,23 @@ export default function HomeHero() {
     [formatMoney, gelToDisplay],
   );
 
-  const popularAreas = useMemo(
-    () => POPULAR_AREAS.map(area => {
-      const city = findCityArea(area.city);
-      const district = findDistrictArea(city, area.district);
-      return {
-        ...area,
-        label: district ? districtLabel(district, locale) : area.district,
-        cityLabel: city ? t(city.labelKey) : area.city,
-      };
-    }),
-    [locale, t],
-  );
+  const selectedCity = findCityArea(form.city);
+  const districtChoices = useMemo(() => {
+    const cities = selectedCity ? [selectedCity] : CITY_AREAS;
+    const q = districtQuery.trim().toLowerCase();
+    return cities.flatMap(city => city.districts
+      .filter(district => {
+        if (!q) return true;
+        return [district.ka, district.en, ...(district.aliases ?? [])]
+          .some(name => name.toLowerCase().includes(q));
+      })
+      .map(district => ({
+        city: city.ka,
+        district: district.ka,
+        label: districtLabel(district, locale),
+        cityLabel: t(city.labelKey),
+      })));
+  }, [selectedCity, districtQuery, locale, t]);
 
   const locationLabel = useMemo(() => {
     const city = findCityArea(form.city);
@@ -117,7 +122,44 @@ export default function HomeHero() {
     setOpenField(current => (current === field ? null : field));
   }
 
-  function handleSearch() {
+  function onListingIdChange(value: string) {
+    setListingId(value.replace(/\D/g, '').slice(0, 8));
+    setIdError('');
+  }
+
+  async function handleSearch() {
+    const id = listingId.trim();
+    if (id) {
+      if (idBusy) return;
+      setIdError('');
+      setIdBusy(true);
+      try {
+        let hit: Property | null = null;
+        if (isExactListingId(id)) {
+          hit = await fetchPropertyById(id);
+          if (!hit) {
+            setIdError(t('home.idNotFound'));
+            return;
+          }
+        } else {
+          const matches = (await fetchProperties()).filter(property => property.id.startsWith(id));
+          if (matches.length !== 1) {
+            setIdError(matches.length > 1 ? t('home.idNeedFull') : t('home.idNotFound'));
+            return;
+          }
+          hit = matches[0];
+        }
+        if (!hit) return;
+        navigate(propertyHref(hit));
+        setFilterOpen(false);
+        setMobileSheet(null);
+        setOpenField(null);
+      } finally {
+        setIdBusy(false);
+      }
+      return;
+    }
+
     navigate(listingsHref({
       status: tab || undefined,
       city: form.city || undefined,
@@ -134,37 +176,71 @@ export default function HomeHero() {
     setOpenField(null);
   }
 
+  function pickCity(city: string) {
+    setForm(f => ({ ...f, city, district: '' }));
+    setDistrictQuery('');
+  }
+
+  function pickDistrict(city: string, district: string) {
+    setForm(f => ({ ...f, city, district }));
+    setDistrictQuery('');
+    setOpenField(null);
+    setMobileSheet(null);
+  }
+
   const locationPop = (
     <>
       <p className="home-search__pop-label">{t('home.city')}</p>
       <div className="home-search__chips" style={{ marginBottom: 12 }}>
-        {cityOpts.slice(0, 6).map(c => (
+        <button
+          type="button"
+          className={`home-search__chip ${form.city ? '' : 'is-on'}`}
+          onClick={() => pickCity('')}
+        >
+          {t('common.all')}
+        </button>
+        {CITY_AREAS.map(city => (
           <button
-            key={c.v || 'all'}
+            key={city.ka}
             type="button"
-            className={`home-search__chip ${form.city === c.v ? 'is-on' : ''}`}
-            onClick={() => { setForm(f => ({ ...f, city: c.v, district: '' })); setOpenField(null); setMobileSheet(null); }}
+            className={`home-search__chip ${form.city === city.ka ? 'is-on' : ''}`}
+            onClick={() => pickCity(city.ka)}
           >
-            {c.l}
+            {t(city.labelKey)}
           </button>
         ))}
       </div>
-      <p className="home-search__pop-label">{t('home.popularDistricts')}</p>
-      {popularAreas.map(opt => (
-        <button
-          key={`${opt.city}-${opt.district}`}
-          type="button"
-          className="home-search__area"
-          onClick={() => { setForm(f => ({ ...f, city: opt.city, district: opt.district })); setOpenField(null); setMobileSheet(null); }}
-        >
-          <span className="home-search__area-mark"><MapPin size={13} /></span>
-          <span className="home-search__area-text">
+      <p className="home-search__pop-label">{t('home.districts')}</p>
+      <input
+        className="home-search__find"
+        value={districtQuery}
+        placeholder={t('home.districtSearch')}
+        onChange={e => setDistrictQuery(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') e.preventDefault(); }}
+      />
+      <div className="home-search__districts">
+        {selectedCity && !districtQuery && (
+          <button
+            type="button"
+            className={`home-search__district home-search__district--all ${form.district ? '' : 'is-on'}`}
+            onClick={() => pickDistrict(selectedCity.ka, '')}
+          >
+            <strong>{t('home.wholeCity', { city: t(selectedCity.labelKey) })}</strong>
+          </button>
+        )}
+        {districtChoices.map(opt => (
+          <button
+            key={`${opt.city}-${opt.district}`}
+            type="button"
+            className={`home-search__district ${form.city === opt.city && form.district === opt.district ? 'is-on' : ''}`}
+            onClick={() => pickDistrict(opt.city, opt.district)}
+          >
             <strong>{opt.label}</strong>
-            <span>{opt.cityLabel}</span>
-          </span>
-          <em>{opt.count.toLocaleString()}</em>
-        </button>
-      ))}
+            {!selectedCity && <small>{opt.cityLabel}</small>}
+          </button>
+        ))}
+      </div>
+      {districtChoices.length === 0 && <p className="home-search__empty">{t('home.noDistricts')}</p>}
     </>
   );
 
@@ -259,14 +335,14 @@ export default function HomeHero() {
                       role="radio"
                       aria-checked={tab === deal.v}
                       className={`home-search__deal ${tab === deal.v ? 'is-on' : ''}`}
-                      onClick={() => setTab(deal.v as 'sale' | 'rent')}
+                      onClick={() => setTab(deal.v)}
                     >
                       {deal.l}
                     </button>
                   ))}
                 </div>
                 <div className="home-search__types">
-                  {propertyTypeShortOpts.map(opt => {
+                  {propertyTypeOpts.map(opt => {
                     const Icon = opt.icon;
                     return (
                       <button
@@ -346,11 +422,28 @@ export default function HomeHero() {
                   </AnimatePresence>
                 </div>
 
+                <label className="home-search__field home-search__id">
+                  <span className="home-search__trigger-icon"><Hash size={15} strokeWidth={2.2} /></span>
+                  <span className="home-search__trigger-copy">
+                    <span className="home-search__label">{t('home.listingId')}</span>
+                    <input
+                      className="bare-input"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder={t('home.idPlaceholder')}
+                      value={listingId}
+                      aria-label={t('home.listingId')}
+                      onChange={e => onListingIdChange(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') void handleSearch(); }}
+                    />
+                  </span>
+                </label>
+
                 <div className="home-search__go">
                   <button type="button" className="home-search__filter" title={t('listings.filter')} onClick={() => { setOpenField(null); setFilterOpen(true); }}>
                     <SlidersHorizontal size={16} strokeWidth={2.2} />
                   </button>
-                  <button type="button" className="home-search__submit" onClick={handleSearch}>
+                  <button type="button" className="home-search__submit" disabled={idBusy} onClick={() => { void handleSearch(); }}>
                     <Search size={16} strokeWidth={2.4} />
                     {t('home.searchBtn')}
                   </button>
@@ -358,6 +451,22 @@ export default function HomeHero() {
               </div>
 
               <div className="home-search__mobile">
+                <label className="home-search__id home-search__id--mobile">
+                  <span className="home-search__tile-icon"><Hash size={15} strokeWidth={2.2} /></span>
+                  <span className="home-search__trigger-copy">
+                    <span className="home-search__label">{t('home.listingId')}</span>
+                    <input
+                      className="bare-input"
+                      inputMode="numeric"
+                      autoComplete="off"
+                      placeholder={t('home.idPlaceholder')}
+                      value={listingId}
+                      aria-label={t('home.listingId')}
+                      onChange={e => onListingIdChange(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') void handleSearch(); }}
+                    />
+                  </span>
+                </label>
                 <button type="button" className="home-search__tile" onClick={() => setMobileSheet('location')}>
                   <span className="home-search__tile-icon"><MapPin size={15} /></span>
                   <span className="home-search__trigger-copy">
@@ -389,12 +498,13 @@ export default function HomeHero() {
                   <button type="button" className="home-search__filter" title={t('listings.filter')} onClick={() => setFilterOpen(true)}>
                     <SlidersHorizontal size={16} strokeWidth={2.2} />
                   </button>
-                  <button type="button" className="home-search__submit" onClick={handleSearch}>
+                  <button type="button" className="home-search__submit" disabled={idBusy} onClick={() => { void handleSearch(); }}>
                     <Search size={16} strokeWidth={2.4} />
                     {t('home.searchBtn')}
                   </button>
                 </div>
               </div>
+              {idError && <p className="home-search__id-error" role="alert">{idError}</p>}
             </div>
             </div>
           </div>
@@ -471,7 +581,7 @@ export default function HomeHero() {
                   <h3>{t('home.dealType')}</h3>
                   <div className="home-search__chips">
                     {dealTypeOpts.map(opt => (
-                      <button key={opt.v} type="button" className={`home-search__chip ${tab === opt.v ? 'is-on' : ''}`} onClick={() => setTab(opt.v as 'sale' | 'rent')}>
+                      <button key={opt.v} type="button" className={`home-search__chip ${tab === opt.v ? 'is-on' : ''}`} onClick={() => setTab(opt.v)}>
                         {opt.l}
                       </button>
                     ))}
@@ -512,13 +622,36 @@ export default function HomeHero() {
                 <div className="home-filter__block">
                   <h3>{t('home.city')}</h3>
                   <div className="home-search__chips">
-                    {cityOpts.map(opt => (
-                      <button key={opt.v || 'all'} type="button" className={`home-search__chip ${form.city === opt.v ? 'is-on' : ''}`} onClick={() => setForm(f => ({ ...f, city: opt.v, district: '' }))}>
-                        {opt.l}
+                    <button type="button" className={`home-search__chip ${form.city ? '' : 'is-on'}`} onClick={() => setForm(f => ({ ...f, city: '', district: '' }))}>
+                      {t('common.all')}
+                    </button>
+                    {CITY_AREAS.map(city => (
+                      <button key={city.ka} type="button" className={`home-search__chip ${form.city === city.ka ? 'is-on' : ''}`} onClick={() => setForm(f => ({ ...f, city: city.ka, district: '' }))}>
+                        {t(city.labelKey)}
                       </button>
                     ))}
                   </div>
                 </div>
+                {selectedCity && (
+                  <div className="home-filter__block">
+                    <h3>{t('home.districts')}</h3>
+                    <div className="home-search__chips">
+                      <button type="button" className={`home-search__chip ${form.district ? '' : 'is-on'}`} onClick={() => setForm(f => ({ ...f, district: '' }))}>
+                        {t('home.wholeCity', { city: t(selectedCity.labelKey) })}
+                      </button>
+                      {selectedCity.districts.map(district => (
+                        <button
+                          key={district.ka}
+                          type="button"
+                          className={`home-search__chip ${form.district === district.ka ? 'is-on' : ''}`}
+                          onClick={() => setForm(f => ({ ...f, district: district.ka }))}
+                        >
+                          {districtLabel(district, locale)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
               <div className="home-filter__foot">
                 <button type="button" className="home-filter__reset" onClick={() => setForm(EMPTY_FORM)}>{t('common.clear')}</button>

@@ -9,6 +9,9 @@ import { fetchBuildingFootprints, type AreaBoundary, type Ring } from '../lib/ge
 import { pointInRing } from '../lib/geoMath';
 import { useTranslation } from '../i18n/LocaleContext';
 import { propertyHref } from '../lib/seoPropertyUrl';
+import { OSM_TILE_ATTR, OSM_TILE_URL } from '../lib/mapTiles';
+import { listingIsVerified } from '../lib/listingBadges';
+import VerifiedListingBadge from './VerifiedListingBadge';
 
 interface ListingsMapProps {
   properties: Property[];
@@ -718,6 +721,7 @@ function MapPopupCard({
     <Link to={propertyHref(property)} className="listing-map-popup">
       <div className="listing-map-popup__thumb">
         <img src={property.images[0]} alt="" />
+        {listingIsVerified(property) && <VerifiedListingBadge variant="mini" />}
         {property.isPremium && (
           <span className="listing-map-popup__vip">
             <Sparkles size={8} fill="currentColor" /> VIP
@@ -809,8 +813,9 @@ export default function ListingsMap({
       >
         {/* Positron keeps roads and labels muted so the highlighted buildings carry the map. */}
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          maxZoom={20}
+          url={OSM_TILE_URL}
+          attribution={OSM_TILE_ATTR}
+          maxZoom={19}
         />
 
         <MapStateBridge onZoom={setZoom} onBounds={onBoundsChange} />
@@ -920,8 +925,6 @@ export default function ListingsMap({
 
       <div className="listings-map-attribution">
         © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a>
-        {' · '}
-        <a href="https://carto.com/" target="_blank" rel="noreferrer">CARTO</a>
       </div>
     </div>
   );
