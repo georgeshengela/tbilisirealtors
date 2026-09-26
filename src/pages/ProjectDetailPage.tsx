@@ -4,7 +4,7 @@ import {
   MapPin, Home, Phone, Building2, Car, Layers, TreePine,
   Calendar, HardHat, ChevronLeft, ChevronRight,
 } from 'lucide-react';
-import { getProjectBySlug } from '../data/mockData';
+import { useProject } from '../hooks/usePublicData';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from '../i18n/LocaleContext';
 import { projectStatusLabels } from '../i18n/labels';
@@ -39,7 +39,7 @@ function ChipGrid({ items }: { items: string[] }) {
 
 export default function ProjectDetailPage() {
   const { slug } = useParams();
-  const project = slug ? getProjectBySlug(slug) : undefined;
+  const { data: project, loading } = useProject(slug);
   const { t } = useTranslation();
   const { formatMoney } = useCurrency();
   const [showPhone, setShowPhone] = useState(false);
@@ -86,6 +86,14 @@ export default function ProjectDetailPage() {
     });
     return () => setJsonLd('page', null);
   }, [project, t]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen page-under-header flex items-center justify-center">
+        <div className="w-8 h-8 rounded-full border-2 border-blue-600 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   if (!project) return <Navigate to="/projects" replace />;
 
@@ -202,10 +210,12 @@ export default function ProjectDetailPage() {
             </div>
 
             {/* Unit picker */}
-            <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1.5px solid #eceef0' }}>
-              <h2 className="font-extrabold text-[15px] mb-4" style={{ color: '#191c1e' }}>{t('home.projectDetail.unitPicker')}</h2>
-              <BuildingUnitPicker units={project.projectUnits} />
-            </div>
+            {project.projectUnits.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1.5px solid #eceef0' }}>
+                <h2 className="font-extrabold text-[15px] mb-4" style={{ color: '#191c1e' }}>{t('home.projectDetail.unitPicker')}</h2>
+                <BuildingUnitPicker units={project.projectUnits} />
+              </div>
+            )}
 
             {/* Description */}
             <div className="bg-white rounded-2xl p-4 sm:p-5" style={{ border: '1.5px solid #eceef0' }}>

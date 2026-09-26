@@ -1,6 +1,6 @@
 import { and, eq, ne } from 'drizzle-orm';
 import { db } from './db.js';
-import { properties } from './schema.js';
+import { properties, constructionProjects } from './schema.js';
 import { listingSitemapPaths } from '../src/lib/seoListingsUrl.ts';
 import {
   parsePropertyId,
@@ -77,6 +77,14 @@ export async function loadPublicPropertyUrls(limit = 500): Promise<{ id: string;
     .limit(limit);
 
   return rows.map(row => ({ id: row.id, href: propertyHref(row) }));
+}
+
+export async function loadPublicProjectHrefs(): Promise<string[]> {
+  const rows = await db
+    .select({ slug: constructionProjects.slug })
+    .from(constructionProjects)
+    .where(eq(constructionProjects.published, true));
+  return rows.map(row => `/project/${row.slug}`);
 }
 
 function replaceTag(html: string, pattern: RegExp, tag: string): string {

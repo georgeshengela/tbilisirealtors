@@ -8,6 +8,8 @@ import { useIsFavorite } from '../lib/favorites';
 import { useTranslation } from '../i18n/LocaleContext';
 import { personInitials } from '../lib/personInitials';
 import { propertyHref, withEmbedQuery } from '../lib/seoPropertyUrl';
+import { listingIsVerified } from '../lib/listingBadges';
+import VerifiedListingBadge from './VerifiedListingBadge';
 
 function useListingHref() {
   const location = useLocation();
@@ -93,6 +95,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
 
         {/* ── Top-left badges ── */}
         <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+          {listingIsVerified(property) && <VerifiedListingBadge />}
           {property.isPremium && (
             <span
               className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
@@ -264,12 +267,15 @@ function HorizontalCard({ property }: { property: Property }) {
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 pointer-events-none" style={{ background: 'linear-gradient(to right, transparent 60%, rgba(0,0,0,0.08))' }} />
-        {property.isPremium && (
-          <span className="absolute top-3 left-3 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
-            style={{ background: 'rgba(15,13,10,0.80)', color: '#f5c542', backdropFilter: 'blur(8px)' }}>
-            <Sparkles size={9} fill="currentColor" /> {labels.premium}
-          </span>
-        )}
+        <div className="absolute top-3 left-3 flex flex-col gap-1.5">
+          {listingIsVerified(property) && <VerifiedListingBadge />}
+          {property.isPremium && (
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold"
+              style={{ background: 'rgba(15,13,10,0.80)', color: '#f5c542', backdropFilter: 'blur(8px)' }}>
+              <Sparkles size={9} fill="currentColor" /> {labels.premium}
+            </span>
+          )}
+        </div>
         <span
           className="absolute bottom-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold"
           style={{ background: property.status === 'sale' ? 'rgba(25,28,30,0.85)' : 'rgba(37, 99, 235,0.9)', color: '#fff', backdropFilter: 'blur(8px)' }}

@@ -552,7 +552,7 @@ function parseMyHomeStatement(statement: Record<string, unknown>, sourceUrl: str
     floor: statement.floor != null ? String(statement.floor) : '',
     totalFloors: statement.total_floors != null ? String(statement.total_floors) : '',
     city: String(statement.city_name ?? ''),
-    district: String(statement.district_name ?? statement.urban_name ?? ''),
+    district: String(statement.urban_name || statement.district_name || ''),
     address: fullAddress,
     street,
     streetNumber,

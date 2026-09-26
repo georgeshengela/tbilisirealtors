@@ -1,7 +1,8 @@
 import { Router, Response } from 'express';
 import { db } from '../db.js';
-import { properties, agents, blogPosts, users } from '../schema.js';
-import { and, count, desc, eq, inArray, ne } from 'drizzle-orm';
+import { properties, agents, blogPosts, users, constructionProjects } from '../schema.js';
+import { and, count, desc, eq, inArray, ne, asc } from 'drizzle-orm';
+import { mapProjectFromApi } from '../../src/lib/projects.ts';
 import { toPublicTeamMember } from '../utils/adminProfile.js';
 import { recordPropertyView } from '../services/propertyViews.js';
 import { STAFF_ROLES } from '../permissions.js';
@@ -240,6 +241,40 @@ router.get('/blog/:id', async (req, res: Response): Promise<void> => {
   } catch (err) {
     console.error('Public blog post error:', err);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/projects', async (_req, res: Response): Promise<void> => {
+  try {
+    const rows = await db.select().from(constructionProjects)
+      .where(eq(constructionProjects.published, true))
+      .orderBy(asc(constructionProjects.sortOrder), desc(constructionProjects.createdAt));
+    res.json({
+      data: rows.map(row => {
+        const mapped = mapProjectFromApi(row as unknown as Record<string, unknown>);
+        return { ...mapped, projectUnits: [] };
+      }),
+    });
+  } catch (err) {
+    console.error('Public projects list error:', err);
+    res.status(500).json({ error: 'პროექტები ვერ ჩაიტვირთა' });
+  }
+});
+
+router.get('/projects/:slug', async (req, res: Response): Promise<void> => {
+  try {
+    const slug = String(req.params.slug || '').trim();
+    const [row] = await db.select().from(constructionProjects)
+      .where(and(eq(constructionProjects.slug, slug), eq(constructionProjects.published, true)))
+      .limit(1);
+    if (!row) {
+      res.status(404).json({ error: 'პროექტი ვერ მოიძებნა' });
+      return;
+    }
+    res.json(mapProjectFromApi(row as unknown as Record<string, unknown>));
+  } catch (err) {
+    console.error('Public project get error:', err);
+    res.status(500).json({ error: 'პროექტი ვერ ჩაიტვირთა' });
   }
 });
 

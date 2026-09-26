@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Bed, Maximize2 } from 'lucide-react';
-import type { ProjectUnit } from '../data/mockData';
+import type { ProjectUnit } from '../types/project';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from '../i18n/LocaleContext';
 

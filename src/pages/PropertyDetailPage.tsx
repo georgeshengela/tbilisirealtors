@@ -21,6 +21,8 @@ import { listingsHref } from '../lib/seoListingsUrl';
 import { listingMoneyFrom } from '../lib/moneyEntry';
 import { parsePropertyId, propertyHref, propertySeoCopy } from '../lib/seoPropertyUrl';
 import { formatPublicLocationLine } from '../lib/address';
+import { listingIsVerified, publicListingFeatures } from '../lib/listingBadges';
+import VerifiedListingBadge from '../components/VerifiedListingBadge';
 
 /** Long descriptions collapse to a few lines until the reader asks for more. */
 const CLAMP_AT_CHARS = 460;
@@ -328,7 +330,8 @@ export default function PropertyDetailPage() {
   const isLong = description.length > CLAMP_AT_CHARS;
 
   /* Imported feeds occasionally repeat the same amenity. */
-  const features = [...new Set(property.features)];
+  const features = publicListingFeatures(property.features);
+  const verified = listingIsVerified(property);
   const amenities = [...new Set(property.amenities)];
 
   const similar = allProperties
@@ -439,6 +442,7 @@ export default function PropertyDetailPage() {
               </button>
 
               <span className="pdp-badges">
+                {verified && <VerifiedListingBadge />}
                 {property.isPremium && (
                   <span className="pdp-badge is-vip">
                     <Sparkles size={10} fill="currentColor" /> {t('common.premium')}
@@ -526,6 +530,7 @@ export default function PropertyDetailPage() {
               <span>{addressLine}</span>
               <ArrowUpRight size={13} strokeWidth={2.6} />
             </button>
+            {verified && <VerifiedListingBadge variant="detail" />}
           </div>
 
           <div className="pdp-head__side">

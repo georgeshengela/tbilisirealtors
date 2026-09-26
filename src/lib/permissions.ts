@@ -44,6 +44,7 @@ export const ROLE_COLOR: Record<Role, { bg: string; text: string; border: string
 export const PERMISSION_GROUP_LABEL: Record<string, string> = {
   listings: 'განცხადებები',
   orders: 'შეკვეთები',
+  projects: 'პროექტები',
   leads: 'ლიდები',
   agents: 'ბროკერები',
   blog: 'ბლოგი',

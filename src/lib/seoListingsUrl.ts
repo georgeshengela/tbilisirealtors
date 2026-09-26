@@ -83,6 +83,10 @@ function rememberDistrict(slug: string, city: string, district: string) {
 for (const city of CITY_AREAS) {
   cityBySlug.set(kaToSlug(city.ka), city.ka);
   cityBySlug.set(kaToSlug(city.en), city.ka);
+  for (const group of city.groups ?? []) {
+    rememberDistrict(kaToSlug(group.ka), city.ka, group.ka);
+    rememberDistrict(kaToSlug(group.en), city.ka, group.ka);
+  }
   for (const district of city.districts) {
     rememberDistrict(kaToSlug(district.ka), city.ka, district.ka);
     rememberDistrict(kaToSlug(district.en), city.ka, district.ka);

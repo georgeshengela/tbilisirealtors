@@ -26,6 +26,8 @@ import AdminNavBar from '../components/admin/AdminNavBar';
 import AdminFooter from '../components/admin/AdminFooter';
 import { formatGeorgianLongDate, formatGeorgianShortDate } from '../lib/dateFormat';
 import { propertyHref } from '../lib/seoPropertyUrl';
+import { listingIsVerified } from '../lib/listingBadges';
+import VerifiedListingBadge from '../components/VerifiedListingBadge';
 import {
   ROLE_DESCRIPTION, STAFF_ROLES,
   canManageRole, meetsAdminFloor, roleColor, roleLabel, type Role,
@@ -106,7 +108,7 @@ const SECTIONS: Section[] = [
 /** A section unlocks as soon as the actor holds any one of these permissions. */
 const SECTION_PERMISSIONS: Record<Section, string[]> = {
   dashboard: ['dashboard.view'],
-  projects: ['dashboard.view', 'listings.view'],
+  projects: ['projects.view'],
   orders: ['orders.view'],
   properties: ['listings.view'],
   desk: ['listings.tasks', 'listings.moderate', 'listings.assign', 'analytics.full', 'leads.view'],
@@ -690,7 +692,18 @@ export default function AdminPage() {
                 <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               </button>
 
-              {can('listings.create') && (
+              {section === 'projects' && can('projects.create') ? (
+                <button
+                  onClick={() => navigate('/admin/projects/new')}
+                  className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
+                  style={{ background: '#10b981' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#059669'; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#10b981'; }}
+                >
+                  <Plus size={15} strokeWidth={2.5} />
+                  <span className="hidden sm:inline">ახალი პროექტი</span>
+                </button>
+              ) : can('listings.create') ? (
                 <button
                   onClick={() => navigate('/admin/listings/new')}
                   className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
@@ -707,7 +720,7 @@ export default function AdminPage() {
                   <Plus size={15} strokeWidth={2.5} />
                   <span className="hidden sm:inline">განც. დამატება</span>
                 </button>
-              )}
+              ) : null}
 
               {/* User chip → profile */}
               <button
@@ -852,6 +865,12 @@ export default function AdminPage() {
                         <button type="button" onClick={() => navigate('/admin/listings/new')} className="admin-dash-cta admin-dash-cta--primary">
                           <Plus size={15} strokeWidth={2.5} />
                           ახალი განცხადება
+                        </button>
+                      )}
+                      {can('projects.create') && (
+                        <button type="button" onClick={() => navigate('/admin/projects/new')} className="admin-dash-cta admin-dash-cta--ghost">
+                          <HardHat size={15} />
+                          ახალი პროექტი
                         </button>
                       )}
                       {can('orders.create') && (
@@ -1113,6 +1132,7 @@ export default function AdminPage() {
                               <Eye size={10} />{(p.viewCount ?? 0).toLocaleString('ka-GE')}
                             </p>
                           </div>
+                          {listingIsVerified(p) && <VerifiedListingBadge variant="inline" />}
                           {p.isPremium && <Zap size={13} className="text-amber-500 flex-shrink-0" />}
                         </button>
                       ))}
@@ -1129,6 +1149,7 @@ export default function AdminPage() {
                     <div className="space-y-2">
                       {[
                         { label: 'პროექტები', sub: 'დეველოპერები და კომპლექსები', color: '#0f172a', soft: '#f1f5f9', icon: HardHat, action: () => setSection('projects') },
+                        { label: 'ახალი პროექტი', sub: 'კომპლექსის დამატება', color: '#0f172a', soft: '#f8fafc', icon: Plus, action: () => navigate('/admin/projects/new') },
                         { label: 'ახალი განცხადება', sub: 'ფორმა + ფოტოები', color: '#2563eb', soft: '#eff6ff', icon: Plus, action: () => navigate('/admin/listings/new') },
                         { label: 'შეკვეთები', sub: 'კლიენტები და სტატუსები', color: '#2563eb', soft: '#eff6ff', icon: ClipboardList, action: () => setSection('orders') },
                         { label: 'განცხადებების ცხრილი', sub: 'რედაქტირება / ფასები', color: '#059669', soft: '#ecfdf5', icon: Building2, action: () => setSection('properties') },

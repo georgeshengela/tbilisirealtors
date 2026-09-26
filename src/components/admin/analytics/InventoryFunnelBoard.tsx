@@ -20,7 +20,7 @@ import {
   FUNNEL_STAGE,
   PROPERTY_TYPE_LABEL,
 } from '../../../lib/permissions';
-import { CITY_AREAS, findCityArea, findDistrictArea } from '../../../data/districts';
+import { CITY_AREAS, findCityArea, findDistrictArea, findDistrictGroup } from '../../../data/districts';
 import { EmptyState, GEL, Spinner, StatTile, selectCls } from '../desk/ui';
 import type { AnalyticsBoardProps, DealFilter, DistrictInventoryRow, InventoryReport } from './types';
 
@@ -50,7 +50,7 @@ const DEALS: { id: DealFilter; label: string }[] = [
 /** True when the stored district name is not in our own district dictionary. */
 function isUnknownDistrict(row: DistrictInventoryRow): boolean {
   const city = findCityArea(row.city) ?? CITY_AREAS[0];
-  return !findDistrictArea(city, row.district);
+  return !findDistrictArea(city, row.district) && !findDistrictGroup(city, row.district);
 }
 
 export default function InventoryFunnelBoard({ api, showToast }: AnalyticsBoardProps) {

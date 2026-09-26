@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.js';
 import accountRoutes from './routes/account.js';
 import adminRoutes from './routes/admin.js';
 import orderRoutes from './routes/orders.js';
+import projectRoutes from './routes/projects.js';
 import deskRoutes from './routes/desk.js';
 import analyticsRoutes from './routes/analytics.js';
 import ratesRoutes from './routes/rates.js';
@@ -22,6 +23,7 @@ import {
   injectPropertySeo,
   loadPublicProperty,
   loadPublicPropertyUrls,
+  loadPublicProjectHrefs,
   parsePropertyId,
   propertyHref,
 } from './seoHtml.js';
@@ -63,6 +65,7 @@ app.use('/api/account', accountRoutes);
 app.use('/api/admin/desk', deskRoutes);
 app.use('/api/admin/analytics', analyticsRoutes);
 app.use('/api/admin', orderRoutes);
+app.use('/api/admin', projectRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/rates', ratesRoutes);
 app.use('/api/geo', geoRoutes);
@@ -96,7 +99,11 @@ app.get('/property/:id', async (req, res) => {
 app.get('/sitemap.xml', async (_req, res) => {
   try {
     const rows = await loadPublicPropertyUrls();
-    res.type('application/xml').send(buildSitemapXml(rows.map(row => row.href)));
+    const projectHrefs = await loadPublicProjectHrefs();
+    res.type('application/xml').send(buildSitemapXml([
+      ...rows.map(row => row.href),
+      ...projectHrefs,
+    ]));
   } catch (err) {
     console.error('Sitemap error:', err);
     res.status(500).type('text/plain').send('Sitemap unavailable');

@@ -6,6 +6,7 @@ import type {
   BlogPost,
   Property,
 } from '../types/listing';
+import { listingBadgeIds } from './listingBadges';
 
 const DEFAULT_COORDS = { lat: 41.7151, lng: 44.8271 };
 const PLACEHOLDER_IMAGE = 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&q=80';
@@ -84,6 +85,7 @@ export function mapPropertyFromApi(row: ApiPropertyRow): Property {
     images: row.images?.length ? row.images : [PLACEHOLDER_IMAGE],
     amenities: row.amenities ?? [],
     features: row.features ?? [],
+    badges: listingBadgeIds(row.features),
     agent: agentFromPropertyRow(row),
     isFeatured: row.isFeatured ?? false,
     isNew: row.isNew ?? false,

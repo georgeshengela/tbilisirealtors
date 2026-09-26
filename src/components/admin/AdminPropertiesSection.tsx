@@ -31,6 +31,8 @@ import {
   type LifecycleOutcome,
 } from '../../lib/lifecycle';
 import { propertyHref } from '../../lib/seoPropertyUrl';
+import { listingIsVerified } from '../../lib/listingBadges';
+import VerifiedListingBadge from '../VerifiedListingBadge';
 
 export interface PriceChangeRow {
   id: number;
@@ -90,6 +92,7 @@ export interface AdminPropertyRow {
   isFeatured: boolean;
   isNew: boolean;
   isPremium: boolean;
+  features?: string[] | null;
   viewCount: number;
   offersLast30Days?: number;
   offersLast60Days?: number;
@@ -151,7 +154,7 @@ export type PropertyPatch = Partial<{
 
 type StatusFilter = 'all' | 'sale' | 'rent';
 type LifecycleFilter = 'all' | 'new' | 'current' | 'old' | 'new_r';
-type BadgeFilter = 'all' | 'premium' | 'featured' | 'new' | 'rented_invest';
+type BadgeFilter = 'all' | 'premium' | 'featured' | 'new' | 'verified' | 'rented_invest';
 type OutcomeFilter = 'all' | LifecycleOutcome;
 type SortKey =
   | 'title' | 'price' | 'pricePerSqm' | 'area' | 'city' | 'type' | 'status'
@@ -812,6 +815,7 @@ function ListingLeadCell({
             <ImageIcon size={22} className="text-slate-300" />
           </span>
         )}
+        {listingIsVerified(p) && <VerifiedListingBadge variant="admin" />}
         {photoCount > 1 && (
           <span className="absolute bottom-1.5 right-1.5 inline-flex items-center gap-0.5 rounded-md bg-black/65 px-1.5 py-0.5 text-[9px] font-bold text-white">
             <ImageIcon size={9} />
@@ -2131,6 +2135,7 @@ export default function AdminPropertiesSection({
       { value: 'premium' as const, label: 'VIP / პრემიუმი', dot: '#f59e0b' },
       { value: 'featured' as const, label: 'გამორჩეული', dot: '#2563eb' },
       { value: 'new' as const, label: 'ახალი', dot: '#10b981' },
+      { value: 'verified' as const, label: 'ვერიფიცირებული', dot: '#059669' },
       { value: 'rented_invest' as const, label: 'გაქირავებული (იყიდება)', dot: '#0f766e' },
     ],
     [],
@@ -2147,6 +2152,7 @@ export default function AdminPropertiesSection({
       if (badgeFilter === 'premium' && !p.isPremium) return false;
       if (badgeFilter === 'featured' && !p.isFeatured) return false;
       if (badgeFilter === 'new' && !p.isNew) return false;
+      if (badgeFilter === 'verified' && !listingIsVerified(p)) return false;
       if (badgeFilter === 'rented_invest' && outcomeOf(p) !== 'rented_owner') return false;
       if (mode === 'archive' && outcomeFilter !== 'all' && outcomeOf(p) !== outcomeFilter) return false;
       if (!q) return true;

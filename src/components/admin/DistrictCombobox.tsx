@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Plus } from 'lucide-react';
 
 export interface DistrictChoice {
   value: string;
   label: string;
+  group?: string;
 }
 
 interface DistrictComboboxProps {
@@ -103,21 +104,28 @@ export default function DistrictCombobox({
 
       {open && !disabled && (
         <div className="absolute z-[80] mt-1.5 w-full max-h-64 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-xl">
-          {filtered.map(opt => {
+          {filtered.map((opt, index) => {
             const selected = opt.value === value;
+            const showGroup = Boolean(opt.group) && opt.group !== filtered[index - 1]?.group;
             return (
-              <button
-                key={opt.value}
-                type="button"
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => commit(opt.value)}
-                className={`w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left text-sm ${
-                  selected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'
-                }`}
-              >
-                <span>{opt.label}</span>
-                {selected && <Check size={14} />}
-              </button>
+              <Fragment key={opt.value}>
+                {showGroup && (
+                  <div className="px-3.5 pt-2.5 pb-1 text-[10px] font-bold uppercase tracking-wide text-slate-400 bg-slate-50">
+                    {opt.group}
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => commit(opt.value)}
+                  className={`w-full flex items-center justify-between gap-2 px-3.5 py-2 text-left text-sm ${
+                    selected ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  <span>{opt.label}</span>
+                  {selected && <Check size={14} />}
+                </button>
+              </Fragment>
             );
           })}
           {canAdd && (

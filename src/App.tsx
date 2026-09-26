@@ -26,6 +26,7 @@ import AdminLoginPage from './pages/AdminLoginPage';
 import AdminPage from './pages/AdminPage';
 import AdminAddListingPage from './pages/AdminAddListingPage';
 import AdminAddOrderPage from './pages/AdminAddOrderPage';
+import AdminAddProjectPage from './pages/AdminAddProjectPage';
 import AdminProfilePage from './pages/AdminProfilePage';
 import { AdminAuthProvider, useAdminAuth } from './contexts/AdminAuthContext';
 import { UserAuthProvider, useUserAuth } from './contexts/UserAuthContext';
@@ -56,7 +57,9 @@ function UdzraviSwitch() {
 
 function ProtectedAdminRoute({ children }: { children: ReactNode }) {
   const { user, loading } = useAdminAuth();
-  if (loading) return null;
+  // Keep the tree mounted once a session exists so add/edit forms are not wiped
+  // if auth briefly reports loading again.
+  if (loading && !user) return null;
   return user ? <>{children}</> : <Navigate to="/admin/login" replace />;
 }
 
@@ -89,6 +92,8 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
           <Route path="/admin/listings/:id/edit" element={<ProtectedAdminRoute><AdminAddListingPage /></ProtectedAdminRoute>} />
           <Route path="/admin/orders/new" element={<ProtectedAdminRoute><AdminAddOrderPage /></ProtectedAdminRoute>} />
           <Route path="/admin/orders/:id" element={<ProtectedAdminRoute><AdminAddOrderPage /></ProtectedAdminRoute>} />
+          <Route path="/admin/projects/new" element={<ProtectedAdminRoute><AdminAddProjectPage /></ProtectedAdminRoute>} />
+          <Route path="/admin/projects/:id/edit" element={<ProtectedAdminRoute><AdminAddProjectPage /></ProtectedAdminRoute>} />
           <Route path="/admin/*" element={<ProtectedAdminRoute><AdminPage /></ProtectedAdminRoute>} />
         </Routes>
       </>

@@ -6,9 +6,8 @@ import {
   Sparkles, Bed, Bath,
   Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent,
 } from 'lucide-react';
-import { constructionProjects } from '../data/mockData';
-import type { Property, BlogPost } from '../types/listing';
-import { useProperties, useBlogPosts } from '../hooks/usePublicData';
+import { useProperties, useBlogPosts, useProjects } from '../hooks/usePublicData';
+import type { BlogPost, Property } from '../types/listing';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { listingMoneyFrom } from '../lib/moneyEntry';
 import { useTranslation } from '../i18n/LocaleContext';
@@ -632,6 +631,7 @@ export default function HomePage() {
   const { t } = useTranslation();
   const { data: properties } = useProperties();
   const { data: blogPosts } = useBlogPosts();
+  const { data: projects } = useProjects();
   const [openFaq, setOpenFaq] = useState<string | null>(FAQ_IDS[0]);
   const featured = useMemo(() => properties.filter(p => p.isFeatured).slice(0, 12), [properties]);
   const newest = useMemo(() => properties.filter(p => p.isNew).slice(0, 12), [properties]);
@@ -643,6 +643,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           NEW CONSTRUCTION PROJECTS
       ══════════════════════════════════════════════════════ */}
+      {projects.length > 0 && (
       <section className="py-8 sm:py-10 lg:py-12 bg-white">
         <div className="container-xl">
           <InViewFade>
@@ -673,7 +674,7 @@ export default function HomePage() {
           </InViewFade>
 
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-            {constructionProjects.map((project, i) => (
+            {projects.map((project, i) => (
               <InViewFade key={project.id} delay={0.06 + i * 0.04}>
                 <ConstructionProjectCard project={project} />
               </InViewFade>
@@ -681,6 +682,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      )}
 
       <AdStrip bg="#f7f9fb">
         <AdBanner

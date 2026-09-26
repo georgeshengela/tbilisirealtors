@@ -501,3 +501,61 @@ export const orders = pgTable('orders', {
 });
 
 export type Order = typeof orders.$inferSelect;
+
+export interface ConstructionProjectUnit {
+  id: string;
+  floor: number;
+  number: string;
+  bedrooms: number;
+  area: number;
+  price: number;
+  pricePerSqm: number;
+  status: 'available' | 'reserved' | 'sold';
+}
+
+export const constructionProjects = pgTable('construction_projects', {
+  id: varchar('id', { length: 50 }).primaryKey(),
+  slug: varchar('slug', { length: 180 }).notNull(),
+  name: varchar('name', { length: 255 }).notNull(),
+  address: varchar('address', { length: 500 }),
+  city: varchar('city', { length: 255 }).notNull(),
+  district: varchar('district', { length: 255 }),
+  developer: varchar('developer', { length: 255 }).notNull(),
+  managementCompany: varchar('management_company', { length: 255 }),
+  phone: varchar('phone', { length: 50 }),
+  units: integer('units').notNull().default(0),
+  priceFrom: numeric('price_from').notNull().default('0'),
+  priceTo: numeric('price_to').notNull().default('0'),
+  pricePerSqmFrom: numeric('price_per_sqm_from').notNull().default('0'),
+  pricePerSqmTo: numeric('price_per_sqm_to').notNull().default('0'),
+  areaFrom: numeric('area_from').notNull().default('0'),
+  areaTo: numeric('area_to').notNull().default('0'),
+  completion: varchar('completion', { length: 80 }),
+  deliveryDate: varchar('delivery_date', { length: 40 }),
+  status: varchar('status', { length: 20 }).notNull().default('building'),
+  image: varchar('image', { length: 800 }),
+  images: jsonb('images').$type<string[]>().notNull().default([]),
+  floors: integer('floors').notNull().default(1),
+  buildings: integer('buildings').notNull().default(1),
+  parking: integer('parking').notNull().default(0),
+  bedroomOptions: jsonb('bedroom_options').$type<number[]>().notNull().default([]),
+  greenArea: integer('green_area').notNull().default(0),
+  deliveryCondition: varchar('delivery_condition', { length: 120 }),
+  constructionProgress: integer('construction_progress').notNull().default(0),
+  constructionNote: varchar('construction_note', { length: 500 }),
+  description: text('description'),
+  paymentOptions: jsonb('payment_options').$type<string[]>().notNull().default([]),
+  territoryAmenities: jsonb('territory_amenities').$type<string[]>().notNull().default([]),
+  postDeliveryServices: jsonb('post_delivery_services').$type<string[]>().notNull().default([]),
+  securityFeatures: jsonb('security_features').$type<string[]>().notNull().default([]),
+  coordinates: jsonb('coordinates').$type<{ lat: number; lng: number }>(),
+  projectUnits: jsonb('project_units').$type<ConstructionProjectUnit[]>().notNull().default([]),
+  published: boolean('published').notNull().default(true),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+}, table => ({
+  slugIdx: uniqueIndex('construction_projects_slug_idx').on(table.slug),
+}));
+
+export type ConstructionProjectRow = typeof constructionProjects.$inferSelect;

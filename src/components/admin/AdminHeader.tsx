@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, Building2, ClipboardList, Users, Settings, LogOut, Plus,
   BookOpen, Shield, Sparkles, ExternalLink, Headphones, UserCog, BarChart3, LineChart, HardHat,
@@ -17,7 +17,7 @@ export type AdminNavSection =
 /** A section unlocks as soon as the actor holds any one of its permissions. */
 const NAV_ITEMS: { id: AdminNavSection; label: string; icon: LucideIcon; permissions: string[]; badge?: number }[] = [
   { id: 'dashboard', label: 'მთავარი', icon: LayoutDashboard, permissions: ['dashboard.view'] },
-  { id: 'projects', label: 'პროექტები', icon: HardHat, permissions: ['dashboard.view', 'listings.view'] },
+  { id: 'projects', label: 'პროექტები', icon: HardHat, permissions: ['projects.view'] },
   { id: 'orders', label: 'შეკვეთები', icon: ClipboardList, permissions: ['orders.view'] },
   { id: 'properties', label: 'განცხადებები', icon: Building2, permissions: ['listings.view'] },
   {
@@ -52,7 +52,9 @@ interface AdminHeaderProps {
 
 export default function AdminHeader({ subtitle, activeSection = 'properties' }: AdminHeaderProps) {
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { user, logout, can } = useAdminAuth();
+  const onProjectForm = pathname.startsWith('/admin/projects/');
   const api = useApiRequest();
   const [deskAlerts, setDeskAlerts] = useState(0);
 
@@ -135,7 +137,19 @@ export default function AdminHeader({ subtitle, activeSection = 'properties' }: 
           </nav>
 
           <div className="flex items-center gap-2 flex-shrink-0">
-            {can('listings.create') && (
+            {activeSection === 'projects' && can('projects.create') && !onProjectForm ? (
+              <button
+                type="button"
+                onClick={() => navigate('/admin/projects/new')}
+                className="inline-flex items-center gap-1.5 px-3.5 sm:px-4 py-2.5 rounded-xl text-sm font-bold text-white transition-all"
+                style={{ background: '#10b981' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#059669'; }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#10b981'; }}
+              >
+                <Plus size={15} strokeWidth={2.5} />
+                <span className="hidden sm:inline">ახალი პროექტი</span>
+              </button>
+            ) : can('listings.create') ? (
               <button
                 type="button"
                 onClick={() => navigate('/admin/listings/new')}
@@ -147,7 +161,7 @@ export default function AdminHeader({ subtitle, activeSection = 'properties' }: 
                 <Plus size={15} strokeWidth={2.5} />
                 <span className="hidden sm:inline">განც. დამატება</span>
               </button>
-            )}
+            ) : null}
 
             <button
               type="button"

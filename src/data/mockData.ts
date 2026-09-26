@@ -1,5 +1,13 @@
 export type { Property, Agent, BlogPost } from '../types/listing';
 import type { Property, Agent, BlogPost } from '../types/listing';
+export type {
+  ConstructionProject,
+  ProjectPaymentOption,
+  ProjectUnit,
+  ProjectUnitStatus,
+} from '../types/project';
+import type { ConstructionProject } from '../types/project';
+import { generateProjectUnits } from '../lib/projects';
 
 // Georgian photo placeholders - use Unsplash for realistic images
 const PROPERTY_IMAGES = {
@@ -28,89 +36,6 @@ export const properties: Property[] = [];
 export const blogPosts: BlogPost[] = [];
 
 export const cities: { name: string; count: number; image: string }[] = [];
-
-export type ProjectUnitStatus = 'available' | 'reserved' | 'sold';
-export type ProjectPaymentOption = 'installment' | 'mortgage' | 'cash';
-
-export interface ProjectUnit {
-  id: string;
-  floor: number;
-  number: string;
-  bedrooms: number;
-  area: number;
-  price: number;
-  pricePerSqm: number;
-  status: ProjectUnitStatus;
-}
-
-export interface ConstructionProject {
-  id: string;
-  slug: string;
-  name: string;
-  address: string;
-  city: string;
-  district: string;
-  developer: string;
-  managementCompany?: string;
-  phone: string;
-  units: number;
-  priceFrom: number;
-  priceTo: number;
-  pricePerSqmFrom: number;
-  pricePerSqmTo: number;
-  areaFrom: number;
-  areaTo: number;
-  completion: string;
-  deliveryDate: string;
-  status: 'building' | 'completed' | 'presale';
-  image: string;
-  images: string[];
-  floors: number;
-  buildings: number;
-  parking: number;
-  bedroomOptions: number[];
-  greenArea: number;
-  deliveryCondition: string;
-  constructionProgress: number;
-  constructionNote: string;
-  description: string;
-  paymentOptions: ProjectPaymentOption[];
-  territoryAmenities: string[];
-  postDeliveryServices: string[];
-  securityFeatures: string[];
-  coordinates: { lat: number; lng: number };
-  projectUnits: ProjectUnit[];
-}
-
-function generateProjectUnits(
-  projectId: string,
-  floors: number,
-  unitsPerFloor: number,
-  basePrice: number,
-): ProjectUnit[] {
-  const units: ProjectUnit[] = [];
-  const maxFloors = Math.min(floors, 14);
-  for (let floor = 1; floor <= maxFloors; floor += 1) {
-    for (let index = 1; index <= unitsPerFloor; index += 1) {
-      const bedrooms = ((floor + index) % 3) + 1;
-      const area = 42 + bedrooms * 22 + (index * 4) + Math.floor(floor / 2);
-      const price = Math.round(basePrice + area * 1850 + floor * 4200);
-      const statusSeed = (floor * 7 + index * 3) % 10;
-      const status: ProjectUnitStatus = statusSeed <= 1 ? 'sold' : statusSeed <= 3 ? 'reserved' : 'available';
-      units.push({
-        id: `${projectId}-f${floor}-u${index}`,
-        floor,
-        number: `${floor}${String(index).padStart(2, '0')}`,
-        bedrooms,
-        area,
-        price,
-        pricePerSqm: Math.round(price / area),
-        status,
-      });
-    }
-  }
-  return units;
-}
 
 export const constructionProjects: ConstructionProject[] = [
   {
@@ -218,7 +143,7 @@ export const constructionProjects: ConstructionProject[] = [
     deliveryCondition: 'მწვანე კარკასი',
     constructionProgress: 71,
     constructionNote: 'მშენებლობა დასრულდება 12 თვეში',
-    description: 'Saburtalo Green — თანამედროვე კომპლექსი საბურთaloში, მეტროსა და უნივერსიტეტის ახლოს. ენერგოეფექტური ფასადი, მწვანე ეზო და საზოგადოებრივი სივრცეები.',
+    description: 'Saburtalo Green — თანამედროვე კომპლექსი საბურთალოზე, მეტროსა და უნივერსიტეტის ახლოს. ენერგოეფექტური ფასადი, მწვანე ეზო და საზოგადოებრივი სივრცეები.',
     paymentOptions: ['installment', 'mortgage'],
     territoryAmenities: ['kindergarten', 'busStop', 'supermarket', 'bikeLane', 'playground', 'coworking'],
     postDeliveryServices: ['lobby', 'videoControl', 'lighting', 'yardCleaning', 'stairCleaning'],

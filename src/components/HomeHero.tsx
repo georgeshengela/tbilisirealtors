@@ -8,7 +8,7 @@ import {
   bedroomOptions,
   propertyTypeFilterOptions,
 } from '../i18n/labels';
-import { CITY_AREAS, districtLabel, findCityArea, findDistrictArea } from '../data/districts';
+import { CITY_AREAS, areaSelectionLabel, districtLabel, districtSections, findCityArea } from '../data/districts';
 import { isExactListingId } from '../lib/listingId';
 import { fetchProperties, fetchPropertyById } from '../lib/publicApi';
 import { listingsHref } from '../lib/seoListingsUrl';
@@ -71,25 +71,41 @@ export default function HomeHero() {
   const districtChoices = useMemo(() => {
     const cities = selectedCity ? [selectedCity] : CITY_AREAS;
     const q = districtQuery.trim().toLowerCase();
-    return cities.flatMap(city => city.districts
-      .filter(district => {
-        if (!q) return true;
-        return [district.ka, district.en, ...(district.aliases ?? [])]
-          .some(name => name.toLowerCase().includes(q));
-      })
-      .map(district => ({
-        city: city.ka,
-        district: district.ka,
-        label: districtLabel(district, locale),
-        cityLabel: t(city.labelKey),
-      })));
+    return cities.flatMap(city => {
+      const groups = (city.groups ?? [])
+        .filter(group => !q || group.ka.toLowerCase().includes(q) || group.en.toLowerCase().includes(q))
+        .map(group => ({
+          city: city.ka,
+          district: group.ka,
+          label: districtLabel(group, locale),
+          cityLabel: t(city.labelKey),
+          groupLabel: '',
+          parent: true,
+        }));
+      const neighbourhoods = city.districts
+        .filter(district => {
+          if (!q) return true;
+          return [district.ka, district.en, ...(district.aliases ?? []), district.group ?? '']
+            .some(name => name.toLowerCase().includes(q));
+        })
+        .map(district => ({
+          city: city.ka,
+          district: district.ka,
+          label: districtLabel(district, locale),
+          cityLabel: t(city.labelKey),
+          groupLabel: district.group
+            ? districtLabel(city.groups!.find(group => group.ka === district.group) ?? { ka: district.group, en: district.group }, locale)
+            : '',
+          parent: false,
+        }));
+      return q ? [...groups, ...neighbourhoods] : neighbourhoods;
+    });
   }, [selectedCity, districtQuery, locale, t]);
 
   const locationLabel = useMemo(() => {
     const city = findCityArea(form.city);
-    const district = findDistrictArea(city, form.district);
     return [
-      district ? districtLabel(district, locale) : form.district,
+      areaSelectionLabel(city, form.district, locale),
       city ? t(city.labelKey) : form.city,
     ].filter(Boolean).join(', ');
   }, [form.city, form.district, locale, t]);
@@ -228,7 +244,7 @@ export default function HomeHero() {
             <strong>{t('home.wholeCity', { city: t(selectedCity.labelKey) })}</strong>
           </button>
         )}
-        {districtChoices.map(opt => (
+        {districtQuery ? districtChoices.map(opt => (
           <button
             key={`${opt.city}-${opt.district}`}
             type="button"
@@ -236,8 +252,37 @@ export default function HomeHero() {
             onClick={() => pickDistrict(opt.city, opt.district)}
           >
             <strong>{opt.label}</strong>
-            {!selectedCity && <small>{opt.cityLabel}</small>}
+            <small>{opt.groupLabel || (!selectedCity ? opt.cityLabel : '')}</small>
           </button>
+        )) : (selectedCity ? [selectedCity] : CITY_AREAS).map(city => (
+          <Fragment key={city.ka}>
+            {!selectedCity && (
+              <p className="home-search__district-city">{t(city.labelKey)}</p>
+            )}
+            {districtSections(city).map(section => (
+              <Fragment key={section.group?.ka ?? `${city.ka}-flat`}>
+                {section.group && (
+                  <button
+                    type="button"
+                    className={`home-search__district-head ${form.city === city.ka && form.district === section.group.ka ? 'is-on' : ''}`}
+                    onClick={() => pickDistrict(city.ka, section.group!.ka)}
+                  >
+                    {districtLabel(section.group, locale)}
+                  </button>
+                )}
+                {section.districts.map(district => (
+                  <button
+                    key={`${city.ka}-${district.ka}`}
+                    type="button"
+                    className={`home-search__district ${form.city === city.ka && form.district === district.ka ? 'is-on' : ''}`}
+                    onClick={() => pickDistrict(city.ka, district.ka)}
+                  >
+                    <strong>{districtLabel(district, locale)}</strong>
+                  </button>
+                ))}
+              </Fragment>
+            ))}
+          </Fragment>
         ))}
       </div>
       {districtChoices.length === 0 && <p className="home-search__empty">{t('home.noDistricts')}</p>}
@@ -639,15 +684,30 @@ export default function HomeHero() {
                       <button type="button" className={`home-search__chip ${form.district ? '' : 'is-on'}`} onClick={() => setForm(f => ({ ...f, district: '' }))}>
                         {t('home.wholeCity', { city: t(selectedCity.labelKey) })}
                       </button>
-                      {selectedCity.districts.map(district => (
-                        <button
-                          key={district.ka}
-                          type="button"
-                          className={`home-search__chip ${form.district === district.ka ? 'is-on' : ''}`}
-                          onClick={() => setForm(f => ({ ...f, district: district.ka }))}
-                        >
-                          {districtLabel(district, locale)}
-                        </button>
+                      {districtSections(selectedCity).map(section => (
+                        <div key={section.group?.ka ?? 'flat'} className="home-district-block">
+                          {section.group && (
+                            <button
+                              type="button"
+                              className={`home-district-block__title ${form.district === section.group.ka ? 'is-on' : ''}`}
+                              onClick={() => setForm(f => ({ ...f, district: section.group!.ka }))}
+                            >
+                              {districtLabel(section.group, locale)}
+                            </button>
+                          )}
+                          <div className="home-search__chips">
+                            {section.districts.map(district => (
+                              <button
+                                key={district.ka}
+                                type="button"
+                                className={`home-search__chip ${form.district === district.ka ? 'is-on' : ''}`}
+                                onClick={() => setForm(f => ({ ...f, district: district.ka }))}
+                              >
+                                {districtLabel(district, locale)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       ))}
                     </div>
                   </div>

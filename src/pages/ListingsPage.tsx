@@ -15,11 +15,13 @@ import { pointInRing, pointInRings, ringsBbox } from '../lib/geoMath';
 import { isExactListingId, listingIdMatches } from '../lib/listingId';
 import {
   CITY_AREAS,
-  districtLabel,
-  districtNameMatches,
+  areaSelectionLabel,
+  chunkDistrictOptions,
   districtOptions,
   findCityArea,
   findDistrictArea,
+  findDistrictGroup,
+  listingMatchesDistrict,
 } from '../data/districts';
 import type { Property } from '../types/listing';
 import { listingMoneyFrom } from '../lib/moneyEntry';
@@ -31,7 +33,7 @@ const PAGE_SIZE = 24;
 function listingFiltersFromLocation(pathname: string, search: string) {
   const parsed = parseListingsLocation(pathname, search);
   const city = findCityArea(parsed.city);
-  const district = findDistrictArea(city, parsed.district);
+  const district = findDistrictArea(city, parsed.district) ?? findDistrictGroup(city, parsed.district);
   const storedCurrency = readStoredCurrency();
   const usdRate = FALLBACK_USD_RATE;
   const priceFromUrl = (param: string | undefined) => {
@@ -166,9 +168,7 @@ export default function ListingsPage() {
         // labels are free text and often disagree with the coordinates.
         if (districtPolygon) {
           if (!pointInRings(districtPolygon.rings, p.coordinates.lat, p.coordinates.lng)) return false;
-        } else if (districtArea) {
-          if (!districtNameMatches(p.district, districtArea)) return false;
-        } else if (p.district !== filters.district) {
+        } else if (!listingMatchesDistrict(cityArea, filters.district, p.district)) {
           return false;
         }
       }
@@ -187,7 +187,7 @@ export default function ListingsPage() {
       if (filters.isNew && !p.isNew) return false;
       return true;
     },
-    [filters, search, districtArea, districtPolygon, drawnArea, displayToGel, listingToGel],
+    [filters, search, cityArea, districtArea, districtPolygon, drawnArea, displayToGel, listingToGel],
   );
 
   /** Everything matching the filter form — this is what the map draws. */
@@ -353,7 +353,7 @@ export default function ListingsPage() {
   const areaLabel = drawnArea
     ? t('listings.drawnArea')
     : [
-        districtArea ? districtLabel(districtArea, locale) : filters.district,
+        areaSelectionLabel(cityArea, filters.district, locale),
         cityArea ? t(cityArea.labelKey) : filters.city,
       ]
         .filter(Boolean)
@@ -417,7 +417,7 @@ export default function ListingsPage() {
             )}
             {filters.district && (
               <Chip
-                label={districtArea ? districtLabel(districtArea, locale) : filters.district}
+                label={areaSelectionLabel(cityArea, filters.district, locale)}
                 icon
                 onRemove={() => setF('district', '')}
               />
@@ -475,7 +475,13 @@ export default function ListingsPage() {
                   className="listings-filter-input"
                 >
                   <option value="">{t('common.all')}</option>
-                  {districtList.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                  {chunkDistrictOptions(districtList).map(chunk => chunk.group ? (
+                    <optgroup key={chunk.key} label={chunk.group}>
+                      {chunk.options.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
+                    </optgroup>
+                  ) : (
+                    chunk.options.map(d => <option key={d.value} value={d.value}>{d.label}</option>)
+                  ))}
                 </select>
               </Field>
 

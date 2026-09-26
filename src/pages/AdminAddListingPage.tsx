@@ -6,7 +6,7 @@ import {
   DollarSign, Ruler, Bed, Layers, MapPin,
   Image as ImageIcon, Sparkles, Star, Zap, User, Phone, Mail,
   CheckCircle, Loader2, Crown, Key, FileText, Wrench,
-  Flame, Droplets, Car, Link2, BadgeCheck,
+  Flame, Droplets, Car, Link2, BadgeCheck, ShieldCheck,
   Hash, MoveHorizontal, Download, ExternalLink, Globe2,
   Languages, MessageSquare, X, Upload, Maximize2, Minimize2,
 } from 'lucide-react';
@@ -24,7 +24,7 @@ import AdminLayout from '../components/admin/AdminLayout';
 import DistrictCombobox from '../components/admin/DistrictCombobox';
 import StreetSuggestInput from '../components/admin/StreetSuggestInput';
 import OwnerSuggestInput, { type OwnerSuggestion } from '../components/admin/OwnerSuggestInput';
-import { CITY_AREAS, canonicalCityName, canonicalDistrictName, findCityArea } from '../data/districts';
+import { CITY_AREAS, canonicalCityName, canonicalDistrictName, districtFormChoices, findCityArea } from '../data/districts';
 import { formatStreetAddress, parseListingAddress } from '../lib/address';
 import type { StreetSuggestion } from '../lib/geocoding';
 import { importFieldLabel } from '../lib/permissions';
@@ -34,6 +34,7 @@ import {
   LIFECYCLE_OUTCOME_META,
   needsDeadline,
 } from '../lib/lifecycle';
+import { VERIFIED_LISTING_BADGE } from '../lib/listingBadges';
 import {
   adminReturnPath,
   bedroomsChipFromCount,
@@ -135,6 +136,7 @@ const BUILDING_FEATURES = [
 ];
 
 const BADGE_OPTIONS = [
+  { id: VERIFIED_LISTING_BADGE, label: 'ვერიფიცირებული', hint: 'სანდო არჩევანი', icon: ShieldCheck },
   { id: 'key_code',    label: 'კარი კოდით',         icon: Key         },
   { id: 'airbnb',      label: 'Airbnb/Booking ექ.', icon: Link2       },
   { id: 'investment',  label: 'საინვესტიციო',        icon: TrendingUp  },
@@ -477,11 +479,59 @@ function buildAutoTitle(form: Pick<FormState, 'type' | 'dealTypes' | 'rooms' | '
   return area ? `${head}, ${area}` : head;
 }
 
+function positiveNum(value: string): number {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
+
 function pricePerSqmOf(price: string, area: string): string {
-  const p = Number(price);
-  const a = Number(area);
-  if (!Number.isFinite(p) || !Number.isFinite(a) || p <= 0 || a <= 0) return '';
+  const p = positiveNum(price);
+  const a = positiveNum(area);
+  if (!p || !a) return '';
   return String(Math.round(p / a));
+}
+
+function totalPriceOf(pricePerSqm: string, area: string): string {
+  const s = positiveNum(pricePerSqm);
+  const a = positiveNum(area);
+  if (!s || !a) return '';
+  return String(Math.round(s * a));
+}
+
+type PriceAnchor = 'total' | 'sqm';
+
+function applyPriceFields(
+  form: FormState,
+  patch: Partial<Pick<FormState, 'price' | 'pricePerSqm' | 'area'>>,
+  anchor: PriceAnchor,
+): FormState {
+  const next = { ...form, ...patch };
+  if ('price' in patch && !String(patch.price ?? '').trim()) return next;
+  if ('pricePerSqm' in patch && !String(patch.pricePerSqm ?? '').trim()) return next;
+
+  const hasTotal = positiveNum(next.price) > 0;
+  const hasSqm = positiveNum(next.pricePerSqm) > 0;
+  const hasArea = positiveNum(next.area) > 0;
+  if (!hasArea) return next;
+
+  if (anchor === 'sqm' && hasSqm) {
+    const total = totalPriceOf(next.pricePerSqm, next.area);
+    if (total) next.price = total;
+    return next;
+  }
+  if (anchor === 'total' && hasTotal) {
+    const sqm = pricePerSqmOf(next.price, next.area);
+    if (sqm) next.pricePerSqm = sqm;
+    return next;
+  }
+  if (hasSqm && !hasTotal) {
+    const total = totalPriceOf(next.pricePerSqm, next.area);
+    if (total) next.price = total;
+  } else if (hasTotal && !hasSqm) {
+    const sqm = pricePerSqmOf(next.price, next.area);
+    if (sqm) next.pricePerSqm = sqm;
+  }
+  return next;
 }
 
 /* ─── Main component ─────────────────────────────────────── */
@@ -530,6 +580,7 @@ export default function AdminAddListingPage() {
   const [dragIndex, setDragIndex] = useState<number | null>(null);
   const [dropActive, setDropActive] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
+  const priceAnchorRef = useRef<PriceAnchor>('total');
   const { upload, uploading, progress, error: uploadError } = useFileUpload();
 
   useEffect(() => {
@@ -771,7 +822,11 @@ export default function AdminAddListingPage() {
       dealTypes: data.dealType ? [data.dealType] : f.dealTypes,
       buildingStatus: data.buildingStatus || f.buildingStatus,
       condition: data.condition || f.condition,
-      price: importedPrice ? String(Math.round(importedPrice)) : f.price,
+      price: importedPrice
+        ? String(Math.round(importedPrice))
+        : (importedPerSqm && areaNum > 0
+          ? String(Math.round(importedPerSqm * areaNum))
+          : f.price),
       pricePerSqm: importedPerSqm
         ? String(Math.round(importedPerSqm))
         : (importedPrice && areaNum > 0
@@ -1048,9 +1103,11 @@ export default function AdminAddListingPage() {
       const newNote = form.internalNote.trim();
 
       const entry = formCurrencyToEntry(form.currency);
-      const price = Math.round(parseFloat(form.price) || 0);
-      const rentPrice = form.rentPrice ? Math.round(parseFloat(form.rentPrice)) : null;
       const areaNum = parseFloat(form.area) || 0;
+      const sqmInput = parseFloat(form.pricePerSqm) || 0;
+      let price = Math.round(parseFloat(form.price) || 0);
+      if (!price && sqmInput > 0 && areaNum > 0) price = Math.round(sqmInput * areaNum);
+      const rentPrice = form.rentPrice ? Math.round(parseFloat(form.rentPrice)) : null;
 
       const payload = {
         title:        form.title.trim() || buildAutoTitle(form),
@@ -1943,10 +2000,8 @@ export default function AdminAddListingPage() {
                           value={form.price}
                           onChange={e => {
                             const price = e.target.value;
-                            setForm(f => {
-                              const sqm = pricePerSqmOf(price, f.area);
-                              return { ...f, price, pricePerSqm: sqm || f.pricePerSqm };
-                            });
+                            priceAnchorRef.current = 'total';
+                            setForm(f => applyPriceFields(f, { price }, 'total'));
                           }}
                           className={`${inputCls} pr-8`} placeholder="250000" />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">{form.currency}</span>
@@ -1972,11 +2027,18 @@ export default function AdminAddListingPage() {
                     <div>
                       <label className={labelCls}><Ruler size={13} /> კვ.მ ფასი</label>
                       <div className="relative">
-                        <input type="number" value={form.pricePerSqm} onChange={e => set('pricePerSqm', e.target.value)}
+                        <input
+                          type="number"
+                          value={form.pricePerSqm}
+                          onChange={e => {
+                            const pricePerSqm = e.target.value;
+                            priceAnchorRef.current = 'sqm';
+                            setForm(f => applyPriceFields(f, { pricePerSqm }, 'sqm'));
+                          }}
                           className={`${inputCls} pr-8`} placeholder="1800" />
                         <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-bold">{form.currency}</span>
                       </div>
-                      <p className="mt-1.5 text-[11px] text-slate-400">ითვლება ავტომატურად: სრული ფასი ÷ ფართი</p>
+                      <p className="mt-1.5 text-[11px] text-slate-400">მ²-ის ფასი × ფართი = სრული ფასი, ან პირიქით</p>
                     </div>
                   </div>
                 </div>
@@ -1997,10 +2059,7 @@ export default function AdminAddListingPage() {
                               value={form.area}
                               onChange={e => {
                                 const area = e.target.value;
-                                setForm(f => {
-                                  const sqm = pricePerSqmOf(f.price, area);
-                                  return { ...f, area, pricePerSqm: sqm || f.pricePerSqm };
-                                });
+                                setForm(f => applyPriceFields(f, { area }, priceAnchorRef.current));
                               }}
                               className={`${inputCls} pr-10`} placeholder="85" />
                             <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">მ²</span>
@@ -2182,12 +2241,7 @@ export default function AdminAddListingPage() {
                           <label className={labelCls}>რაიონი</label>
                           <DistrictCombobox
                             value={form.district}
-                            options={[
-                              ...(findCityArea(form.city)?.districts ?? []).map(d => ({ value: d.ka, label: d.ka })),
-                              ...(form.district && !findCityArea(form.city)?.districts.some(d => d.ka === form.district)
-                                ? [{ value: form.district, label: form.district }]
-                                : []),
-                            ]}
+                            options={districtFormChoices(form.city, form.district)}
                             onChange={value => set('district', value)}
                             placeholder="აირჩიეთ ან ჩაწერეთ"
                           />
@@ -2352,22 +2406,38 @@ export default function AdminAddListingPage() {
                 </div>
 
                 <div className="pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center gap-2 mb-1">
                     <Star size={16} className="text-amber-500" />
                     <h3 className="font-bold text-slate-800 text-sm">ბეჯები</h3>
                   </div>
+                  <p className="text-[11px] text-slate-400 mb-3">
+                    ვერიფიცირებული ბეჯი ჩანს საიტზეც — მომხმარებელი ხედავს, რომ განცხადება შემოწმებულია.
+                  </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {BADGE_OPTIONS.map(b => {
                       const on = form.badges.includes(b.id);
+                      const verified = b.id === VERIFIED_LISTING_BADGE;
                       return (
                         <button key={b.id} type="button" onClick={() => toggleArr('badges', b.id)}
-                          className={`flex items-center gap-2 p-3 rounded-xl border-2 text-xs font-bold transition-all ${
-                            on ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
-                               : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                          className={`flex items-center gap-2 p-3 rounded-xl border-2 text-xs font-bold transition-all text-left ${
+                            verified ? 'sm:col-span-2' : ''
+                          } ${
+                            on
+                              ? verified
+                                ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                                : 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                              : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                           }`}
                         >
-                          <b.icon size={14} />
-                          {b.label}
+                          <b.icon size={14} className="flex-shrink-0" />
+                          <span>
+                            <span className="block">{b.label}</span>
+                            {'hint' in b && b.hint && (
+                              <span className={`block text-[10px] font-semibold ${on ? 'text-emerald-50' : 'text-emerald-600'}`}>
+                                {b.hint}
+                              </span>
+                            )}
+                          </span>
                         </button>
                       );
                     })}
@@ -2668,6 +2738,11 @@ export default function AdminAddListingPage() {
                         {DEAL_TYPES.find(d => d.id === deal)?.label ?? deal}
                       </span>
                     ))}
+                    {form.badges.includes(VERIFIED_LISTING_BADGE) && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-bold text-emerald-700">
+                        <ShieldCheck size={11} /> ვერიფიცირებული
+                      </span>
+                    )}
                     {form.isPremium  && <Crown  size={13} className="text-amber-500" />}
                     {form.isFeatured && <Star   size={13} className="text-blue-600"  />}
                     {form.isNew      && <Zap    size={13} className="text-emerald-500" />}

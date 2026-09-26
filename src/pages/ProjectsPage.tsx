@@ -1,6 +1,6 @@
 import { HardHat } from 'lucide-react';
-import { constructionProjects } from '../data/mockData';
 import { useTranslation } from '../i18n/LocaleContext';
+import { useProjects } from '../hooks/usePublicData';
 import ConstructionProjectCard from '../components/ConstructionProjectCard';
 
 function SectionTitle({ title, linkLabel }: { title: string; linkLabel?: string }) {
@@ -19,17 +19,31 @@ function SectionTitle({ title, linkLabel }: { title: string; linkLabel?: string 
 
 export default function ProjectsPage() {
   const { t } = useTranslation();
+  const { data: projects, loading } = useProjects();
 
   return (
     <div className="min-h-screen page-under-header bg-white">
       <div className="container-xl py-8 sm:py-10">
-        <SectionTitle title={t('home.sections.projects')} linkLabel={`${constructionProjects.length} ${t('home.projectDetail.allProjects').toLowerCase()}`} />
+        <SectionTitle
+          title={t('home.sections.projects')}
+          linkLabel={loading ? '…' : `${projects.length} ${t('home.projectDetail.allProjects').toLowerCase()}`}
+        />
         <p className="text-[14px] mb-6 -mt-2" style={{ color: '#6b7280' }}>{t('home.sections.projectsSubtitle')}</p>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-          {constructionProjects.map(project => (
-            <ConstructionProjectCard key={project.id} project={project} />
-          ))}
-        </div>
+        {loading ? (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            {[0, 1, 2, 3].map(i => (
+              <div key={i} className="h-[240px] rounded-xl bg-slate-100 animate-pulse" />
+            ))}
+          </div>
+        ) : projects.length === 0 ? (
+          <p className="text-sm py-16 text-center" style={{ color: '#9ea0a7' }}>{t('home.projectDetail.notFound')}</p>
+        ) : (
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+            {projects.map(project => (
+              <ConstructionProjectCard key={project.id} project={project} />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

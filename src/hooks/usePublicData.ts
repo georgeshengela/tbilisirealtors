@@ -4,10 +4,13 @@ import {
   fetchAgents,
   fetchBlogPostById,
   fetchBlogPosts,
+  fetchProjectBySlug,
+  fetchProjects,
   fetchProperties,
   fetchPropertyById,
   fetchTeam,
 } from '../lib/publicApi';
+import type { ConstructionProject } from '../lib/projects';
 import type { Agent, BlogPost, Property, TeamMember } from '../types/listing';
 
 type AsyncState<T> = {
@@ -233,6 +236,70 @@ export function useBlogPost(id: string | undefined): AsyncState<BlogPost | null>
       });
     return () => { cancelled = true; };
   }, [id]);
+
+  return { data, loading, error };
+}
+
+export function useProjects(): AsyncState<ConstructionProject[]> {
+  const [data, setData] = useState<ConstructionProject[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchProjects()
+      .then(result => {
+        if (!cancelled) {
+          setData(result);
+          setError(null);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setData([]);
+          setError(err instanceof Error ? err.message : 'Failed to load data');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  return { data, loading, error };
+}
+
+export function useProject(slug: string | undefined): AsyncState<ConstructionProject | null> {
+  const [data, setData] = useState<ConstructionProject | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!slug) {
+      setData(null);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    fetchProjectBySlug(slug)
+      .then(result => {
+        if (!cancelled) {
+          setData(result);
+          setError(result ? null : 'Not found');
+        }
+      })
+      .catch(err => {
+        if (!cancelled) {
+          setData(null);
+          setError(err instanceof Error ? err.message : 'Failed to load data');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [slug]);
 
   return { data, loading, error };
 }

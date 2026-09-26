@@ -14,7 +14,7 @@ import {
 } from 'lucide-react';
 import { useAccountRequest, useUserAuth } from '../contexts/UserAuthContext';
 import { useFileUpload } from '../hooks/useFileUpload';
-import { CITY_AREAS, districtLabel } from '../data/districts';
+import { CITY_AREAS, chunkDistrictOptions, districtOptions } from '../data/districts';
 import { useTranslation } from '../i18n/LocaleContext';
 
 const PROPERTY_TYPES = ['apartment', 'house', 'commercial', 'land', 'villa'] as const;
@@ -325,10 +325,16 @@ export default function SubmitListingPage() {
                 <span className={labelCls}>{t('submit.district')}</span>
                 <select value={form.district} onChange={e => set('district', e.target.value)} className={inputCls}>
                   <option value="">{t('submit.pickDistrict')}</option>
-                  {city.districts.map(district => (
-                    <option key={district.ka} value={district.ka}>
-                      {districtLabel(district, locale)}
-                    </option>
+                  {chunkDistrictOptions(districtOptions(city, [], locale)).map(chunk => chunk.group ? (
+                    <optgroup key={chunk.key} label={chunk.group}>
+                      {chunk.options.map(district => (
+                        <option key={district.value} value={district.value}>{district.label}</option>
+                      ))}
+                    </optgroup>
+                  ) : (
+                    chunk.options.map(district => (
+                      <option key={district.value} value={district.value}>{district.label}</option>
+                    ))
                   ))}
                 </select>
               </label>

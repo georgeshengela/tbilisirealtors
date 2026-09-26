@@ -73,7 +73,7 @@ function memberListingValues(data: MemberListingInput) {
     yearBuilt: Number.isFinite(Number(data.yearBuilt)) ? Number(data.yearBuilt) : null,
     images: stringList(data.images, 30),
     amenities: stringList(data.amenities, 40),
-    features: stringList(data.features, 40),
+    features: stringList(data.features, 40).filter(item => item !== 'verified'),
     coordinates,
   };
 }
@@ -351,6 +351,9 @@ router.put('/my-listings/:id', async (req: AuthRequest, res: Response): Promise<
     }
 
     const { price, ...values } = memberListingValues({ ...existing, ...req.body });
+    if (Array.isArray(existing.features) && existing.features.includes('verified')) {
+      values.features = [...values.features, 'verified'];
+    }
     if (!values.title || !price) {
       res.status(400).json({ error: 'სათაური და ფასი სავალდებულოა' });
       return;

@@ -5,6 +5,8 @@ import type { Property } from '../types/listing';
 import { formatListedDate } from '../lib/dateFormat';
 import { useLocale, useTranslation } from '../i18n/LocaleContext';
 import { propertyHref } from '../lib/seoPropertyUrl';
+import { listingIsVerified } from '../lib/listingBadges';
+import VerifiedListingBadge from './VerifiedListingBadge';
 
 interface ListingMapRowProps {
   property: Property;
@@ -46,6 +48,7 @@ export default function ListingMapRow({
           <span className="listing-map-row__scrim" aria-hidden="true" />
 
           <div className="listing-map-row__badges">
+            {listingIsVerified(property) && <VerifiedListingBadge />}
             {property.isPremium && (
               <span className="listing-map-row__badge listing-map-row__badge--vip">
                 <Sparkles size={9} fill="currentColor" /> VIP

@@ -617,6 +617,107 @@ async function migrate() {
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS land_area NUMERIC`;
     await client`ALTER TABLE orders ADD COLUMN IF NOT EXISTS requested_listing_ids JSONB NOT NULL DEFAULT '[]'::jsonb`;
     await client`ALTER TABLE orders ADD COLUMN IF NOT EXISTS offered_listing_ids JSONB NOT NULL DEFAULT '[]'::jsonb`;
+
+    await client`
+      CREATE TABLE IF NOT EXISTS construction_projects (
+        id VARCHAR(50) PRIMARY KEY,
+        slug VARCHAR(180) NOT NULL,
+        name VARCHAR(255) NOT NULL,
+        address VARCHAR(500),
+        city VARCHAR(255) NOT NULL,
+        district VARCHAR(255),
+        developer VARCHAR(255) NOT NULL,
+        management_company VARCHAR(255),
+        phone VARCHAR(50),
+        units INTEGER NOT NULL DEFAULT 0,
+        price_from NUMERIC NOT NULL DEFAULT 0,
+        price_to NUMERIC NOT NULL DEFAULT 0,
+        price_per_sqm_from NUMERIC NOT NULL DEFAULT 0,
+        price_per_sqm_to NUMERIC NOT NULL DEFAULT 0,
+        area_from NUMERIC NOT NULL DEFAULT 0,
+        area_to NUMERIC NOT NULL DEFAULT 0,
+        completion VARCHAR(80),
+        delivery_date VARCHAR(40),
+        status VARCHAR(20) NOT NULL DEFAULT 'building',
+        image VARCHAR(800),
+        images JSONB NOT NULL DEFAULT '[]'::jsonb,
+        floors INTEGER NOT NULL DEFAULT 1,
+        buildings INTEGER NOT NULL DEFAULT 1,
+        parking INTEGER NOT NULL DEFAULT 0,
+        bedroom_options JSONB NOT NULL DEFAULT '[]'::jsonb,
+        green_area INTEGER NOT NULL DEFAULT 0,
+        delivery_condition VARCHAR(120),
+        construction_progress INTEGER NOT NULL DEFAULT 0,
+        construction_note VARCHAR(500),
+        description TEXT,
+        payment_options JSONB NOT NULL DEFAULT '[]'::jsonb,
+        territory_amenities JSONB NOT NULL DEFAULT '[]'::jsonb,
+        post_delivery_services JSONB NOT NULL DEFAULT '[]'::jsonb,
+        security_features JSONB NOT NULL DEFAULT '[]'::jsonb,
+        coordinates JSONB,
+        project_units JSONB NOT NULL DEFAULT '[]'::jsonb,
+        published BOOLEAN NOT NULL DEFAULT true,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      )
+    `;
+    await client`CREATE UNIQUE INDEX IF NOT EXISTS construction_projects_slug_idx ON construction_projects (slug)`;
+    await client`CREATE INDEX IF NOT EXISTS construction_projects_status_idx ON construction_projects (published, sort_order, created_at DESC)`;
+
+    const PROJECT_KEYS = ['projects.view', 'projects.create', 'projects.edit', 'projects.delete'];
+    const NEW_PROJECT_PERMISSIONS: Record<string, string[]> = {
+      super_admin: PROJECT_KEYS,
+      admin: PROJECT_KEYS,
+      manager: PROJECT_KEYS,
+      broker: ['projects.view', 'projects.create', 'projects.edit'],
+    };
+    for (const [role, keys] of Object.entries(NEW_PROJECT_PERMISSIONS)) {
+      for (const key of keys) {
+        const patch = JSON.stringify([key]);
+        await client`
+          UPDATE role_permissions
+          SET permissions = permissions || ${patch}::jsonb,
+              updated_at = NOW()
+          WHERE role = ${role}
+            AND NOT permissions @> ${patch}::jsonb
+        `;
+      }
+    }
+
+    const [{ n: projectCount }] = await client`SELECT count(*)::int AS n FROM construction_projects`;
+    if (!projectCount) {
+      const { constructionProjects: seedProjects } = await import('../src/data/mockData.ts');
+      let order = 0;
+      for (const project of seedProjects) {
+        await client`
+          INSERT INTO construction_projects (
+            id, slug, name, address, city, district, developer, management_company, phone,
+            units, price_from, price_to, price_per_sqm_from, price_per_sqm_to, area_from, area_to,
+            completion, delivery_date, status, image, images, floors, buildings, parking,
+            bedroom_options, green_area, delivery_condition, construction_progress, construction_note,
+            description, payment_options, territory_amenities, post_delivery_services, security_features,
+            coordinates, project_units, published, sort_order
+          ) VALUES (
+            ${project.id}, ${project.slug}, ${project.name}, ${project.address}, ${project.city},
+            ${project.district}, ${project.developer}, ${project.managementCompany || null}, ${project.phone},
+            ${project.units}, ${project.priceFrom}, ${project.priceTo}, ${project.pricePerSqmFrom},
+            ${project.pricePerSqmTo}, ${project.areaFrom}, ${project.areaTo}, ${project.completion},
+            ${project.deliveryDate}, ${project.status}, ${project.image}, ${JSON.stringify(project.images)}::jsonb,
+            ${project.floors}, ${project.buildings}, ${project.parking},
+            ${JSON.stringify(project.bedroomOptions)}::jsonb, ${project.greenArea}, ${project.deliveryCondition},
+            ${project.constructionProgress}, ${project.constructionNote}, ${project.description},
+            ${JSON.stringify(project.paymentOptions)}::jsonb, ${JSON.stringify(project.territoryAmenities)}::jsonb,
+            ${JSON.stringify(project.postDeliveryServices)}::jsonb, ${JSON.stringify(project.securityFeatures)}::jsonb,
+            ${JSON.stringify(project.coordinates)}::jsonb, ${JSON.stringify(project.projectUnits)}::jsonb,
+            true, ${order}
+          )
+          ON CONFLICT (id) DO NOTHING
+        `;
+        order += 1;
+      }
+      console.log(`✅ Seeded ${seedProjects.length} construction projects`);
+    }
     await client`
       UPDATE properties
       SET refreshed_at = COALESCE(listed_date, created_at::date, CURRENT_DATE)

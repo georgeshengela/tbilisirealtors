@@ -80,6 +80,11 @@ export const PERMISSIONS: PermissionDef[] = [
   { key: 'orders.status', group: 'orders', label: 'შეკვეთის სტატუსის შეცვლა' },
   { key: 'orders.delete', group: 'orders', label: 'შეკვეთის წაშლა' },
 
+  { key: 'projects.view', group: 'projects', label: 'პროექტების ნახვა' },
+  { key: 'projects.create', group: 'projects', label: 'პროექტის დამატება' },
+  { key: 'projects.edit', group: 'projects', label: 'პროექტის რედაქტირება' },
+  { key: 'projects.delete', group: 'projects', label: 'პროექტის წაშლა' },
+
   // Agents
   { key: 'agents.view', group: 'agents', label: 'ბროკერების ნახვა' },
   { key: 'agents.create', group: 'agents', label: 'ბროკერის დამატება' },
@@ -145,6 +150,7 @@ const MANAGER_PERMISSIONS = [
   'blog.view', 'blog.create', 'blog.edit', 'blog.delete', 'blog.publish',
   'members.view',
   'orders.view', 'orders.create', 'orders.edit', 'orders.status', 'orders.delete',
+  'projects.view', 'projects.create', 'projects.edit', 'projects.delete',
   'settings.view', 'dashboard.view', 'analytics.full', 'analytics.imports',
   'uploads.images', 'uploads.documents',
 ];
@@ -156,6 +162,7 @@ const BROKER_PERMISSIONS = [
   // Brokers work the leads handed to them, and need the phone number to do it.
   'leads.view', 'leads.manage', 'leads.contact',
   'orders.view', 'orders.create', 'orders.edit',
+  'projects.view', 'projects.create', 'projects.edit',
   'dashboard.view',
   'uploads.images', 'uploads.documents',
 ];

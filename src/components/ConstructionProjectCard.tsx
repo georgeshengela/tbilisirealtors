@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
-import type { ConstructionProject } from '../data/mockData';
+import type { ConstructionProject } from '../types/project';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from '../i18n/LocaleContext';
 import { projectStatusLabels } from '../i18n/labels';
@@ -25,11 +25,15 @@ export default function ConstructionProjectCard({ project }: { project: Construc
       onMouseLeave={e => { (e.currentTarget as HTMLElement).style.borderColor = '#e8eaed'; }}
     >
       <div className="relative h-[168px] sm:h-[180px]">
-        <img
-          src={project.image}
-          alt={project.name}
-          className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-        />
+        {project.image ? (
+          <img
+            src={project.image}
+            alt={project.name}
+            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+          />
+        ) : (
+          <div className="absolute inset-0" style={{ background: '#1e293b' }} />
+        )}
         <div
           className="absolute inset-0"
           style={{ background: 'linear-gradient(to top, rgba(8,11,18,0.92) 0%, rgba(8,11,18,0.35) 55%, rgba(8,11,18,0.08) 100%)' }}

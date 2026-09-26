@@ -1,4 +1,5 @@
 import { mapAgentFromApi, mapBlogFromApi, mapPropertyFromApi } from './mapFromApi';
+import { mapProjectFromApi, type ConstructionProject } from './projects';
 import type { Agent, ApiAgentRow, ApiBlogRow, ApiPropertyRow, BlogPost, Property, TeamMember } from '../types/listing';
 
 type ListResponse<T> = { data: T[]; total: number };
@@ -11,6 +12,8 @@ let teamCache: TeamMember[] | null = null;
 let teamPromise: Promise<TeamMember[]> | null = null;
 let blogCache: BlogPost[] | null = null;
 let blogPromise: Promise<BlogPost[]> | null = null;
+let projectsCache: ConstructionProject[] | null = null;
+let projectsPromise: Promise<ConstructionProject[]> | null = null;
 
 async function parseJson<T>(res: Response): Promise<T> {
   if (!res.ok) {
@@ -29,6 +32,8 @@ export function invalidatePublicCache() {
   teamPromise = null;
   blogCache = null;
   blogPromise = null;
+  projectsCache = null;
+  projectsPromise = null;
 }
 
 export async function fetchProperties(force = false): Promise<Property[]> {
@@ -190,4 +195,44 @@ export async function fetchBlogPostById(id: string): Promise<BlogPost | null> {
 
 export async function fetchPublicCounts(): Promise<{ properties: number; agents: number; blog: number }> {
   return fetch('/api/stats/counts').then(res => parseJson<{ properties: number; agents: number; blog: number }>(res));
+}
+
+export async function fetchProjects(force = false): Promise<ConstructionProject[]> {
+  if (force) {
+    projectsCache = null;
+    projectsPromise = null;
+  }
+  if (projectsCache) return projectsCache;
+  if (!projectsPromise) {
+    projectsPromise = fetch('/api/projects')
+      .then(res => parseJson<{ data: Record<string, unknown>[] }>(res))
+      .then(json => {
+        projectsCache = (json.data ?? []).map(row => mapProjectFromApi(row));
+        return projectsCache;
+      })
+      .catch(err => {
+        projectsPromise = null;
+        throw err;
+      });
+  }
+  return projectsPromise;
+}
+
+export async function fetchProjectBySlug(slug: string): Promise<ConstructionProject | null> {
+  // List cache strips projectUnits. Always hit the detail endpoint so the
+  // floor plan is complete even after the visitor came from / or /projects.
+  try {
+    const row = await fetch(`/api/projects/${encodeURIComponent(slug)}`)
+      .then(res => parseJson<Record<string, unknown>>(res));
+    const mapped = mapProjectFromApi(row);
+    if (projectsCache) {
+      const idx = projectsCache.findIndex(p => p.slug === slug);
+      const listRow = { ...mapped, projectUnits: [] };
+      if (idx >= 0) projectsCache[idx] = listRow;
+      else projectsCache.push(listRow);
+    }
+    return mapped;
+  } catch {
+    return null;
+  }
 }
