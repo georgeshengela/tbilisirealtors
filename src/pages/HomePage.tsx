@@ -6,7 +6,7 @@ import {
   Sparkles, Bed, Bath,
   Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent,
 } from 'lucide-react';
-import { constructionProjects, faqItems } from '../data/mockData';
+import { constructionProjects } from '../data/mockData';
 import type { Property, BlogPost } from '../types/listing';
 import { useProperties, useBlogPosts } from '../hooks/usePublicData';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -624,13 +624,15 @@ function ListingSlider({
   );
 }
 
+const FAQ_IDS = ['1', '2', '3', '4', '5', '6'] as const;
+
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
   const { t } = useTranslation();
   const { data: properties } = useProperties();
   const { data: blogPosts } = useBlogPosts();
-  const [openFaq, setOpenFaq] = useState<string | null>(faqItems[0]?.id ?? null);
+  const [openFaq, setOpenFaq] = useState<string | null>(FAQ_IDS[0]);
   const featured = useMemo(() => properties.filter(p => p.isFeatured).slice(0, 12), [properties]);
   const newest = useMemo(() => properties.filter(p => p.isNew).slice(0, 12), [properties]);
   return (
@@ -790,10 +792,10 @@ export default function HomePage() {
             />
           </InViewFade>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            {faqItems.map((item, i) => {
-              const isOpen = openFaq === item.id;
+            {FAQ_IDS.map((id, i) => {
+              const isOpen = openFaq === id;
               return (
-                <InViewFade key={item.id} delay={i * 0.04}>
+                <InViewFade key={id} delay={i * 0.04}>
                   <div
                     className="rounded-2xl overflow-hidden h-full transition-colors duration-200"
                     style={{
@@ -803,14 +805,14 @@ export default function HomePage() {
                   >
                     <button
                       type="button"
-                      onClick={() => setOpenFaq(isOpen ? null : item.id)}
+                      onClick={() => setOpenFaq(isOpen ? null : id)}
                       className="w-full flex items-start justify-between gap-4 px-5 py-4 text-left"
                     >
                       <span
                         className="font-semibold text-sm leading-snug"
                         style={{ color: isOpen ? '#2563eb' : '#191c1e' }}
                       >
-                        {item.question}
+                        {t(`home.faq.q${id}`)}
                       </span>
                       <div
                         className="flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -844,7 +846,7 @@ export default function HomePage() {
                         >
                           <div className="px-5 pb-4 pt-0">
                             <p className="text-[13px] leading-relaxed" style={{ color: '#76777d' }}>
-                              {item.answer}
+                              {t(`home.faq.a${id}`)}
                             </p>
                           </div>
                         </motion.div>

@@ -1,4 +1,4 @@
-const MAPS_QUERY = 'ეროსი მანჯგალაძის 81, თბილისი, საქართველო';
+const MAPS_QUERY = 'კ. მარჯანიშვილის 4, თბილისი, საქართველო';
 
 export const CONTACT = {
   mobile: {
@@ -15,11 +15,11 @@ export const CONTACT = {
   },
   email: 'info@tbilisirealtor.ge',
   city: 'თბილისი',
-  street: 'ეროსი მანჯგალაძის 81',
+  street: 'კ. მარჯანიშვილის 4 / II სართული',
   /** Full single-line address (legacy) */
-  address: 'ეროსი მანჯგალაძის 81',
+  address: 'კ. მარჯანიშვილის 4 / II სართული',
   googleMapsUrl: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(MAPS_QUERY)}`,
-  coordinates: { lat: 41.7336823, lng: 44.7974868 },
+  coordinates: { lat: 41.708506, lng: 44.793953 },
   hoursShort: 'ორშ–პარ 10:00–18:00 · შაბ 11:00–15:00',
 } as const;
 

@@ -109,7 +109,7 @@ export default function OfficeMap({ height = 420, className = '' }: OfficeMapPro
           </div>
           <div className="min-w-0">
             <p className="text-xs font-bold uppercase tracking-wide text-blue-600">{t('footer.office')}</p>
-            <p className="text-sm font-semibold text-slate-900 mt-0.5 truncate">
+            <p className="text-sm font-semibold text-slate-900 mt-0.5 leading-snug">
               {CONTACT.street}
             </p>
             <p className="text-xs text-slate-500">{CONTACT.city}</p>

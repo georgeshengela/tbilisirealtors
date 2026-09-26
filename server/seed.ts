@@ -55,7 +55,7 @@ async function seed() {
       { key: 'site_email', value: 'info@tbilisirealtor.ge', label: 'კონტაქტის Email' },
       { key: 'site_phone', value: '+995 596 88 11 55', label: 'ტელეფონი' },
       { key: 'site_phone_2', value: '+995 323 33 33 77', label: 'ტელეფონი 2' },
-      { key: 'site_address', value: 'ქ. თბილისი, ეროსი მანჯგალაძის 81', label: 'მისამართი' },
+      { key: 'site_address', value: 'ქ. თბილისი, კ. მარჯანიშვილის 4 / II სართული', label: 'მისამართი' },
       { key: 'facebook_url', value: 'https://facebook.com/tbilisirealtor', label: 'Facebook' },
       { key: 'instagram_url', value: 'https://instagram.com/tbilisirealtor', label: 'Instagram' },
       { key: 'properties_per_page', value: '12', label: 'განცხადება გვერდზე' },

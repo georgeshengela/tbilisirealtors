@@ -86,7 +86,7 @@ export const en = {
     },
     contact: {
       title: 'Contact | TBILISIREALTOR.GE',
-      description: 'Contact us: 81 Erosi Manjgaladze St, Tbilisi. Tel. +995 323 33 33 77.',
+      description: 'Contact us: 4 K. Marjanishvili St, 2nd floor, Tbilisi. Tel. +995 323 33 33 77.',
     },
     services: {
       title: 'Services | TBILISIREALTOR.GE',
@@ -379,6 +379,20 @@ export const en = {
       blog: 'Blog',
       blogAll: 'All articles',
       faq: 'Frequently asked questions',
+    },
+    faq: {
+      q1: 'How do I add a listing?',
+      a1: 'Create an account, choose Add listing, upload photos, and fill in the description and price. The listing is reviewed first and only then appears on the site.',
+      q2: 'What does SUPER VIP mean?',
+      a2: 'A SUPER VIP listing appears in the site’s priority zone and gets more visibility.',
+      q3: 'Is it free to use the site?',
+      a3: 'Yes. Viewing listings, filtering them, and contacting an agent is free for buyers.',
+      q4: 'How are listings checked?',
+      a4: 'Our team checks the photos, address, and cadastral information. Reviewed listings carry a special mark.',
+      q5: 'What commission is charged on a deal?',
+      a5: 'Commission depends on the type of transaction and the service. We will give you the exact terms during a consultation.',
+      q6: 'Can I get mortgage advice?',
+      a6: 'Yes. Together with our banking partners, we help you compare terms and prepare the paperwork.',
     },
     ads: {
       sponsored: 'Sponsored',
