@@ -287,7 +287,7 @@ export function districtLabel(district: DistrictArea | DistrictGroup, locale: st
 /** Neighbourhoods under each parent, in dictionary order. Cities without groups yield one flat section. */
 export function districtSections(city: CityArea): { group: DistrictGroup | null; districts: DistrictArea[] }[] {
   if (!city.groups?.length) return [{ group: null, districts: city.districts }];
-  const sections = city.groups.map(group => ({
+  const sections: { group: DistrictGroup | null; districts: DistrictArea[] }[] = city.groups.map(group => ({
     group,
     districts: city.districts.filter(district => district.group === group.ka),
   }));
