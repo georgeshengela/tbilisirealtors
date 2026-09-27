@@ -1,62 +1,50 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
-import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import type L from 'leaflet';
-import { AnimatePresence, motion } from 'framer-motion';
-import {
-  Search, SlidersHorizontal, X, ArrowUpDown, Map, List, Building2, MapPin, ChevronDown, Hash,
-} from 'lucide-react';
+import { ChevronLeft, ChevronRight, List, Map as MapIcon, MapPin, SearchX, X } from 'lucide-react';
 import ListingMapRow from '../components/ListingMapRow';
 import ListingsMap from '../components/ListingsMap';
+import ListingsFilterBar, { SortMenu } from '../components/listings/ListingsFilterBar';
 import { useLocale, useTranslation } from '../i18n/LocaleContext';
-import { useCurrency, readStoredCurrency, FALLBACK_USD_RATE } from '../contexts/CurrencyContext';
+import { useCurrency } from '../contexts/CurrencyContext';
 import { useProperties } from '../hooks/usePublicData';
 import { fetchAreaBoundary, type AreaBoundary, type Ring } from '../lib/geoApi';
 import { pointInRing, pointInRings, ringsBbox } from '../lib/geoMath';
-import { isExactListingId, listingIdMatches } from '../lib/listingId';
+import { isExactListingId } from '../lib/listingId';
 import {
-  CITY_AREAS,
-  areaSelectionLabel,
-  chunkDistrictOptions,
-  districtOptions,
-  findCityArea,
-  findDistrictArea,
-  findDistrictGroup,
-  listingMatchesDistrict,
-} from '../data/districts';
+  districtsMatch, hasKnownLocation, orderedRange, roomsMatch, searchPrice, statusMatches, textQueryMatches,
+} from '../lib/listingSearch';
+import {
+  EMPTY_FILTERS, activeFilterCount, filtersFromLocation, filtersToHref, type ListingFilters,
+} from '../lib/listingFilters';
+import { buildLocationCounts } from '../lib/locationCounts';
+import { areaSelectionLabel, findCityArea, findDistrictArea } from '../data/districts';
 import type { Property } from '../types/listing';
 import { listingMoneyFrom } from '../lib/moneyEntry';
-import { listingsHref, parseListingsLocation } from '../lib/seoListingsUrl';
 import { propertyHref } from '../lib/seoPropertyUrl';
+import { roomsSummary, useDealOptions, usePriceSummary, useTypeOptions } from '../components/search/searchHelpers';
 
 const PAGE_SIZE = 24;
+const MAP_PREF_KEY = 'listings_map_visible';
 
-function listingFiltersFromLocation(pathname: string, search: string) {
-  const parsed = parseListingsLocation(pathname, search);
-  const city = findCityArea(parsed.city);
-  const district = findDistrictArea(city, parsed.district) ?? findDistrictGroup(city, parsed.district);
-  const storedCurrency = readStoredCurrency();
-  const usdRate = FALLBACK_USD_RATE;
-  const priceFromUrl = (param: string | undefined) => {
-    if (!param) return '';
-    const gel = parseFloat(param);
-    if (!gel) return '';
-    if (storedCurrency === 'USD') return String(Math.round(gel / usdRate));
-    return param;
-  };
+function readMapPref(): boolean {
+  try {
+    return localStorage.getItem(MAP_PREF_KEY) !== '0';
+  } catch {
+    return true;
+  }
+}
 
-  return {
-    status: parsed.status || '',
-    city: city?.ka ?? parsed.city ?? '',
-    district: district?.ka ?? parsed.district ?? '',
-    type: parsed.type || '',
-    bedrooms: parsed.bedrooms || '',
-    priceMin: priceFromUrl(parsed.priceMin),
-    priceMax: priceFromUrl(parsed.priceMax),
-    areaMin: parsed.areaMin || '',
-    isPremium: Boolean(parsed.isPremium),
-    isNew: Boolean(parsed.isNew),
-    q: parsed.q || '',
-  };
+function useIsWide() {
+  const query = '(min-width: 1024px)';
+  const [wide, setWide] = useState(() => window.matchMedia(query).matches);
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const on = () => setWide(mq.matches);
+    mq.addEventListener('change', on);
+    return () => mq.removeEventListener('change', on);
+  }, []);
+  return wide;
 }
 
 export default function ListingsPage() {
@@ -64,12 +52,15 @@ export default function ListingsPage() {
   const { locale } = useLocale();
   const navigate = useNavigate();
   const location = useLocation();
-  const { currencySymbol, formatMoney, displayToGel, listingToGel } = useCurrency();
-  const [searchParams] = useSearchParams();
+  const { currency, formatMoney, displayToGel, listingToGel } = useCurrency();
+  const wide = useIsWide();
+  const deals = useDealOptions();
+  const types = useTypeOptions();
 
-  const [showFilters, setShowFilters] = useState(false);
+  const [filters, setFilters] = useState<ListingFilters>(() => filtersFromLocation(location.pathname, location.search).filters);
+  const [search, setSearch] = useState(() => filtersFromLocation(location.pathname, location.search).q);
   const [sort, setSort] = useState('newest');
-  const [search, setSearch] = useState(() => listingFiltersFromLocation(location.pathname, location.search).q);
+  const [mapVisible, setMapVisible] = useState(readMapPref);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [mobilePanel, setMobilePanel] = useState<'list' | 'map'>('list');
   const [page, setPage] = useState(1);
@@ -82,146 +73,116 @@ export default function ListingsPage() {
   const [drawSeq, setDrawSeq] = useState(0);
 
   const listScrollRef = useRef<HTMLDivElement>(null);
-
   const { data: properties, loading } = useProperties();
 
-  const [filters, setFilters] = useState(() => listingFiltersFromLocation(location.pathname, location.search));
+  /* ── URL ⇄ state ─────────────────────────────────────────────────────── */
+
+  /**
+   * Set while filters are being reloaded from a new URL. The URL-writing effect
+   * below runs in the same pass with the previous filters and would otherwise
+   * put the old address straight back.
+   */
+  const loadingFromUrl = useRef(false);
 
   useEffect(() => {
-    const next = listingFiltersFromLocation(location.pathname, location.search);
-    setFilters(next);
+    const next = filtersFromLocation(location.pathname, location.search);
+    loadingFromUrl.current = true;
+    setFilters(next.filters);
     setSearch(next.q);
   }, [location.pathname, location.search]);
 
   useEffect(() => {
-    const next = listingsHref({
-      status: filters.status || undefined,
-      type: filters.type || undefined,
-      bedrooms: filters.bedrooms || undefined,
-      city: filters.city || undefined,
-      district: filters.district || undefined,
-      q: search || undefined,
-      isNew: filters.isNew || undefined,
-      isPremium: filters.isPremium || undefined,
-      vip: searchParams.get('vip') === 'true' || undefined,
-      priceMin: searchParams.get('priceMin') || undefined,
-      priceMax: searchParams.get('priceMax') || undefined,
-      areaMin: searchParams.get('areaMin') || undefined,
-      areaMax: searchParams.get('areaMax') || undefined,
-    });
-    const current = `${location.pathname}${location.search}`;
-    if (current === next) return;
+    if (loadingFromUrl.current) {
+      loadingFromUrl.current = false;
+      return;
+    }
+    const next = filtersToHref(filters, search, currency);
+    if (`${location.pathname}${location.search}` === next) return;
     navigate(`${next}${location.hash}`, { replace: true });
-  }, [filters, search, navigate, location.hash, location.pathname, location.search, searchParams]);
+  }, [filters, search, currency, navigate, location.hash, location.pathname, location.search]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(MAP_PREF_KEY, mapVisible ? '1' : '0');
+    } catch {
+      // Remembering the preference is a convenience only.
+    }
+  }, [mapVisible]);
+
+  /* ── Matching ────────────────────────────────────────────────────────── */
 
   const cityArea = useMemo(() => findCityArea(filters.city), [filters.city]);
-  const districtArea = useMemo(() => findDistrictArea(cityArea, filters.district), [cityArea, filters.district]);
-
-  /** Curated districts for the city, plus anything extra the listings mention. */
-  const districtList = useMemo(
-    () =>
-      districtOptions(
-        cityArea,
-        properties.filter(p => p.city === filters.city).map(p => p.district).filter(Boolean),
-        locale,
-      ),
-    [cityArea, properties, filters.city, locale],
-  );
-
-  const SORT_OPTIONS = useMemo(() => [
-    { label: t('listings.sort.newest'), value: 'newest' },
-    { label: t('listings.sort.priceDesc'), value: 'price-desc' },
-    { label: t('listings.sort.priceAsc'), value: 'price-asc' },
-    { label: t('listings.sort.areaDesc'), value: 'area-desc' },
-    { label: t('listings.sort.popular'), value: 'popular' },
-  ], [t]);
+  const singleDistrict = filters.districts.length === 1 ? filters.districts[0] : '';
+  const districtArea = useMemo(() => findDistrictArea(cityArea, singleDistrict), [cityArea, singleDistrict]);
 
   /** The district outline, but only once it is the one currently loaded. */
   const districtPolygon = districtArea?.osm && boundaryOsm === districtArea.osm ? boundary : null;
 
   /** A hand-drawn area behaves exactly like a selected district outline. */
   const customBoundary = useMemo<AreaBoundary | null>(
-    () =>
-      drawnArea
-        ? { name: t('listings.drawnArea'), rings: [drawnArea], bbox: ringsBbox([drawnArea]) }
-        : null,
+    () => (drawnArea ? { name: t('listings.drawnArea'), rings: [drawnArea], bbox: ringsBbox([drawnArea]) } : null),
     [drawnArea, t],
   );
-
   const activeBoundary = customBoundary ?? boundary;
 
   const matches = useCallback(
     (p: Property, includeGeo: boolean) => {
-      if (search) {
-        const q = search.trim().toLowerCase();
-        const idHit = listingIdMatches(p.id, search.trim());
-        const textHit = [p.title, p.city, p.district, p.address].some(v => v?.toLowerCase().includes(q));
-        if (!idHit && !textHit) return false;
-      }
+      if (search && !textQueryMatches(p, search)) return false;
       if (includeGeo && drawnArea) {
         // The drawn shape replaces the city/district geo filter entirely.
-        if (!pointInRing(drawnArea, p.coordinates.lat, p.coordinates.lng)) return false;
+        if (!hasKnownLocation(p) || !pointInRing(drawnArea, p.coordinates.lat, p.coordinates.lng)) return false;
       }
       if (includeGeo && !drawnArea && filters.city && p.city !== filters.city) return false;
-      if (includeGeo && !drawnArea && filters.district) {
-        // Where the real outline is known, geography decides — listing district
-        // labels are free text and often disagree with the coordinates.
-        if (districtPolygon) {
-          if (!pointInRings(districtPolygon.rings, p.coordinates.lat, p.coordinates.lng)) return false;
-        } else if (!listingMatchesDistrict(cityArea, filters.district, p.district)) {
-          return false;
+      if (includeGeo && !drawnArea && filters.districts.length) {
+        // The district label decides — OSM outlines are administrative districts,
+        // much wider than the neighbourhood people mean (admin "Vake" swallows
+        // half of Saburtalo). The outline only places listings whose label is
+        // missing or unrecognised, and only when their coordinates are real.
+        if (!districtsMatch(p, filters.city, filters.districts)) {
+          const unlabelled = !p.district || !findDistrictArea(cityArea, p.district);
+          const inside = unlabelled && Boolean(districtPolygon) && hasKnownLocation(p)
+            && pointInRings(districtPolygon!.rings, p.coordinates.lat, p.coordinates.lng);
+          if (!inside) return false;
         }
       }
-      /* "both" listings are offered for sale and for rent, so they match either filter. */
-      if (filters.status && p.status !== filters.status && p.status !== 'both') return false;
+      if (!statusMatches(p, filters.status)) return false;
       if (filters.type && p.type !== filters.type) return false;
-      const roomCount = p.rooms || p.bedrooms;
-      if (filters.bedrooms && roomCount < parseInt(filters.bedrooms)) return false;
-      const gelMin = filters.priceMin ? displayToGel(parseFloat(filters.priceMin)) : null;
-      const gelMax = filters.priceMax ? displayToGel(parseFloat(filters.priceMax)) : null;
-      const gelPrice = listingToGel(p.price, p.priceCurrency);
-      if (gelMin && gelPrice < gelMin) return false;
-      if (gelMax && gelPrice > gelMax) return false;
-      if (filters.areaMin && p.area < parseInt(filters.areaMin)) return false;
+      if (!roomsMatch(p, filters.rooms)) return false;
+      const [priceMin, priceMax] = orderedRange(filters.priceMin, filters.priceMax);
+      const gelPrice = listingToGel(searchPrice(p, filters.status), p.priceCurrency);
+      if (priceMin && gelPrice < displayToGel(Number(priceMin))) return false;
+      if (priceMax && gelPrice > displayToGel(Number(priceMax))) return false;
+      const [areaMin, areaMax] = orderedRange(filters.areaMin, filters.areaMax);
+      if (areaMin && p.area < Number(areaMin)) return false;
+      if (areaMax && p.area > Number(areaMax)) return false;
+      if (filters.vip && !p.isFeatured) return false;
       if (filters.isPremium && !p.isPremium) return false;
       if (filters.isNew && !p.isNew) return false;
       return true;
     },
-    [filters, search, cityArea, districtArea, districtPolygon, drawnArea, displayToGel, listingToGel],
+    [filters, search, cityArea, districtPolygon, drawnArea, displayToGel, listingToGel],
   );
 
   /** Everything matching the filter form — this is what the map draws. */
   const filtered = useMemo(() => {
     const r = properties.filter(p => matches(p, true));
     const q = search.trim();
+    const price = (p: Property) => listingToGel(searchPrice(p, filters.status), p.priceCurrency);
     switch (sort) {
-      case 'price-desc': r.sort((a, b) => listingToGel(b.price, b.priceCurrency) - listingToGel(a.price, a.priceCurrency)); break;
-      case 'price-asc': r.sort((a, b) => listingToGel(a.price, a.priceCurrency) - listingToGel(b.price, b.priceCurrency)); break;
+      case 'price-desc': r.sort((a, b) => price(b) - price(a)); break;
+      case 'price-asc': r.sort((a, b) => price(a) - price(b)); break;
       case 'area-desc': r.sort((a, b) => b.area - a.area); break;
       case 'popular': r.sort((a, b) => b.viewCount - a.viewCount); break;
       default: r.sort((a, b) => new Date(b.listedDate).getTime() - new Date(a.listedDate).getTime());
     }
     // Exact / prefix ID hits float to the top so a code search feels instant.
     if (q && /^\d+$/.test(q)) {
-      r.sort((a, b) => {
-        const score = (p: Property) => {
-          if (p.id === q) return 0;
-          if (p.id.startsWith(q)) return 1;
-          if (p.id.includes(q)) return 2;
-          return 3;
-        };
-        return score(a) - score(b);
-      });
+      const score = (p: Property) => (p.id === q ? 0 : p.id.startsWith(q) ? 1 : p.id.includes(q) ? 2 : 3);
+      r.sort((a, b) => score(a) - score(b));
     }
     return r;
-  }, [properties, matches, sort, search, listingToGel]);
+  }, [properties, matches, sort, search, listingToGel, filters.status]);
 
-  function tryOpenById() {
-    const q = search.trim();
-    if (!isExactListingId(q)) return;
-    const hit = properties.find(p => p.id === q);
-    if (hit) navigate(propertyHref(hit));
-  }
   /** Listings just outside the selected area, drawn faded for context. */
   const contextProperties = useMemo(() => {
     if (!activeBoundary) return [];
@@ -229,20 +190,38 @@ export default function ListingsPage() {
     return properties.filter(p => !inside.has(p.id) && matches(p, false));
   }, [activeBoundary, filtered, properties, matches]);
 
-  /** Narrowed to the current viewport when "search by moving the map" is on. */
+  const mapShown = wide ? mapVisible : mobilePanel === 'map';
+
+  /** Narrowed to the map viewport when "search by moving the map" is on and the map is on screen. */
+  const boundsActive = areaSearch && Boolean(mapBounds) && mapShown;
+  const placeFiltered = Boolean(filters.city || filters.districts.length);
   const visible = useMemo(() => {
-    if (!areaSearch || !mapBounds) return filtered;
-    return filtered.filter(p => mapBounds.contains([p.coordinates.lat, p.coordinates.lng]));
-  }, [filtered, areaSearch, mapBounds]);
+    if (!boundsActive || !mapBounds) return filtered;
+    return filtered.filter(p =>
+      // Without a real location a listing cannot be placed in the viewport; when the
+      // visitor already chose a city or district, its label is the better guide.
+      (!hasKnownLocation(p) && placeFiltered) || mapBounds.contains([p.coordinates.lat, p.coordinates.lng]));
+  }, [filtered, boundsActive, mapBounds, placeFiltered]);
+
+  /** The map only draws listings it can place honestly. */
+  const mapProperties = useMemo(() => filtered.filter(hasKnownLocation), [filtered]);
+  const mapContextProperties = useMemo(() => contextProperties.filter(hasKnownLocation), [contextProperties]);
 
   const totalPages = Math.max(1, Math.ceil(visible.length / PAGE_SIZE));
-  const pageItems = useMemo(
-    () => visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-    [visible, page],
-  );
+  const pageItems = useMemo(() => visible.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE), [visible, page]);
+
+  /* Counts for the filter popovers, scoped to the chosen deal. */
+  const dealScoped = useMemo(() => properties.filter(p => statusMatches(p, filters.status)), [properties, filters.status]);
+  const locationCounts = useMemo(() => buildLocationCounts(dealScoped), [dealScoped]);
+  const typeCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const p of dealScoped) m.set(p.type, (m.get(p.type) ?? 0) + 1);
+    return m;
+  }, [dealScoped]);
+
+  /* ── Map framing and paging ──────────────────────────────────────────── */
 
   const [refitNonce, setRefitNonce] = useState(0);
-
   const fitKey = useMemo(
     () => JSON.stringify({ ...filters, search, refitNonce, drawSeq }),
     [filters, search, refitNonce, drawSeq],
@@ -263,66 +242,72 @@ export default function ListingsPage() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
+  const goToPage = (n: number) => {
+    setPage(n);
+    listScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   /** Outline of the selected district, or of the city when the district has none. */
   useEffect(() => {
-    if (!filters.city) {
+    if (!filters.city || filters.districts.length > 1) {
       setBoundary(null);
       setBoundaryOsm(null);
       return;
     }
-
     const osm = districtArea?.osm ?? cityArea?.osm;
     let cancelled = false;
-
-    fetchAreaBoundary(
-      osm ? { osm } : { city: filters.city, district: filters.district || undefined },
-    ).then(result => {
+    fetchAreaBoundary(osm ? { osm } : { city: filters.city, district: singleDistrict || undefined }).then(result => {
       if (cancelled) return;
       setBoundary(result);
       setBoundaryOsm(result ? osm ?? null : null);
     });
-
     return () => { cancelled = true; };
-  }, [filters.city, filters.district, cityArea, districtArea]);
+  }, [filters.city, filters.districts.length, singleDistrict, cityArea, districtArea]);
 
-  const activeCount =
-    Object.values(filters).filter(v => v !== '' && v !== false).length + (drawnArea ? 1 : 0);
+  /* ── Mutations ───────────────────────────────────────────────────────── */
 
   const clearDrawnArea = useCallback(() => {
     setDrawnArea(null);
     setDrawSeq(n => n + 1);
   }, []);
 
-  const setF = (key: string, val: string | boolean) => {
+  const patch = useCallback((p: Partial<ListingFilters>) => {
     // Picking a city or district takes over from a drawn area, and vice versa.
-    if ((key === 'city' || key === 'district') && val) clearDrawnArea();
-    setFilters(f => ({ ...f, [key]: val, ...(key === 'city' ? { district: '' } : null) }));
-  };
+    if (p.city || p.districts?.length) clearDrawnArea();
+    setFilters(f => ({ ...f, ...p }));
+  }, [clearDrawnArea]);
 
   const handleDrawnAreaChange = useCallback((ring: Ring | null) => {
     setDrawnArea(ring);
     setDrawSeq(n => n + 1);
     if (!ring) return;
-    setFilters(f => (f.city || f.district ? { ...f, city: '', district: '' } : f));
+    setFilters(f => (f.city || f.districts.length ? { ...f, city: '', districts: [] } : f));
     // The drawn shape is the area now, so the viewport should not narrow it further.
     setAreaSearch(false);
   }, []);
 
-  const clear = () => {
+  const clearAll = () => {
     clearDrawnArea();
     setSearch('');
-    setFilters({
-      status: '', city: '', district: '', type: '', bedrooms: '',
-      priceMin: '', priceMax: '', areaMin: '', isPremium: false, isNew: false, q: '',
-    });
+    setFilters(f => ({ ...EMPTY_FILTERS, status: f.status }));
   };
+
+  function tryOpenById() {
+    const q = search.trim();
+    if (!isExactListingId(q)) return;
+    const hit = properties.find(p => p.id === q);
+    if (hit) navigate(propertyHref(hit));
+  }
+
+  /* ── Formatting ──────────────────────────────────────────────────────── */
 
   const formatPrice = useCallback(
     (property: Property) => {
       const from = listingMoneyFrom(property);
+      const perMonth = property.status === 'rent';
       const sale = formatMoney(property.price, {
         ...from,
-        perMonth: property.status === 'rent',
+        perMonth,
         compact: listingToGel(property.price, property.priceCurrency) >= 1_000_000,
       });
       /* Sale + rent listings show both figures side by side. */
@@ -336,252 +321,169 @@ export default function ListingsPage() {
 
   const formatPricePerSqm = useCallback(
     (property: Property) =>
-      formatMoney(Math.round(property.price / Math.max(property.area, 1)), {
-        ...listingMoneyFrom(property),
-        perSqm: true,
-      }),
+      formatMoney(Math.round(property.price / Math.max(property.area, 1)), { ...listingMoneyFrom(property), perSqm: true }),
     [formatMoney],
   );
 
-  const handleBoundsChange = useCallback((bounds: L.LatLngBounds) => {
-    setMapBounds(bounds);
-  }, []);
+  const formatPinPrice = useCallback(
+    (property: Property) =>
+      formatMoney(searchPrice(property, filters.status), { ...listingMoneyFrom(property), compact: true }),
+    [formatMoney, filters.status],
+  );
 
+  const handleBoundsChange = useCallback((bounds: L.LatLngBounds) => setMapBounds(bounds), []);
   const handleRowHover = useCallback((id: string | null) => setActiveId(id), []);
 
-  /* Prefer our own localised names over whatever Nominatim returns. */
-  const areaLabel = drawnArea
+  /* ── Header copy and chips ───────────────────────────────────────────── */
+
+  const dealLabel = deals.find(d => d.v === filters.status)?.l ?? '';
+  const typeLabel = types.find(o => o.v && o.v === filters.type)?.l ?? '';
+  const roomsLabel = filters.rooms.length ? t('listings.roomsChip', { n: roomsSummary(filters.rooms) }) : '';
+  const title = [dealLabel, typeLabel, roomsLabel].filter(Boolean).join(' · ') || t('listings.bar.allListings');
+
+  const placeLabel = drawnArea
     ? t('listings.drawnArea')
     : [
-        areaSelectionLabel(cityArea, filters.district, locale),
+        filters.districts.map(d => areaSelectionLabel(cityArea, d, locale)).join(', '),
         cityArea ? t(cityArea.labelKey) : filters.city,
-      ]
-        .filter(Boolean)
-        .join(', ')
-      || boundary?.name
-      || t('listings.allGeorgia');
+      ].filter(Boolean).join(' · ') || t('listings.allGeorgia');
+
+  const priceText = usePriceSummary(filters.priceMin, filters.priceMax);
+  const unit = t('home.areaUnit');
+  const [aMin, aMax] = orderedRange(filters.areaMin, filters.areaMax);
+
+  type ChipItem = { key: string; label: string; onRemove: () => void; place?: boolean };
+  const chips: ChipItem[] = [
+    search && { key: 'q', label: `“${search}”`, onRemove: () => setSearch('') },
+    drawnArea && { key: 'drawn', label: t('listings.drawnArea'), place: true, onRemove: clearDrawnArea },
+    filters.city && { key: 'city', label: cityArea ? t(cityArea.labelKey) : filters.city, place: true, onRemove: () => patch({ city: '', districts: [] }) },
+    ...filters.districts.map(d => ({
+      key: `d-${d}`, label: areaSelectionLabel(cityArea, d, locale), place: true,
+      onRemove: () => patch({ districts: filters.districts.filter(x => x !== d) }),
+    })),
+    typeLabel && { key: 'type', label: typeLabel, onRemove: () => patch({ type: '' }) },
+    ...filters.rooms.map(r => ({
+      key: `r-${r}`, label: t('listings.roomsChip', { n: r === '5' ? '5+' : r }),
+      onRemove: () => patch({ rooms: filters.rooms.filter(x => x !== r) }),
+    })),
+    priceText && { key: 'price', label: priceText, onRemove: () => patch({ priceMin: '', priceMax: '' }) },
+    (aMin || aMax) && {
+      key: 'area',
+      label: aMin && aMax ? `${aMin}–${aMax} ${unit}` : aMin ? `${aMin}+ ${unit}` : `≤ ${aMax} ${unit}`,
+      onRemove: () => patch({ areaMin: '', areaMax: '' }),
+    },
+    filters.vip && { key: 'vip', label: 'SUPER VIP', onRemove: () => patch({ vip: false }) },
+    filters.isPremium && { key: 'premium', label: t('listings.chipPremium'), onRemove: () => patch({ isPremium: false }) },
+    filters.isNew && { key: 'new', label: t('listings.chipNew'), onRemove: () => patch({ isNew: false }) },
+  ].filter(Boolean) as ChipItem[];
+
+  const hasFilters = activeFilterCount(filters) > 0 || Boolean(search) || Boolean(drawnArea);
+  const narrowedByMap = boundsActive && visible.length !== filtered.length;
+  const countFmt = (n: number) => n.toLocaleString(locale === 'ka' ? 'ka-GE' : 'en-US');
+
+  const sortOptions = useMemo(() => [
+    { label: t('listings.sort.newest'), value: 'newest' },
+    { label: t('listings.sort.priceAsc'), value: 'price-asc' },
+    { label: t('listings.sort.priceDesc'), value: 'price-desc' },
+    { label: t('listings.sort.areaDesc'), value: 'area-desc' },
+    { label: t('listings.sort.popular'), value: 'popular' },
+  ], [t]);
 
   return (
-    <div className="listings-split-page">
-      {/* Toolbar */}
-      <div className="listings-split-toolbar">
-        <div className="listings-split-toolbar__inner">
-          <div className="listings-split-search">
-            <Search size={16} strokeWidth={2} />
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') tryOpenById(); }}
-              placeholder={t('listings.searchPlaceholder')}
-              inputMode="search"
-            />
-            {isExactListingId(search.trim()) && (
-              <span className="listings-split-search__id-hint" title={t('listings.idSearchHint')}>
-                <Hash size={12} strokeWidth={2.4} />
-                ID
-              </span>
-            )}
-            {search && (
-              <button type="button" onClick={() => setSearch('')} aria-label={t('listings.clearFilters')}>
-                <X size={14} strokeWidth={2.5} />
-              </button>
-            )}
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setShowFilters(v => !v)}
-            className={`listings-split-btn ${showFilters || activeCount > 0 ? 'is-primary' : ''}`}
-          >
-            <SlidersHorizontal size={15} strokeWidth={2} />
-            {t('listings.filter')}
-            {activeCount > 0 && <span className="listings-split-badge">{activeCount}</span>}
-          </button>
-
-          <label className="listings-split-select">
-            <ArrowUpDown size={14} strokeWidth={2} />
-            <select value={sort} onChange={e => setSort(e.target.value)}>
-              {SORT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <ChevronDown size={14} strokeWidth={2.5} />
-          </label>
-        </div>
-
-        {/* Selected-area chips */}
-        {(activeCount > 0 || search) && (
-          <div className="listings-split-chips">
-            {search && <Chip label={`“${search}”`} onRemove={() => setSearch('')} />}
-            {drawnArea && <Chip label={t('listings.drawnArea')} icon onRemove={clearDrawnArea} />}
-            {filters.city && (
-              <Chip label={cityArea ? t(cityArea.labelKey) : filters.city} icon onRemove={() => setF('city', '')} />
-            )}
-            {filters.district && (
-              <Chip
-                label={areaSelectionLabel(cityArea, filters.district, locale)}
-                icon
-                onRemove={() => setF('district', '')}
-              />
-            )}
-            {filters.status && <Chip label={filters.status === 'sale' ? t('listings.chipSale') : t('listings.chipRent')} onRemove={() => setF('status', '')} />}
-            {filters.type && <Chip label={t(`propertyTypes.${filters.type}` as 'propertyTypes.apartment')} onRemove={() => setF('type', '')} />}
-            {filters.bedrooms && <Chip label={`${filters.bedrooms}+ ${t('listings.bedrooms')}`} onRemove={() => setF('bedrooms', '')} />}
-            {filters.priceMin && <Chip label={`${t('listings.priceMin')} ${filters.priceMin}`} onRemove={() => setF('priceMin', '')} />}
-            {filters.priceMax && <Chip label={`${t('listings.priceMax')} ${filters.priceMax}`} onRemove={() => setF('priceMax', '')} />}
-            {filters.areaMin && <Chip label={`${filters.areaMin} მ²+`} onRemove={() => setF('areaMin', '')} />}
-            {filters.isPremium && <Chip label={t('listings.chipPremium')} onRemove={() => setF('isPremium', false)} />}
-            {filters.isNew && <Chip label={t('listings.chipNew')} onRemove={() => setF('isNew', false)} />}
-            <button type="button" className="listings-split-chips__clear" onClick={() => { clear(); setSearch(''); }}>
-              {t('listings.clearFilters')}
-            </button>
-          </div>
-        )}
+    <div className={`lp ${wide && !mapVisible ? 'is-map-hidden' : ''}`}>
+      <div className="lp-top">
+        <ListingsFilterBar
+          filters={filters}
+          onPatch={patch}
+          search={search}
+          onSearch={setSearch}
+          onSearchEnter={tryOpenById}
+          locationCounts={locationCounts}
+          typeCounts={typeCounts}
+          resultCount={loading ? null : filtered.length}
+          sort={sort}
+          sortOptions={sortOptions}
+          onSort={setSort}
+          mapVisible={mapVisible}
+          onToggleMap={() => setMapVisible(v => !v)}
+        />
       </div>
 
-      {/* Filter panel */}
-      <AnimatePresence initial={false}>
-        {showFilters && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: 'easeOut' }}
-            className="listings-split-filters"
-          >
-            <div className="listings-split-filters__inner">
-              <Field label={t('listings.status')}>
-                <select value={filters.status} onChange={e => setF('status', e.target.value)} className="listings-filter-input">
-                  <option value="">{t('common.all')}</option>
-                  <option value="sale">{t('propertyStatus.sale')}</option>
-                  <option value="rent">{t('propertyStatus.rent')}</option>
-                  <option value="daily_rent">{t('propertyStatus.daily_rent')}</option>
-                  <option value="pledge">{t('home.dealTypes.mortgage')}</option>
-                </select>
-              </Field>
-
-              <Field label={t('listings.city')}>
-                <select value={filters.city} onChange={e => setF('city', e.target.value)} className="listings-filter-input">
-                  <option value="">{t('common.all')}</option>
-                  {CITY_AREAS.map(city => (
-                    <option key={city.ka} value={city.ka}>{t(city.labelKey)}</option>
-                  ))}
-                </select>
-              </Field>
-
-              <Field label={t('listings.district')}>
-                <select
-                  value={filters.district}
-                  onChange={e => setF('district', e.target.value)}
-                  disabled={!filters.city}
-                  className="listings-filter-input"
-                >
-                  <option value="">{t('common.all')}</option>
-                  {chunkDistrictOptions(districtList).map(chunk => chunk.group ? (
-                    <optgroup key={chunk.key} label={chunk.group}>
-                      {chunk.options.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
-                    </optgroup>
-                  ) : (
-                    chunk.options.map(d => <option key={d.value} value={d.value}>{d.label}</option>)
-                  ))}
-                </select>
-              </Field>
-
-              <Field label={t('listings.type')}>
-                <select value={filters.type} onChange={e => setF('type', e.target.value)} className="listings-filter-input">
-                  <option value="">{t('common.all')}</option>
-                  <option value="apartment">{t('propertyTypes.apartment')}</option>
-                  <option value="house">{t('propertyTypes.house')}</option>
-                  <option value="villa">{t('propertyTypes.villa')}</option>
-                  <option value="land">{t('propertyTypes.land')}</option>
-                  <option value="commercial">{t('propertyTypes.commercial')}</option>
-                  <option value="hotel">{t('home.propertyTypes.hotel')}</option>
-                </select>
-              </Field>
-
-              <Field label={t('listings.bedrooms')}>
-                <select value={filters.bedrooms} onChange={e => setF('bedrooms', e.target.value)} className="listings-filter-input">
-                  <option value="">{t('common.any')}</option>
-                  {['1', '2', '3', '4', '5'].map(n => <option key={n} value={n}>{n}+</option>)}
-                </select>
-              </Field>
-
-              <Field label={`${t('listings.priceMin')} (${currencySymbol})`}>
-                <input type="number" min="0" placeholder="0" value={filters.priceMin} onChange={e => setF('priceMin', e.target.value)} className="listings-filter-input" />
-              </Field>
-
-              <Field label={`${t('listings.priceMax')} (${currencySymbol})`}>
-                <input type="number" min="0" placeholder="∞" value={filters.priceMax} onChange={e => setF('priceMax', e.target.value)} className="listings-filter-input" />
-              </Field>
-
-              <Field label={t('listings.areaMin')}>
-                <input type="number" min="0" placeholder="0" value={filters.areaMin} onChange={e => setF('areaMin', e.target.value)} className="listings-filter-input" />
-              </Field>
-
-              <div className="listings-filter-checks">
-                {([['isPremium', t('listings.premiumOnly')], ['isNew', t('listings.newOnly')]] as const).map(([k, l]) => (
-                  <label key={k}>
-                    <input
-                      type="checkbox"
-                      checked={filters[k as 'isPremium' | 'isNew']}
-                      onChange={e => setF(k, e.target.checked)}
-                    />
-                    {l}
-                  </label>
-                ))}
+      <div className="lp-body">
+        <section className={`lp-list ${!wide && mobilePanel === 'map' ? 'is-hidden' : ''}`} aria-label={title}>
+          <div className="lp-list__scroll" ref={listScrollRef}>
+            <header className="lp-head">
+              <div className="lp-head__row">
+                <div className="lp-head__main">
+                  <p className="lp-head__place"><MapPin size={13} strokeWidth={2.4} /> {placeLabel}</p>
+                  <h1 className="lp-head__title">{title}</h1>
+                </div>
+                {wide && <SortMenu sort={sort} options={sortOptions} onSort={setSort} />}
               </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <div className="lp-head__meta">
+                <span className="lp-head__count">
+                  {loading ? <span className="lp-head__count-skel" /> : (
+                    <><strong>{countFmt(visible.length)}</strong> {t('listings.bar.listingsWord')}</>
+                  )}
+                </span>
+                {narrowedByMap && (
+                  <>
+                    <span className="lp-head__area">{t('listings.inThisArea')}</span>
+                    <button type="button" className="lp-head__all" onClick={showAllResults}>
+                      {t('listings.showAllResults')} · {countFmt(filtered.length)}
+                    </button>
+                  </>
+                )}
+              </div>
+            </header>
 
-      {/* Split: list + map */}
-      <div className="listings-split-body">
-        <aside className={`listings-split-list ${mobilePanel === 'map' ? 'is-hidden-mobile' : ''}`}>
-          <header className="listings-split-list__header">
-            <h1 className="listings-split-list__title">{areaLabel}</h1>
-            <p className="listings-split-list__count">
-              <MapPin size={12} strokeWidth={2.2} />
-              {t('listings.results', { count: visible.length })}
-              {areaSearch && mapBounds && visible.length !== filtered.length && (
-                <span className="listings-split-list__hint">{t('listings.inThisArea')}</span>
-              )}
-            </p>
-          </header>
+            {chips.length > 0 && (
+              <div className="lp-chips">
+                {chips.map(c => (
+                  <span key={c.key} className={`lp-chip ${c.place ? 'is-place' : ''}`}>
+                    {c.place && <MapPin size={11} strokeWidth={2.6} />}
+                    {c.label}
+                    <button type="button" onClick={c.onRemove} aria-label={`${t('common.clear')}: ${c.label}`}>
+                      <X size={11} strokeWidth={2.8} />
+                    </button>
+                  </span>
+                ))}
+                <button type="button" className="lp-chips__clear" onClick={clearAll}>{t('listings.clearFilters')}</button>
+              </div>
+            )}
 
-          <div className="listings-split-list__scroll" ref={listScrollRef}>
             {loading ? (
-              <div className="listings-split-grid">
+              <div className="lp-grid" aria-busy="true">
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <div key={i} className="listing-row-skeleton">
-                    <div className="listing-row-skeleton__img" />
-                    <div className="listing-row-skeleton__lines">
-                      <span style={{ width: '52%' }} />
-                      <span style={{ width: '74%' }} />
-                      <span style={{ width: '62%' }} />
+                  <div key={i} className="lc-skel">
+                    <div className="lc-skel__img skeleton" />
+                    <div className="lc-skel__body">
+                      <span className="skeleton" style={{ width: '46%', height: 18 }} />
+                      <span className="skeleton" style={{ width: '82%' }} />
+                      <span className="skeleton" style={{ width: '64%' }} />
                     </div>
                   </div>
                 ))}
               </div>
-            ) : visible.length === 0 && filtered.length > 0 ? (
-              <div className="listings-split-empty">
-                <MapPin size={40} strokeWidth={1.2} />
-                <h3>{t('listings.emptyAreaTitle')}</h3>
-                <p>{t('listings.emptyAreaHint', { count: filtered.length })}</p>
-                <button type="button" onClick={showAllResults}>
-                  {t('listings.showAllResults')}
-                </button>
-              </div>
             ) : visible.length === 0 ? (
-              <div className="listings-split-empty">
-                <Building2 size={44} strokeWidth={1} />
-                <h3>{t('listings.emptyTitle')}</h3>
-                <p>{t('listings.emptyHint')}</p>
-                <button type="button" onClick={() => { clear(); setSearch(''); showAllResults(); }}>
-                  {t('listings.clearFilters')}
-                </button>
+              <div className="lp-empty">
+                <span className="lp-empty__icon">
+                  {filtered.length > 0 ? <MapIcon size={26} strokeWidth={1.8} /> : <SearchX size={26} strokeWidth={1.8} />}
+                </span>
+                <h3>{filtered.length > 0 ? t('listings.emptyAreaTitle') : t('listings.emptyTitle')}</h3>
+                <p>{filtered.length > 0 ? t('listings.emptyAreaHint', { count: filtered.length }) : t('listings.emptyHint')}</p>
+                <div className="lp-empty__actions">
+                  {filtered.length > 0 && (
+                    <button type="button" className="lp-btn lp-btn--primary" onClick={showAllResults}>{t('listings.showAllResults')}</button>
+                  )}
+                  {hasFilters && (
+                    <button type="button" className="lp-btn" onClick={() => { clearAll(); showAllResults(); }}>{t('listings.clearFilters')}</button>
+                  )}
+                </div>
               </div>
             ) : (
               <>
-                <div className="listings-split-grid">
+                <div className="lp-grid">
                   {pageItems.map(p => (
                     <ListingMapRow
                       key={p.id}
@@ -595,80 +497,71 @@ export default function ListingsPage() {
                 </div>
 
                 {totalPages > 1 && (
-                  <nav className="listings-pagination">
-                    <button type="button" disabled={page === 1} onClick={() => setPage(p => p - 1)}>‹</button>
-                    {pageNumbers(page, totalPages).map((n, i) =>
-                      n === null ? (
-                        <span key={`gap-${i}`}>…</span>
-                      ) : (
-                        <button
-                          key={n}
-                          type="button"
-                          className={n === page ? 'is-current' : ''}
-                          onClick={() => setPage(n)}
-                        >
-                          {n}
-                        </button>
-                      ),
-                    )}
-                    <button type="button" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>›</button>
+                  <nav className="lp-pages" aria-label={t('listings.bar.page', { n: page })}>
+                    <button type="button" className="lp-pages__step" disabled={page === 1} onClick={() => goToPage(page - 1)}>
+                      <ChevronLeft size={16} strokeWidth={2.4} /> <span>{t('listings.bar.prev')}</span>
+                    </button>
+                    <div className="lp-pages__nums">
+                      {pageNumbers(page, totalPages).map((n, i) =>
+                        n === null ? (
+                          <span key={`gap-${i}`} className="lp-pages__gap">…</span>
+                        ) : (
+                          <button
+                            key={n}
+                            type="button"
+                            aria-current={n === page ? 'page' : undefined}
+                            className={n === page ? 'is-current' : ''}
+                            onClick={() => goToPage(n)}
+                          >
+                            {n}
+                          </button>
+                        ),
+                      )}
+                    </div>
+                    <button type="button" className="lp-pages__step" disabled={page === totalPages} onClick={() => goToPage(page + 1)}>
+                      <span>{t('listings.bar.next')}</span> <ChevronRight size={16} strokeWidth={2.4} />
+                    </button>
                   </nav>
                 )}
               </>
             )}
           </div>
-        </aside>
-
-        <section className={`listings-split-map ${mobilePanel === 'list' ? 'is-hidden-mobile' : ''}`}>
-          <ListingsMap
-            properties={filtered}
-            contextProperties={contextProperties}
-            activeId={activeId}
-            onActiveChange={setActiveId}
-            onBoundsChange={handleBoundsChange}
-            boundary={activeBoundary}
-            fitKey={fitKey}
-            areaSearch={areaSearch}
-            onAreaSearchChange={setAreaSearch}
-            drawnArea={drawnArea}
-            onDrawnAreaChange={handleDrawnAreaChange}
-            formatPrice={formatPrice}
-            formatPricePerSqm={formatPricePerSqm}
-          />
         </section>
 
-        {/* Mobile list / map switch */}
+        {(mapShown || !wide) && (
+          <section className={`lp-map ${!wide && mobilePanel === 'list' ? 'is-hidden' : ''}`}>
+            <ListingsMap
+              properties={mapProperties}
+              contextProperties={mapContextProperties}
+              activeId={activeId}
+              onActiveChange={setActiveId}
+              onBoundsChange={handleBoundsChange}
+              boundary={activeBoundary}
+              fitKey={fitKey}
+              areaSearch={areaSearch}
+              onAreaSearchChange={setAreaSearch}
+              drawnArea={drawnArea}
+              onDrawnAreaChange={handleDrawnAreaChange}
+              formatPrice={formatPrice}
+              formatPricePerSqm={formatPricePerSqm}
+              formatPinPrice={formatPinPrice}
+            />
+          </section>
+        )}
+
+        {/* Phone/tablet list ⇄ map switch */}
         <button
           type="button"
-          className="listings-mobile-switch"
+          className="lp-float"
           onClick={() => setMobilePanel(p => (p === 'list' ? 'map' : 'list'))}
         >
-          {mobilePanel === 'list' ? <Map size={16} /> : <List size={16} />}
+          {mobilePanel === 'list' ? <MapIcon size={16} strokeWidth={2.2} /> : <List size={16} strokeWidth={2.2} />}
           {mobilePanel === 'list' ? t('listings.showMap') : t('listings.showList')}
+          {mobilePanel === 'map' && !loading && <span>{countFmt(visible.length)}</span>}
         </button>
       </div>
-    </div>
-  );
-}
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="listings-filter-field">
-      <span className="listings-filter-label">{label}</span>
-      {children}
     </div>
-  );
-}
-
-function Chip({ label, onRemove, icon }: { label: string; onRemove: () => void; icon?: boolean }) {
-  return (
-    <span className="listings-chip">
-      {icon && <MapPin size={11} strokeWidth={2.4} />}
-      {label}
-      <button type="button" onClick={onRemove} aria-label={`remove ${label}`}>
-        <X size={11} strokeWidth={2.6} />
-      </button>
-    </span>
   );
 }
 

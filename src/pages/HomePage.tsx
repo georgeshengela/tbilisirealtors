@@ -1,24 +1,46 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import {
-  MapPin, ChevronLeft, ChevronRight, ChevronDown, ArrowRight,
+  MapPin, ChevronLeft, ChevronRight, ChevronDown, ArrowRight, ArrowUpRight,
   Sparkles, Bed, Bath,
-  Square, Heart, Rocket, HardHat, BookOpen, HelpCircle, Clock, BadgePercent,
+  Square, Heart, Rocket, BookOpen, HelpCircle, Clock, BadgePercent, Map as MapIcon, History,
 } from 'lucide-react';
 import { useProperties, useBlogPosts, useProjects } from '../hooks/usePublicData';
 import type { BlogPost, Property } from '../types/listing';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { listingMoneyFrom } from '../lib/moneyEntry';
-import { useTranslation } from '../i18n/LocaleContext';
-import ConstructionProjectCard from '../components/ConstructionProjectCard';
+import { useLocale, useTranslation } from '../i18n/LocaleContext';
+import ProjectsShowcase from '../components/ProjectsShowcase';
 import HomeHero from '../components/HomeHero';
+import { buildLocationCounts } from '../lib/locationCounts';
+import VerifiedListingBadge from '../components/VerifiedListingBadge';
 import { propertyHref } from '../lib/seoPropertyUrl';
+import { listingsHref } from '../lib/seoListingsUrl';
+import { useIsFavorite } from '../lib/favorites';
+import { listingIsVerified } from '../lib/listingBadges';
+import { setJsonLd } from '../lib/seo';
+import { districtLabel, findCityArea, findDistrictArea } from '../data/districts';
+import { statusMatches } from '../lib/listingSearch';
+import { getRecentlyViewed } from '../lib/recentlyViewed';
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
-function InViewFade({ children, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
-  return <div className={className}>{children}</div>;
+/** Fades a block up the first time it scrolls into view; static when the visitor prefers less motion. */
+function InViewFade({ children, delay = 0, className = '' }: { children: React.ReactNode; delay?: number; className?: string }) {
+  const reduce = useReducedMotion();
+  if (reduce) return <div className={className}>{children}</div>;
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 14 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 type SectionAccent = 'blue' | 'green';
@@ -115,23 +137,15 @@ function BlogCard({ post }: { post: BlogPost }) {
   return (
     <Link
       to={`/blog/${post.id}`}
-      className="group flex flex-col h-full rounded-2xl overflow-hidden bg-white"
-      style={{
-        border: '1px solid #eceef0',
-        transition: 'border-color 0.22s ease',
-      }}
-      onMouseEnter={e => {
-        (e.currentTarget as HTMLElement).style.borderColor = 'rgba(37, 99, 235,0.35)';
-      }}
-      onMouseLeave={e => {
-        (e.currentTarget as HTMLElement).style.borderColor = '#eceef0';
-      }}
+      className="home-card group flex flex-col h-full rounded-2xl overflow-hidden bg-white"
     >
-      <div className="relative aspect-[4/3] overflow-hidden flex-shrink-0">
+      <div className="relative aspect-[16/10] overflow-hidden flex-shrink-0">
         <img
           src={post.image}
           alt={post.title}
-          className="w-full h-full object-cover"
+          loading="lazy"
+          decoding="async"
+          className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover:scale-[1.04]"
         />
         <div
           className="absolute inset-0"
@@ -173,7 +187,8 @@ function BlogCard({ post }: { post: BlogPost }) {
           <div className="flex items-center gap-2 min-w-0">
             <img
               src={post.author.photo}
-              alt={post.author.name}
+              alt=""
+              loading="lazy"
               className="w-7 h-7 rounded-full object-cover flex-shrink-0"
               style={{ border: '1.5px solid #eceef0' }}
             />
@@ -185,8 +200,8 @@ function BlogCard({ post }: { post: BlogPost }) {
             className="flex items-center gap-1 text-[12px] font-semibold flex-shrink-0 group-hover:gap-1.5 transition-all"
             style={{ color: '#2563eb' }}
           >
-            წაიკითხე
-            <ArrowRight size={12} />
+            {t('home.readArticle')}
+            <ArrowRight size={12} className="transition-transform duration-200 group-hover:translate-x-0.5" />
           </span>
         </div>
       </div>
@@ -257,15 +272,14 @@ function AdBanner({
   return (
     <Link
       to={ctaHref}
-      className="group relative flex flex-col sm:flex-row sm:items-center gap-5 sm:gap-8 rounded-2xl overflow-hidden px-6 sm:px-8 py-6 sm:py-7"
+      className={`home-ad group relative flex flex-col sm:flex-row sm:items-center gap-3.5 sm:gap-8 rounded-2xl overflow-hidden px-5 sm:px-8 py-5 sm:py-7 ${variant === 'light' ? '' : 'home-ad--dark'}`}
       style={{
         background: t.bg,
         border: t.border,
-        transition: 'border-color 0.22s ease',
       }}
     >
       <span
-        className="absolute top-3 right-3 px-2 py-0.5 rounded text-[8px] font-bold uppercase tracking-widest"
+        className="absolute top-3 right-3 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest"
         style={{
           color: variant === 'light' ? '#9ea0a7' : 'rgba(255,255,255,0.35)',
           background: variant === 'light' ? '#f2f4f6' : 'rgba(255,255,255,0.08)',
@@ -275,7 +289,7 @@ function AdBanner({
       </span>
 
       <div
-        className="flex items-center justify-center flex-shrink-0"
+        className="hidden sm:flex items-center justify-center flex-shrink-0"
         style={{
           width: 48,
           height: 48,
@@ -287,7 +301,7 @@ function AdBanner({
         <Icon size={22} strokeWidth={2.2} style={{ color: variant === 'light' ? '#2563eb' : '#fff' }} />
       </div>
 
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 pr-16 sm:pr-0">
         <p
           className="text-[10px] font-bold uppercase tracking-wider mb-1"
           style={{ color: t.accent }}
@@ -296,11 +310,11 @@ function AdBanner({
         </p>
         <h3
           className="font-extrabold leading-tight"
-          style={{ fontSize: 'clamp(17px, 2vw, 22px)', color: t.title, letterSpacing: '-0.02em' }}
+          style={{ fontSize: 'clamp(16px, 2vw, 22px)', color: t.title, letterSpacing: '-0.02em' }}
         >
           {title}
         </h3>
-        <p className="mt-1 text-[13px] leading-snug" style={{ color: t.subtitle }}>
+        <p className="mt-1 text-[13px] leading-snug line-clamp-2 sm:line-clamp-none" style={{ color: t.subtitle }}>
           {subtitle}
         </p>
       </div>
@@ -314,12 +328,12 @@ function AdBanner({
             border: variant === 'light' ? '1px solid #eceef0' : '2px solid rgba(255,255,255,0.15)',
           }}
         >
-          <img src={image} alt="" className="w-full h-full object-cover" />
+          <img src={image} alt="" loading="lazy" className="w-full h-full object-cover" />
         </div>
       )}
 
       <span
-        className="inline-flex items-center justify-center gap-1.5 px-5 py-2.5 rounded-xl text-[13px] font-bold flex-shrink-0 transition-transform duration-200 group-hover:scale-[1.02]"
+        className="self-start sm:self-auto inline-flex items-center justify-center gap-1.5 px-4 sm:px-5 py-2 sm:py-2.5 rounded-xl text-[13px] font-bold flex-shrink-0 transition-transform duration-200 group-hover:scale-[1.03]"
         style={{ background: t.ctaBg, color: t.ctaColor }}
       >
         {ctaLabel}
@@ -331,7 +345,7 @@ function AdBanner({
 
 function AdStrip({ bg, children }: { bg: string; children: React.ReactNode }) {
   return (
-    <div className="py-8 sm:py-10" style={{ background: bg }}>
+    <div className="py-4 sm:py-6" style={{ background: bg }}>
       <div className="container-xl">
         <InViewFade>{children}</InViewFade>
       </div>
@@ -340,21 +354,22 @@ function AdStrip({ bg, children }: { bg: string; children: React.ReactNode }) {
 }
 
 /* ─────────────── Compact card (6-per-row) — VIP & New ─────────────────── */
-type CardBadge = 'vip' | 'new';
+type CardBadge = 'vip' | 'new' | 'none';
 
 function VipListingCard({ property, badge = 'vip' }: { property: Property; badge?: CardBadge }) {
   const { t } = useTranslation();
-  const [liked, setLiked] = useState(false);
+  const [liked, toggleLiked] = useIsFavorite(property.id);
   const [hovered, setHovered] = useState(false);
+  const verified = listingIsVerified(property);
   const [imgIndex, setImgIndex] = useState(0);
   const cardRef = useRef<HTMLAnchorElement>(null);
   const badgeCfg = {
     vip: { bg: 'linear-gradient(135deg, #2563eb 0%, #3458d8 100%)', color: '#fff', icon: <Rocket size={8} strokeWidth={3} />, label: t('home.superVip') },
     new: { bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', color: '#fff', icon: <Sparkles size={8} strokeWidth={3} />, label: t('common.new') },
   };
-  const cfg = badgeCfg[badge];
+  const cfg = badge === 'none' ? null : badgeCfg[badge];
   const images = property.images;
-  const accentColor = badge === 'vip' ? '#2563eb' : '#059669';
+  const accentColor = badge === 'new' ? '#059669' : '#2563eb';
   const { formatMoney } = useCurrency();
 
   const priceLabel = formatMoney(property.price, { ...listingMoneyFrom(property), perMonth: property.status === 'rent' });
@@ -372,10 +387,9 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
     <Link
       ref={cardRef}
       to={propertyHref(property)}
-      className="group relative flex flex-col h-full rounded-2xl overflow-hidden bg-white"
+      className="home-listing group relative flex flex-col h-full rounded-2xl overflow-hidden bg-white"
       style={{
         border: `1px solid ${hovered ? `${accentColor}45` : '#eceef0'}`,
-        transition: 'border-color 0.25s ease',
       }}
       onMouseMove={handleMouseMove}
       onMouseEnter={() => setHovered(true)}
@@ -388,6 +402,8 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
             key={src}
             src={src}
             alt={i === 0 ? property.title : ''}
+            loading="lazy"
+            decoding="async"
             className="absolute inset-0 w-full h-full object-cover"
             style={{
               opacity: i === imgIndex ? 1 : 0,
@@ -424,25 +440,29 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
         />
 
         {/* Badge — top left */}
-        <div className="absolute top-2.5 left-2.5">
-          <span
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
-            style={{ background: cfg.bg, color: cfg.color, letterSpacing: '0.03em' }}
-          >
-            {cfg.icon} {cfg.label}
-          </span>
+        <div className="absolute top-3 left-2.5 flex flex-col items-start gap-1">
+          {cfg && (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+              style={{ background: cfg.bg, color: cfg.color, letterSpacing: '0.03em', boxShadow: '0 2px 8px rgba(0,0,0,0.18)' }}
+            >
+              {cfg.icon} {cfg.label}
+            </span>
+          )}
+          {verified && <VerifiedListingBadge variant="inline" />}
         </div>
 
         {/* Heart — top right */}
         <button
-          onClick={e => { e.preventDefault(); e.stopPropagation(); setLiked(l => !l); }}
-          className="absolute top-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center transition-colors duration-200"
-          style={{
-            background: liked ? '#ef4444' : 'rgba(255,255,255,0.92)',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.16)',
-          }}
+          type="button"
+          onClick={e => { e.preventDefault(); e.stopPropagation(); toggleLiked(); }}
+          aria-pressed={liked}
+          aria-label={liked ? t('home.unsaveListing') : t('home.saveListing')}
+          title={liked ? t('home.unsaveListing') : t('home.saveListing')}
+          className="home-heart absolute top-2.5 right-2.5 w-8 h-8 rounded-full flex items-center justify-center"
+          data-on={liked || undefined}
         >
-          <Heart size={12} strokeWidth={2} style={{ color: liked ? '#fff' : '#76777d', fill: liked ? '#fff' : 'none' }} />
+          <Heart size={14} strokeWidth={2} style={{ color: liked ? '#fff' : '#45464d', fill: liked ? '#fff' : 'none' }} />
         </button>
 
         {/* Status — bottom left over image */}
@@ -494,14 +514,20 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
               <span className="text-[11px] font-bold" style={{ color: '#191c1e' }}>{property.rooms || property.bedrooms}</span>
             </div>
           )}
-          <div className="flex items-center gap-1 px-2.5" style={{ borderRight: '1px solid #f0f2f5' }}>
-            <Bath size={11} strokeWidth={2} style={{ color: '#b0b2ba' }} />
-            <span className="text-[11px] font-bold" style={{ color: '#191c1e' }}>{property.bathrooms}</span>
-          </div>
-          <div className="flex items-center gap-1 px-2.5">
-            <Square size={11} strokeWidth={2} style={{ color: '#b0b2ba' }} />
-            <span className="text-[11px] font-bold" style={{ color: '#191c1e' }}>{property.area}მ²</span>
-          </div>
+          {property.bathrooms > 0 && (
+            <div className="flex items-center gap-1 px-2.5" style={{ borderRight: '1px solid #f0f2f5' }}>
+              <Bath size={11} strokeWidth={2} style={{ color: '#b0b2ba' }} />
+              <span className="text-[11px] font-bold" style={{ color: '#191c1e' }}>{property.bathrooms}</span>
+            </div>
+          )}
+          {property.area > 0 && (
+            <div className="flex items-center gap-1 px-2.5">
+              <Square size={11} strokeWidth={2} style={{ color: '#b0b2ba' }} />
+              <span className="text-[11px] font-bold whitespace-nowrap" style={{ color: '#191c1e' }}>
+                {Math.round(property.area * 10) / 10} {t('home.areaUnit')}
+              </span>
+            </div>
+          )}
           <ArrowRight
             size={13}
             strokeWidth={2.5}
@@ -546,7 +572,7 @@ function ListingSlider({
     };
   }, [items]);
 
-  const accent = badge === 'vip'
+  const accent = badge !== 'new'
     ? { main: '#2563eb', soft: 'rgba(37, 99, 235,0.10)', ring: 'rgba(37, 99, 235,0.28)' }
     : { main: '#059669', soft: 'rgba(5,150,105,0.10)', ring: 'rgba(5,150,105,0.28)' };
 
@@ -623,93 +649,260 @@ function ListingSlider({
   );
 }
 
+/* ─────────────── Popular neighbourhoods ─────────────────────────────────── */
+type DistrictTile = { city: string; district: string; count: number; cover?: string };
+
+function topDistricts(properties: Property[], limit: number): DistrictTile[] {
+  const byKey = new Map<string, DistrictTile>();
+  for (const p of properties) {
+    if (!p.district) continue;
+    const key = `${p.city}|${p.district}`;
+    const tile = byKey.get(key) ?? { city: p.city, district: p.district, count: 0 };
+    tile.count += 1;
+    if (!tile.cover && p.images[0]) tile.cover = p.images[0];
+    byKey.set(key, tile);
+  }
+  return [...byKey.values()].sort((a, b) => b.count - a.count).slice(0, limit);
+}
+
+function DistrictGrid({ tiles }: { tiles: DistrictTile[] }) {
+  const { t } = useTranslation();
+  const { locale } = useLocale();
+
+  return (
+    <div className="home-districts">
+      {tiles.map((tile, i) => {
+        const city = findCityArea(tile.city);
+        const area = findDistrictArea(city, tile.district);
+        const name = area ? districtLabel(area, locale) : tile.district;
+        const cityName = city ? t(city.labelKey) : tile.city;
+        return (
+          <InViewFade key={`${tile.city}-${tile.district}`} delay={i * 0.04} className={i === 0 ? 'home-districts__lead' : ''}>
+            <Link to={listingsHref({ city: tile.city, district: tile.district })} className="home-district group">
+              {tile.cover
+                ? <img src={tile.cover} alt="" loading="lazy" decoding="async" className="home-district__img" />
+                : <div className="home-district__img" style={{ background: '#1e293b' }} />}
+              <span className="home-district__shade" />
+              <span className="home-district__go"><ArrowUpRight size={16} strokeWidth={2.4} /></span>
+              <span className="home-district__copy">
+                <strong>{name}</strong>
+                <small>
+                  <MapPin size={11} strokeWidth={2.4} /> {cityName}
+                  <span className="home-district__dot" />
+                  {t('home.districtCount', { n: tile.count })}
+                </small>
+              </span>
+            </Link>
+          </InViewFade>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ─────────────── Listing grid: two rows, more homes at a glance ────────── */
+function ListingGrid({ items, badge }: { items: Property[]; badge: CardBadge }) {
+  return (
+    <div className="home-grid">
+      {items.map(p => <VipListingCard key={p.id} property={p} badge={badge} />)}
+    </div>
+  );
+}
+
+function ListingGridSkeleton() {
+  return (
+    <div className="home-grid" aria-hidden>
+      {Array.from({ length: 10 }, (_, i) => (
+        <div key={i} className="rounded-2xl overflow-hidden bg-white" style={{ border: '1px solid #eceef0' }}>
+          <div className="skeleton" style={{ aspectRatio: '5/4' }} />
+          <div className="p-3 space-y-2">
+            <div className="skeleton h-4 w-2/3 rounded" />
+            <div className="skeleton h-3 w-full rounded" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Home sections share one rhythm: generous but not wasteful. */
+const SECTION_PAD = 'py-8 sm:py-10 lg:py-12';
+const HOME_GRID_SIZE = 10;
+
 const FAQ_IDS = ['1', '2', '3', '4', '5', '6'] as const;
 
 /* ────────────────────────────────────────────────────────────────────────── */
 
 export default function HomePage() {
   const { t } = useTranslation();
-  const { data: properties } = useProperties();
+  const { data: properties, loading: propertiesLoading } = useProperties();
   const { data: blogPosts } = useBlogPosts();
   const { data: projects } = useProjects();
   const [openFaq, setOpenFaq] = useState<string | null>(FAQ_IDS[0]);
-  const featured = useMemo(() => properties.filter(p => p.isFeatured).slice(0, 12), [properties]);
-  const newest = useMemo(() => properties.filter(p => p.isNew).slice(0, 12), [properties]);
+  const byDate = (a: Property, b: Property) => new Date(b.listedDate).getTime() - new Date(a.listedDate).getTime();
+  const featuredAll = useMemo(() => properties.filter(p => p.isFeatured).sort(byDate), [properties]);
+  const featured = featuredAll.slice(0, HOME_GRID_SIZE);
+  const newestAll = useMemo(() => properties.filter(p => p.isNew).sort(byDate), [properties]);
+  const [newTab, setNewTab] = useState('');
+  const newTabs = useMemo(() => [
+    { v: '', l: t('common.all'), n: newestAll.length },
+    { v: 'sale', l: t('propertyStatus.sale'), n: newestAll.filter(p => statusMatches(p, 'sale')).length },
+    { v: 'rent', l: t('propertyStatus.rent'), n: newestAll.filter(p => statusMatches(p, 'rent')).length },
+    { v: 'daily_rent', l: t('propertyStatus.daily_rent'), n: newestAll.filter(p => statusMatches(p, 'daily_rent')).length },
+  ].filter(tab => tab.v === '' || tab.n > 0), [newestAll, t]);
+  const newest = useMemo(
+    () => newestAll.filter(p => statusMatches(p, newTab)).slice(0, HOME_GRID_SIZE),
+    [newestAll, newTab],
+  );
+  const newTabCount = newTabs.find(tab => tab.v === newTab)?.n ?? 0;
+  // Read once per visit; the row is a convenience, so a stale list is harmless.
+  const [recentIds] = useState(getRecentlyViewed);
+  const recent = useMemo(
+    () => recentIds.map(id => properties.find(p => p.id === id)).filter((p): p is Property => Boolean(p)),
+    [recentIds, properties],
+  );
+  const districts = useMemo(() => topDistricts(properties, 5), [properties]);
+  const locationCounts = useMemo(() => buildLocationCounts(properties), [properties]);
+  const heroStats = useMemo(() => ({
+    listings: properties.length,
+    projects: projects.length,
+    districts: new Set(properties.map(p => `${p.city}|${p.district}`)).size,
+  }), [properties, projects]);
+
+  // FAQ rich results: the answers on this page are the source of truth.
+  useEffect(() => {
+    setJsonLd('home-faq', {
+      '@context': 'https://schema.org',
+      '@type': 'FAQPage',
+      mainEntity: FAQ_IDS.map(id => ({
+        '@type': 'Question',
+        name: t(`home.faq.q${id}`),
+        acceptedAnswer: { '@type': 'Answer', text: t(`home.faq.a${id}`) },
+      })),
+    });
+    return () => setJsonLd('home-faq', null);
+  }, [t]);
+
   return (
     <div className="min-h-screen" style={{ background: '#f7f9fb' }}>
 
-      <HomeHero />
+      <HomeHero
+        stats={propertiesLoading ? null : heroStats}
+        properties={properties}
+        loading={propertiesLoading}
+        locationCounts={locationCounts}
+      />
 
-      {/* ══════════════════════════════════════════════════════
-          NEW CONSTRUCTION PROJECTS
-      ══════════════════════════════════════════════════════ */}
-      {projects.length > 0 && (
-      <section className="py-8 sm:py-10 lg:py-12 bg-white">
+      {/* RECENTLY VIEWED — only once the visitor has opened a listing */}
+      {recent.length > 0 && (
+      <section className="pt-2 pb-8 sm:pb-10" style={{ background: '#f7f9fb' }}>
         <div className="container-xl">
-          <InViewFade>
-            <SectionTitle
-              icon={HardHat}
-              title={t('home.sections.projects')}
-              linkTo="/projects"
-              linkLabel={t('home.sections.projectsAll')}
-            />
-          </InViewFade>
-
-          <InViewFade delay={0.04}>
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 -mt-2 mb-4 sm:mb-5">
-              {[
-                { label: t('home.projectChips.presale'), color: '#2563eb', bg: '#eff6ff' },
-                { label: t('home.projectChips.noCommission'), color: '#059669', bg: '#ecfdf5' },
-                { label: t('home.projectChips.freeConsult'), color: '#d97706', bg: '#fff7ed' },
-              ].map(chip => (
-                <span
-                  key={chip.label}
-                  className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg text-[9px] sm:text-[10px] font-bold"
-                  style={{ background: chip.bg, color: chip.color, border: `1px solid ${chip.color}22` }}
-                >
-                  {chip.label}
-                </span>
-              ))}
-            </div>
-          </InViewFade>
-
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
-            {projects.map((project, i) => (
-              <InViewFade key={project.id} delay={0.06 + i * 0.04}>
-                <ConstructionProjectCard project={project} />
-              </InViewFade>
-            ))}
-          </div>
+          <SectionTitle icon={History} title={t('home.sections.recent')} />
+          <ListingSlider items={recent} badge="none" />
         </div>
       </section>
       )}
 
-      <AdStrip bg="#f7f9fb">
-        <AdBanner
-          sponsor="Archi Group"
-          title={t('home.ads.archiTitle')}
-          subtitle={t('home.ads.archiSubtitle')}
-          ctaLabel={t('home.ads.viewProject')}
-          ctaHref="/project/panorama-residence"
-          variant="light"
-          icon={HardHat}
-          image="https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&q=80"
-        />
-      </AdStrip>
-
       {/* SUPER VIP LISTINGS */}
-      {featured.length > 0 && (
-      <section className="relative py-10 sm:py-16 lg:py-20" style={{ background: '#fff' }}>
+      {(propertiesLoading || featured.length > 0) && (
+      <section className={`${SECTION_PAD} bg-white`}>
         <div className="container-xl">
           <InViewFade>
             <SectionTitle
               icon={Rocket}
               title={t('home.sections.vip')}
-              linkTo="/udzravi-qoneba/?vip=true"
-              linkLabel={t('home.sections.vipAll')}
+              linkTo={listingsHref({ vip: true })}
+              linkLabel={featuredAll.length ? `${t('home.sections.vipAll')} · ${featuredAll.length}` : t('home.sections.vipAll')}
             />
           </InViewFade>
-          <ListingSlider items={featured} badge="vip" />
+          {propertiesLoading ? <ListingGridSkeleton /> : <ListingGrid items={featured} badge="vip" />}
+        </div>
+      </section>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          NEW LISTINGS — tabs by deal, two rows
+      ══════════════════════════════════════════════════════ */}
+      {(propertiesLoading || newestAll.length > 0) && (
+      <section className={SECTION_PAD} style={{ background: '#f7f9fb' }}>
+        <div className="container-xl">
+          <InViewFade>
+            <SectionTitle
+              icon={Sparkles}
+              title={t('home.sections.newListings')}
+              accent="green"
+              linkTo={listingsHref({ isNew: true, status: newTab || undefined })}
+              linkLabel={t('home.sections.newAll')}
+            />
+          </InViewFade>
+          {newTabs.length > 2 && (
+            <div className="home-tabs" role="tablist" aria-label={t('home.dealType')}>
+              {newTabs.map(tab => (
+                <button
+                  key={tab.v || 'all'}
+                  type="button"
+                  role="tab"
+                  aria-selected={newTab === tab.v}
+                  className={newTab === tab.v ? 'is-on' : ''}
+                  onClick={() => setNewTab(tab.v)}
+                >
+                  {tab.l}
+                  <span>{tab.n}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {propertiesLoading ? <ListingGridSkeleton /> : <ListingGrid items={newest} badge="new" />}
+          {!propertiesLoading && newTabCount > newest.length && (
+            <div className="home-more">
+              <Link to={listingsHref({ isNew: true, status: newTab || undefined })} className="home-more__btn">
+                {t('home.showMore', { n: newTabCount })}
+                <ArrowRight size={15} strokeWidth={2.4} />
+              </Link>
+            </div>
+          )}
+        </div>
+      </section>
+      )}
+
+      {/* ══════════════════════════════════════════════════════
+          NEW CONSTRUCTION PROJECTS
+      ══════════════════════════════════════════════════════ */}
+      {projects.length > 0 && (
+      <section className={`${SECTION_PAD} bg-white`}>
+        <div className="container-xl">
+          <InViewFade>
+            <ProjectsShowcase projects={projects} />
+          </InViewFade>
+        </div>
+      </section>
+      )}
+
+      <AdStrip bg="#fff">
+        <AdBanner
+          sponsor="TBILISIREALTOR.GE"
+          title={t('home.ads.vipTitle')}
+          subtitle={t('home.ads.vipSubtitle')}
+          ctaLabel={t('home.ads.vipCta')}
+          ctaHref={listingsHref({ vip: true })}
+          variant="blue"
+          icon={Rocket}
+        />
+      </AdStrip>
+
+      {/* POPULAR NEIGHBOURHOODS */}
+      {districts.length >= 3 && (
+      <section className={SECTION_PAD} style={{ background: '#f7f9fb' }}>
+        <div className="container-xl">
+          <InViewFade>
+            <SectionTitle
+              icon={MapIcon}
+              title={t('home.sections.districts')}
+              linkTo={listingsHref()}
+              linkLabel={t('home.sections.districtsAll')}
+            />
+          </InViewFade>
+          <DistrictGrid tiles={districts} />
         </div>
       </section>
       )}
@@ -726,42 +919,10 @@ export default function HomePage() {
       </AdStrip>
 
       {/* ══════════════════════════════════════════════════════
-          NEW LISTINGS
-      ══════════════════════════════════════════════════════ */}
-      {newest.length > 0 && (
-      <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#f7f9fb' }}>
-        <div className="container-xl">
-          <InViewFade>
-            <SectionTitle
-              icon={Sparkles}
-              title={t('home.sections.newListings')}
-              accent="green"
-              linkTo="/udzravi-qoneba/?new=true"
-              linkLabel={t('home.sections.newAll')}
-            />
-          </InViewFade>
-          <ListingSlider items={newest} badge="new" />
-        </div>
-      </section>
-      )}
-
-      <AdStrip bg="#fff">
-        <AdBanner
-          sponsor="TBILISIREALTOR.GE"
-          title={t('home.ads.vipTitle')}
-          subtitle={t('home.ads.vipSubtitle')}
-          ctaLabel={t('home.ads.vipCta')}
-          ctaHref="/udzravi-qoneba/?vip=true"
-          variant="blue"
-          icon={Rocket}
-        />
-      </AdStrip>
-
-      {/* ══════════════════════════════════════════════════════
           BLOG & BUYING GUIDES
       ══════════════════════════════════════════════════════ */}
       {blogPosts.length > 0 && (
-      <section className="py-10 sm:py-16 lg:py-20" style={{ background: '#f7f9fb' }}>
+      <section className={`${SECTION_PAD} bg-white`}>
         <div className="container-xl">
           <InViewFade>
             <SectionTitle
@@ -785,7 +946,7 @@ export default function HomePage() {
       {/* ══════════════════════════════════════════════════════
           FAQ
       ══════════════════════════════════════════════════════ */}
-      <section className="py-10 sm:py-16 lg:py-20 bg-white">
+      <section className={SECTION_PAD} style={{ background: '#f7f9fb' }}>
         <div className="container-xl">
           <InViewFade>
             <SectionTitle
@@ -793,22 +954,22 @@ export default function HomePage() {
               title={t('home.sections.faq')}
             />
           </InViewFade>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 items-start">
             {FAQ_IDS.map((id, i) => {
               const isOpen = openFaq === id;
               return (
                 <InViewFade key={id} delay={i * 0.04}>
                   <div
-                    className="rounded-2xl overflow-hidden h-full transition-colors duration-200"
-                    style={{
-                      border: '1px solid #eceef0',
-                      background: '#fff',
-                    }}
+                    className="home-faq rounded-2xl overflow-hidden h-full"
+                    data-open={isOpen || undefined}
                   >
                     <button
                       type="button"
+                      id={`faq-q-${id}`}
+                      aria-expanded={isOpen}
+                      aria-controls={`faq-a-${id}`}
                       onClick={() => setOpenFaq(isOpen ? null : id)}
-                      className="w-full flex items-start justify-between gap-4 px-5 py-4 text-left"
+                      className="home-faq__q w-full flex items-start justify-between gap-4 px-5 py-4 text-left"
                     >
                       <span
                         className="font-semibold text-sm leading-snug"
@@ -840,6 +1001,9 @@ export default function HomePage() {
                     <AnimatePresence initial={false}>
                       {isOpen && (
                         <motion.div
+                          id={`faq-a-${id}`}
+                          role="region"
+                          aria-labelledby={`faq-q-${id}`}
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}

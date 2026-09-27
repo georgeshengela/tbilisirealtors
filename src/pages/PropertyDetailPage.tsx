@@ -1,13 +1,14 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { useParams, useLocation, useNavigate, Link, Navigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   ArrowRight, ArrowUpRight, Bath, Bed, Building2, Calendar, CheckCircle2, ChevronLeft, ChevronRight,
-  Copy, Eye, Hash, Heart, Home, Layers, Mail, MapPin, Maximize2, Phone, Ruler, Share2, Sparkles, Square, Star, TreePine, X,
+  Copy, Eye, Hash, Heart, Home, Layers, Mail, MapPin, Maximize2, MessageCircle, Phone, Ruler, Share2, Sparkles, Square, Star,
+  TreePine, TrendingDown, TrendingUp, X,
 } from 'lucide-react';
 import { useProperty, useProperties } from '../hooks/usePublicData';
 import PropertyMap from '../components/PropertyMap';
-import PropertyCard from '../components/PropertyCard';
+import ListingMapRow from '../components/ListingMapRow';
 import { formatShortDate } from '../lib/dateFormat';
 import { useIsFavorite } from '../lib/favorites';
 import { useCurrency } from '../contexts/CurrencyContext';
@@ -21,11 +22,18 @@ import { listingsHref } from '../lib/seoListingsUrl';
 import { listingMoneyFrom } from '../lib/moneyEntry';
 import { parsePropertyId, propertyHref, propertySeoCopy } from '../lib/seoPropertyUrl';
 import { formatPublicLocationLine } from '../lib/address';
-import { listingIsVerified, publicListingFeatures } from '../lib/listingBadges';
+import { listingBuildingCode, listingIsVerified, publicListingFeatures } from '../lib/listingBadges';
+import { hasKnownLocation } from '../lib/listingSearch';
+import { formatPhone, priceInsight, similarListings, whatsappNumber } from '../lib/listingInsights';
 import VerifiedListingBadge from '../components/VerifiedListingBadge';
+import { CONTACT } from '../data/contactInfo';
+import { rememberViewed } from '../lib/recentlyViewed';
 
 /** Long descriptions collapse to a few lines until the reader asks for more. */
 const CLAMP_AT_CHARS = 460;
+
+/** "Price in the area" comparison — switched off for now; flip to true to bring it back. */
+const SHOW_PRICE_INSIGHT = false;
 
 interface NavItem {
   id: string;
@@ -68,7 +76,7 @@ function useActiveSection(ids: string[]) {
 export default function PropertyDetailPage() {
   const { t } = useTranslation();
   const { locale } = useLocale();
-  const { formatMoney } = useCurrency();
+  const { formatMoney, listingToGel } = useCurrency();
   const { id: paramId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -97,6 +105,8 @@ export default function PropertyDetailPage() {
   const [showBooking, setShowBooking] = useState(false);
 
   const images = property?.images?.length ? property.images : [];
+  /** Horizontal swipe on the main photo; a swipe must not also open the lightbox. */
+  const touch = useRef<{ x: number; y: number; swiped: boolean } | null>(null);
   const imageCount = images.length;
 
   const step = useCallback(
@@ -121,6 +131,10 @@ export default function PropertyDetailPage() {
 
   const navIds = useMemo(() => navItems.map(item => item.id), [navItems]);
   const activeSection = useActiveSection(navIds);
+
+  useEffect(() => {
+    if (property?.id) rememberViewed(property.id);
+  }, [property?.id]);
 
   useEffect(() => {
     setActiveImage(0);
@@ -305,7 +319,19 @@ export default function PropertyDetailPage() {
     villa: t('propertyTypes.villa'),
     commercial: t('propertyTypes.commercial'),
     land: t('propertyTypes.land'),
+    hotel: t('home.propertyTypes.hotel'),
   };
+
+  const statusLabels: Record<string, string> = {
+    sale: t('propertyStatus.sale'),
+    rent: t('propertyStatus.rent'),
+    daily_rent: t('propertyStatus.daily_rent'),
+    pledge: t('home.dealTypes.mortgage'),
+    both: `${t('propertyStatus.sale')} / ${t('propertyStatus.rent')}`,
+  };
+  const statusLabel = statusLabels[property.status] ?? property.status;
+  const unit = t('home.areaUnit');
+  const metres = locale === 'ka' ? 'მ' : 'm';
 
   const buildingStatusLabels: Record<string, string> = {
     new: t('property.buildingNew'),
@@ -334,18 +360,37 @@ export default function PropertyDetailPage() {
   const verified = listingIsVerified(property);
   const amenities = [...new Set(property.amenities)];
 
-  const similar = allProperties
-    .filter(p => p.id !== property.id && (p.district === property.district || p.city === property.city || p.type === property.type))
-    .slice(0, 3);
+  const similar = similarListings(property, allProperties, listingToGel, 4);
+  const insight = SHOW_PRICE_INSIGHT ? priceInsight(property, allProperties, listingToGel) : null;
+  const locationKnown = hasKnownLocation(property);
+  const buildingCode = property.buildingStatus ?? listingBuildingCode(property.features);
+  // Imported listings often have no agent number; the office line answers for them.
+  const contactPhone = property.agent.phone?.trim() || CONTACT.mobile.tel;
+  const contactEmail = property.agent.email?.trim() || CONTACT.email;
+  const waNumber = whatsappNumber(contactPhone);
+  const waHref = waNumber
+    ? `https://wa.me/${waNumber}?text=${encodeURIComponent(`${property.title} — ${window.location.origin}${propertyHref(property)}`)}`
+    : null;
+  const phoneLabel = formatPhone(contactPhone);
+  const similarHref = listingsHref({
+    status: property.status === 'both' ? 'sale' : property.status,
+    type: property.type,
+    city: property.city,
+    district: property.district,
+  });
+
+  const cardPrice = (p: typeof property) => formatMoney(p.price, { ...listingMoneyFrom(p), perMonth: p.status === 'rent' });
+  const cardPricePerSqm = (p: typeof property) =>
+    formatMoney(Math.round(p.price / Math.max(p.area, 1)), { ...listingMoneyFrom(p), perSqm: true });
 
   const facts = [
-    { icon: Square, value: `${property.area} მ²`, label: t('property.areaFull') },
-    property.landArea ? { icon: TreePine, value: `${property.landArea} მ²`, label: t('property.landAreaFull') } : null,
+    { icon: Square, value: `${property.area} ${unit}`, label: t('property.areaFull') },
+    property.landArea ? { icon: TreePine, value: `${property.landArea} ${unit}`, label: t('property.landAreaFull') } : null,
     property.rooms ? { icon: Layers, value: String(property.rooms), label: t('property.rooms') } : null,
     property.bedrooms > 0 ? { icon: Bed, value: String(property.bedrooms), label: t('property.bedroomsFull') } : null,
     property.bathrooms > 0 ? { icon: Bath, value: String(property.bathrooms), label: t('property.bathroomFull') } : null,
     property.floor != null ? { icon: Building2, value: `${property.floor}${property.totalFloors ? `/${property.totalFloors}` : ''}`, label: t('property.floorFull') } : null,
-    property.ceilingHeight ? { icon: Ruler, value: `${property.ceilingHeight} მ`, label: t('property.ceilingHeight') } : null,
+    property.ceilingHeight ? { icon: Ruler, value: `${property.ceilingHeight} ${metres}`, label: t('property.ceilingHeight') } : null,
   ].filter(Boolean) as { icon: typeof Square; value: string; label: string }[];
 
   const list = (values?: string[]) => (values && values.length > 0 ? values.join(', ') : null);
@@ -355,8 +400,8 @@ export default function PropertyDetailPage() {
       legend: t('property.groupBuilding'),
       rows: [
         { label: t('property.listingType'), value: typeLabels[property.type] },
-        { label: t('property.status'), value: isSale ? t('property.saleStatus') : t('property.rentStatus') },
-        property.buildingStatus ? { label: t('property.buildingStatus'), value: buildingStatusLabels[property.buildingStatus] } : null,
+        { label: t('property.status'), value: statusLabel },
+        buildingCode ? { label: t('property.buildingStatus'), value: buildingStatusLabels[buildingCode] } : null,
         property.yearBuilt ? { label: t('property.yearBuiltFull'), value: String(property.yearBuilt) } : null,
         property.projectType ? { label: t('property.projectType'), value: property.projectType } : null,
         { label: t('property.materials'), value: list(property.buildingMaterials) },
@@ -366,11 +411,11 @@ export default function PropertyDetailPage() {
     {
       legend: t('property.groupInterior'),
       rows: [
-        { label: t('property.areaFull'), value: `${property.area} მ²` },
-        property.landArea ? { label: t('property.landAreaFull'), value: `${property.landArea} მ²` } : null,
+        { label: t('property.areaFull'), value: `${property.area} ${unit}` },
+        property.landArea ? { label: t('property.landAreaFull'), value: `${property.landArea} ${unit}` } : null,
         property.floor != null ? { label: t('property.floorFull'), value: `${property.floor}${property.totalFloors ? `/${property.totalFloors}` : ''}` } : null,
         property.condition ? { label: t('property.condition'), value: property.condition } : null,
-        property.balconyCount ? { label: t('property.balcony'), value: `${property.balconyCount}${property.balconyArea ? ` · ${property.balconyArea} მ²` : ''}` } : null,
+        property.balconyCount ? { label: t('property.balcony'), value: `${property.balconyCount}${property.balconyArea ? ` · ${property.balconyArea} ${unit}` : ''}` } : null,
         { label: t('property.furniture'), value: list(property.furniture) },
         { label: t('property.windows'), value: list(property.windowsMaterials) },
       ],
@@ -434,7 +479,24 @@ export default function PropertyDetailPage() {
               <button
                 type="button"
                 className="pdp-gallery__main"
-                onClick={() => setShowGallery(true)}
+                onClick={() => {
+                  if (touch.current?.swiped) { touch.current = null; return; }
+                  setShowGallery(true);
+                }}
+                onTouchStart={event => {
+                  const p = event.touches[0];
+                  touch.current = { x: p.clientX, y: p.clientY, swiped: false };
+                }}
+                onTouchEnd={event => {
+                  const start = touch.current;
+                  if (!start) return;
+                  const p = event.changedTouches[0];
+                  const dx = p.clientX - start.x;
+                  if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(p.clientY - start.y)) {
+                    start.swiped = true;
+                    step(dx < 0 ? 1 : -1);
+                  }
+                }}
                 aria-label={t('property.showAllPhotos')}
               >
                 <img src={images[activeImage]} alt={property.title} />
@@ -487,6 +549,7 @@ export default function PropertyDetailPage() {
                     type="button"
                     key={img + i}
                     className="pdp-gallery__cell"
+                    aria-label={`${t('property.showAllPhotos')} · ${i + 2} / ${imageCount}`}
                     onClick={() => { setActiveImage(i + 1); setShowGallery(true); }}
                   >
                     <img src={img} alt="" loading="lazy" />
@@ -509,11 +572,9 @@ export default function PropertyDetailPage() {
                 <span className="pdp-chip__id">{property.id}</span>
                 {idCopied ? <CheckCircle2 size={11} strokeWidth={2.4} /> : <Copy size={10} strokeWidth={2.4} />}
               </button>
-              <span className={`pdp-chip ${isSale ? 'is-sale' : 'is-rent'}`}>
-                {isSale ? t('propertyStatus.sale') : t('propertyStatus.rent')}
-              </span>
+              <span className={`pdp-chip ${isSale ? 'is-sale' : 'is-rent'}`}>{statusLabel}</span>
               <span className="pdp-chip">
-                <Building2 size={11} strokeWidth={2.2} />{typeLabels[property.type]}
+                <Building2 size={11} strokeWidth={2.2} />{typeLabels[property.type] ?? property.type}
               </span>
               <span className="pdp-chip">
                 <Eye size={11} strokeWidth={2.2} />{property.viewCount.toLocaleString()} {t('property.views')}
@@ -606,6 +667,56 @@ export default function PropertyDetailPage() {
               </div>
             </section>
 
+            {/* Price against the neighbourhood */}
+            {insight && (
+              <section className="pdp-section" id="insight">
+                <div className="pdp-card pdp-insight">
+                  <div className="pdp-insight__head">
+                    <span className={`pdp-insight__icon ${insight.diffPct <= -5 ? 'is-good' : insight.diffPct >= 5 ? 'is-high' : ''}`}>
+                      {insight.diffPct >= 5 ? <TrendingUp size={18} strokeWidth={2.2} /> : <TrendingDown size={18} strokeWidth={2.2} />}
+                    </span>
+                    <div>
+                      <p className="pdp-insight__eyebrow">{t('property.insight.title')}</p>
+                      <h2 className="pdp-insight__title">
+                        {insight.diffPct <= -5
+                          ? t('property.insight.cheaper', { pct: Math.abs(insight.diffPct) })
+                          : insight.diffPct >= 5
+                            ? t('property.insight.pricier', { pct: insight.diffPct })
+                            : t('property.insight.average')}
+                      </h2>
+                      <p className="pdp-insight__basis">{t('property.insight.basis', { district: property.district, n: insight.sample })}</p>
+                    </div>
+                  </div>
+
+                  <div className="pdp-insight__bar" aria-hidden>
+                    <span className="pdp-insight__track" />
+                    {[
+                      { key: 'median', value: insight.median, label: t('property.insight.median') },
+                      { key: 'own', value: insight.own, label: t('property.insight.thisListing') },
+                    ].map(mark => {
+                      const span = insight.max - insight.min || 1;
+                      const left = Math.min(Math.max(((mark.value - insight.min) / span) * 100, 0), 100);
+                      return (
+                        <span
+                          key={mark.key}
+                          className={`pdp-insight__mark is-${mark.key}`}
+                          data-align={left < 18 ? 'start' : left > 82 ? 'end' : 'center'}
+                          style={{ left: `${left}%` }}
+                        >
+                          <em>{mark.label}</em>
+                          <strong>{formatMoney(Math.round(mark.value), { perSqm: true })}</strong>
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <div className="pdp-insight__scale">
+                    <span>{t('property.insight.low')} · {formatMoney(Math.round(insight.min), { perSqm: true })}</span>
+                    <span>{formatMoney(Math.round(insight.max), { perSqm: true })} · {t('property.insight.high')}</span>
+                  </div>
+                </div>
+              </section>
+            )}
+
             {/* Specs */}
             <section className="pdp-section" id="specs">
               <div className="pdp-card">
@@ -647,14 +758,25 @@ export default function PropertyDetailPage() {
             <section className="pdp-section" id="location">
               <div className="pdp-card">
                 <h2 className="pdp-card__title">{t('property.location')}</h2>
-                <PropertyMap
-                  lat={property.coordinates.lat}
-                  lng={property.coordinates.lng}
-                  address={addressLine}
-                  district={property.district}
-                  city={property.city}
-                  height={320}
-                />
+                {locationKnown ? (
+                  <PropertyMap
+                    lat={property.coordinates.lat}
+                    lng={property.coordinates.lng}
+                    address={addressLine}
+                    district={property.district}
+                    city={property.city}
+                    height={320}
+                  />
+                ) : (
+                  /* The saved point is only a city-centre fallback: showing it as a pin would mislead. */
+                  <div className="pdp-noloc">
+                    <span className="pdp-noloc__icon"><MapPin size={22} strokeWidth={2} /></span>
+                    <p className="pdp-noloc__title">{t('property.locationUnknown')}</p>
+                    <p className="pdp-noloc__hint">
+                      {t('property.locationUnknownHint', { area: [property.district, property.city].filter(Boolean).join(', ') })}
+                    </p>
+                  </div>
+                )}
                 <div className="pdp-map-foot">
                   <p><MapPin size={14} strokeWidth={2.4} />{addressLine}</p>
                   <Link
@@ -680,6 +802,7 @@ export default function PropertyDetailPage() {
                         <input
                           type="range"
                           className="pdp-range"
+                          aria-label={slider.label}
                           min={slider.min}
                           max={slider.max}
                           step={slider.stepSize}
@@ -717,17 +840,21 @@ export default function PropertyDetailPage() {
             )}
 
             {/* Similar */}
+            {similar.length > 0 && (
             <section className="pdp-section" id="similar">
               <div className="pdp-similar-head">
                 <h2 className="pdp-card__title">{t('property.similar')}</h2>
-                <Link to={listingsHref()} className="pdp-map-link">
-                  {t('common.viewAll')} <ArrowRight size={13} strokeWidth={2.6} />
+                <Link to={similarHref} className="pdp-map-link">
+                  {t('property.similarAll')} <ArrowRight size={13} strokeWidth={2.6} />
                 </Link>
               </div>
               <div className="pdp-similar-grid">
-                {similar.map(item => <PropertyCard key={item.id} property={item} />)}
+                {similar.map(item => (
+                  <ListingMapRow key={item.id} property={item} formatPrice={cardPrice} formatPricePerSqm={cardPricePerSqm} />
+                ))}
               </div>
             </section>
+            )}
           </main>
 
           {/* ── Sticky contact rail ── */}
@@ -776,12 +903,21 @@ export default function PropertyDetailPage() {
               </div>
 
               <div className="pdp-ctas">
-                <a className="pdp-cta is-call" href={`tel:${property.agent.phone}`}>
-                  <Phone size={16} strokeWidth={2.2} />{property.agent.phone}
+                <a className="pdp-cta is-call" href={`tel:${contactPhone}`}>
+                  <Phone size={16} strokeWidth={2.2} />{phoneLabel}
                 </a>
-                <a className="pdp-cta is-mail" href={`mailto:${property.agent.email}`}>
-                  <Mail size={15} strokeWidth={2.2} />{t('common.email')}
-                </a>
+                <div className="pdp-cta-row">
+                  {waHref && (
+                    <a className="pdp-cta is-wa" href={waHref} target="_blank" rel="noopener noreferrer">
+                      <MessageCircle size={15} strokeWidth={2.2} />{t('property.whatsapp')}
+                    </a>
+                  )}
+                  {contactEmail && (
+                    <a className="pdp-cta is-mail" href={`mailto:${contactEmail}`}>
+                      <Mail size={15} strokeWidth={2.2} />{t('common.email')}
+                    </a>
+                  )}
+                </div>
                 <button type="button" className="pdp-cta is-book" onClick={() => setShowBooking(true)}>
                   <Calendar size={15} strokeWidth={2.2} />{t('property.bookViewing')}
                 </button>
@@ -855,7 +991,12 @@ export default function PropertyDetailPage() {
           </div>
           {isSale && <p className="pdp-bar__sqm">{formatMoney(property.pricePerSqm, { ...moneyFrom, perSqm: true })}</p>}
         </div>
-        <a className="pdp-bar__call" href={`tel:${property.agent.phone}`}>
+        {waHref && (
+          <a className="pdp-bar__wa" href={waHref} target="_blank" rel="noopener noreferrer" aria-label={t('property.whatsapp')}>
+            <MessageCircle size={18} strokeWidth={2.2} />
+          </a>
+        )}
+        <a className="pdp-bar__call" href={`tel:${contactPhone}`}>
           <Phone size={16} strokeWidth={2.4} />{t('property.callNow')}
         </a>
       </div>

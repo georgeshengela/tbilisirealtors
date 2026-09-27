@@ -9,7 +9,19 @@ export const INTERNAL_LISTING_BADGE_IDS = [
   'accessible',
 ] as const;
 
+/**
+ * Imported listings carry the building's age as a bare code in their features
+ * ("new" / "old"). It belongs in the specs as building status, not in the chips.
+ */
+const BUILDING_CODES = new Set(['new', 'old', 'under']);
+
 const INTERNAL = new Set<string>(INTERNAL_LISTING_BADGE_IDS);
+
+/** Building status code packed into the features list, if any. */
+export function listingBuildingCode(features?: string[] | null): 'new' | 'old' | 'under' | null {
+  const hit = (features ?? []).find(item => BUILDING_CODES.has(item));
+  return (hit as 'new' | 'old' | 'under' | undefined) ?? null;
+}
 
 export function listingIsVerified(
   source?: { features?: string[] | null; badges?: string[] | null } | null,
@@ -27,5 +39,5 @@ export function listingBadgeIds(features?: string[] | null): string[] {
 
 /** Feature chips shown to visitors, without internal badge ids. */
 export function publicListingFeatures(features?: string[] | null): string[] {
-  return [...new Set(features ?? [])].filter(item => item && !INTERNAL.has(item));
+  return [...new Set(features ?? [])].filter(item => item && !INTERNAL.has(item) && !BUILDING_CODES.has(item));
 }

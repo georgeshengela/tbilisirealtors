@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { MapContainer, TileLayer, CircleMarker, Polygon, Popup, Tooltip, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Marker, Polygon, Popup, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { Bed, Building2, MapPin, Maximize2, Pencil, Sparkles, Trash2, X } from 'lucide-react';
@@ -30,11 +30,31 @@ interface ListingsMapProps {
   onDrawnAreaChange: (ring: Ring | null) => void;
   formatPrice: (property: Property) => string;
   formatPricePerSqm: (property: Property) => string;
+  /** Short price for the map pins, e.g. "$700" or "₾185K". */
+  formatPinPrice?: (property: Property) => string;
 }
 
 const DEFAULT_CENTER: [number, number] = [41.7151, 44.8271];
 const WORLD_RING: Ring = [[-89.9, -179.9], [89.9, -179.9], [89.9, 179.9], [-89.9, 179.9]];
 const BUILDINGS_MIN_ZOOM = 16;
+/** Price pins from this zoom; below it they would pile up, so dots stand in. */
+const PINS_MIN_ZOOM = 14;
+/** …unless the result set is small enough to read at a glance. */
+const PINS_ALWAYS_BELOW = 30;
+
+const pinCache = new Map<string, L.DivIcon>();
+function pinIcon(label: string, active: boolean, vip: boolean): L.DivIcon {
+  const key = `${label}|${active}|${vip}`;
+  let icon = pinCache.get(key);
+  if (!icon) {
+    const span = document.createElement('span');
+    span.className = `lp-pin${active ? ' is-active' : ''}${vip ? ' is-vip' : ''}`;
+    span.textContent = label;
+    icon = L.divIcon({ className: 'lp-pin-anchor', html: span.outerHTML, iconSize: [0, 0], iconAnchor: [0, 0] });
+    pinCache.set(key, icon);
+  }
+  return icon;
+}
 
 /** Korter keeps the viewport in the URL as `#zoom/lat/lng` — so do we. */
 function readHashView(): { center: [number, number]; zoom: number } | null {
@@ -94,6 +114,26 @@ function MapStateBridge({
     moveend: () => onBounds(map.getBounds()),
   });
 
+  // The map can start hidden (the phone list view) or change width (map toggle).
+  // Leaflet only measures once, so re-measure on resize and tell FitToArea when a
+  // hidden map first becomes visible.
+  useEffect(() => {
+    const el = map.getContainer();
+    let wasHidden = el.clientWidth === 0 || el.clientHeight === 0;
+    const observer = new ResizeObserver(() => {
+      const hidden = el.clientWidth === 0 || el.clientHeight === 0;
+      if (hidden) { wasHidden = true; return; }
+      map.invalidateSize({ pan: false });
+      if (wasHidden) {
+        wasHidden = false;
+        map.fire('lp:shown');
+      }
+      onBounds(map.getBounds());
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [map, onBounds]);
+
   return null;
 }
 
@@ -111,11 +151,7 @@ function FitToArea({
   const map = useMap();
   const initialFitKey = useRef(fitKey);
 
-  useEffect(() => {
-    // A viewport restored from the URL wins until the filters actually change,
-    // so a shared link keeps its zoom even when a district outline loads after it.
-    if (skipFirstFit && fitKey === initialFitKey.current) return;
-
+  const fit = useCallback(() => {
     if (boundary) {
       const [south, west, north, east] = boundary.bbox;
       const bounds = L.latLngBounds([south, west], [north, east]);
@@ -140,9 +176,27 @@ function FitToArea({
       L.latLngBounds(properties.map(p => [p.coordinates.lat, p.coordinates.lng] as [number, number])),
       { padding: [56, 56], maxZoom: 15, animate: true },
     );
+  }, [boundary, properties, map]);
+
+  const fitRef = useRef(fit);
+  fitRef.current = fit;
+
+  useEffect(() => {
+    // A viewport restored from the URL wins until the filters actually change,
+    // so a shared link keeps its zoom even when a district outline loads after it.
+    if (skipFirstFit && fitKey === initialFitKey.current) return;
+    // Nothing to frame against while the map has no size; `lp:shown` catches up.
+    const el = map.getContainer();
+    if (el.clientWidth === 0 || el.clientHeight === 0) return;
+    fitRef.current();
     // Re-frame when the filters change or results arrive, never while panning.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fitKey, boundary, properties.length, map]);
+  }, [fitKey, boundary, properties.length, map, skipFirstFit]);
+
+  useEffect(() => {
+    const onShown = () => fitRef.current();
+    map.on('lp:shown', onShown);
+    return () => { map.off('lp:shown', onShown); };
+  }, [map]);
 
   return null;
 }
@@ -589,6 +643,7 @@ function ListingDots({
   onActiveChange,
   formatPrice,
   formatPricePerSqm,
+  formatPinPrice,
 }: {
   properties: Property[];
   activeId: string | null;
@@ -597,8 +652,10 @@ function ListingDots({
   onActiveChange: (id: string | null) => void;
   formatPrice: (p: Property) => string;
   formatPricePerSqm: (p: Property) => string;
+  formatPinPrice?: (p: Property) => string;
 }) {
   const map = useMap();
+  const pinsEverywhere = Boolean(formatPinPrice) && (zoom >= PINS_MIN_ZOOM || properties.length <= PINS_ALWAYS_BELOW);
 
   return (
     <>
@@ -607,6 +664,26 @@ function ListingDots({
         if (matchedIds.has(property.id)) return null;
 
         const active = property.id === activeId;
+        // The listing hovered in the list always shows its price, so the two stay linked.
+        if (formatPinPrice && (pinsEverywhere || active)) {
+          return (
+            <Marker
+              key={`pin-${property.id}`}
+              position={[property.coordinates.lat, property.coordinates.lng]}
+              icon={pinIcon(formatPinPrice(property), active, Boolean(property.isFeatured || property.isPremium))}
+              zIndexOffset={active ? 1000 : property.isFeatured ? 200 : 0}
+              eventHandlers={{
+                mouseover: () => onActiveChange(property.id),
+                mouseout: () => onActiveChange(null),
+                click: () => onActiveChange(property.id),
+              }}
+            >
+              <Popup className="listing-map-leaflet-popup" closeButton={false} autoPanPadding={[28, 28]} offset={[0, -34]}>
+                <MapPopupCard property={property} formatPrice={formatPrice} formatPricePerSqm={formatPricePerSqm} />
+              </Popup>
+            </Marker>
+          );
+        }
         return (
           <CircleMarker
             key={property.id}
@@ -741,12 +818,12 @@ function MapPopupCard({
 
         <p className="listing-map-popup__meta">
           <Maximize2 size={10} strokeWidth={2.2} />
-          <strong>{property.area}</strong> მ²
-          {property.bedrooms > 0 && (
+          <strong>{Math.round(property.area * 10) / 10}</strong> {t('home.areaUnit')}
+          {(property.rooms || property.bedrooms) > 0 && (
             <>
               <span className="listing-map-popup__sep" />
               <Bed size={11} strokeWidth={2.2} />
-              <strong>{property.bedrooms}</strong> {t('property.bedsShort')}
+              <strong>{property.rooms || property.bedrooms}</strong> {t('listings.bar.roomsShort')}
             </>
           )}
         </p>
@@ -774,6 +851,7 @@ export default function ListingsMap({
   onDrawnAreaChange,
   formatPrice,
   formatPricePerSqm,
+  formatPinPrice,
 }: ListingsMapProps) {
   const { t } = useTranslation();
   const [hashView] = useState(readHashView);
@@ -864,6 +942,7 @@ export default function ListingsMap({
           onActiveChange={onActiveChange}
           formatPrice={formatPrice}
           formatPricePerSqm={formatPricePerSqm}
+          formatPinPrice={formatPinPrice}
         />
 
         <AreaLasso active={drawing} onFinish={finishDrawing} onCancel={cancelDrawing} />

@@ -88,11 +88,13 @@ function listingsSeo(
 
   const parts = [
     filters.status === 'daily_rent' ? t('propertyStatus.daily_rent') : '',
+    filters.status === 'pledge' ? t('home.dealTypes.mortgage') : '',
     filters.status === 'sale' || filters.status === 'rent' ? t(`propertyStatus.${filters.status}`) : '',
     TYPE_KEYS[filters.type ?? ''] ? t(TYPE_KEYS[filters.type ?? '']) : '',
-    filters.bedrooms ? `${filters.bedrooms} ${t('listings.bedrooms')}` : '',
+    filters.bedrooms ? t('listings.roomsChip', { n: filters.bedrooms }) : '',
+    filters.rooms?.length ? t('listings.roomsChip', { n: filters.rooms.map(r => (r === '5' ? '5+' : r)).join(', ') }) : '',
     filters.q || '',
-    filters.district || '',
+    filters.districts?.length ? filters.districts.join(', ') : filters.district || '',
     filters.city || '',
   ].filter(Boolean);
 

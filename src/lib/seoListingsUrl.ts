@@ -9,12 +9,18 @@ export type ListingUrlFilters = {
   bedrooms?: string;
   city?: string;
   district?: string;
+  /** Several neighbourhoods at once; a single one travels as `district` in the path. */
+  districts?: string[];
+  /** Exact room counts ("5" = five or more), unlike `bedrooms` which is a minimum. */
+  rooms?: string[];
   q?: string;
   isNew?: boolean;
   isPremium?: boolean;
   vip?: boolean;
   priceMin?: string;
   priceMax?: string;
+  /** Currency the price bounds are written in; absent means GEL. */
+  currency?: string;
   areaMin?: string;
   areaMax?: string;
 };
@@ -142,30 +148,42 @@ export function listingsHref(input: ListingUrlFilters = {}): string {
   const parts = [LISTINGS_SEO_ROOT];
   if (input.status && DEAL_SLUG[input.status]) parts.push(DEAL_SLUG[input.status]);
   if (input.type && TYPE_SLUG[input.type]) parts.push(TYPE_SLUG[input.type]);
-  if (input.bedrooms) {
-    const rooms = roomsSlug(input.bedrooms);
+  // One room count reads best in the path ("2-otaxiani"); several go in the query.
+  const roomList = input.rooms ?? [];
+  const singleRoom = input.bedrooms || (roomList.length === 1 && roomList[0] !== '5' ? roomList[0] : '');
+  if (singleRoom) {
+    const rooms = roomsSlug(singleRoom);
     if (rooms) parts.push(rooms);
   }
+  const districtList = (input.districts ?? []).filter(Boolean);
+  const singleDistrict = input.district || (districtList.length === 1 ? districtList[0] : '');
   if (input.city) {
     const citySlug = cityBySlug.has(kaToSlug(input.city))
       ? kaToSlug(input.city)
       : kaToSlug(input.city);
     if (citySlug) parts.push(citySlug);
   }
-  if (input.district) {
-    const dSlug = kaToSlug(input.district);
+  const street = knownStreetSlug(input.q);
+  if (districtList.length > 1) {
+    // Many areas: keep the city in the path, list the areas in the query.
+  } else if (singleDistrict) {
+    const dSlug = kaToSlug(singleDistrict);
     if (dSlug) parts.push(dSlug);
-  } else {
-    const street = knownStreetSlug(input.q);
-    if (street) parts.push(street);
+  } else if (street) {
+    parts.push(street);
   }
 
   let path = `${parts.join('/')}/`;
   if (path === `${LISTINGS_SEO_ROOT}//`) path = `${LISTINGS_SEO_ROOT}/`;
 
   const extra = new URLSearchParams();
+  if (districtList.length > 1) extra.set('districts', districtList.map(kaToSlug).join(','));
+  if (roomList.length && !singleRoom) extra.set('rooms', [...roomList].sort().join(','));
+  const freeText = input.q?.trim();
+  if (freeText && (singleDistrict || districtList.length > 1 || !street)) extra.set('q', freeText);
   if (input.priceMin) extra.set('priceMin', input.priceMin);
   if (input.priceMax) extra.set('priceMax', input.priceMax);
+  if ((input.priceMin || input.priceMax) && input.currency && input.currency !== 'GEL') extra.set('cur', input.currency);
   if (input.areaMin) extra.set('areaMin', input.areaMin);
   if (input.areaMax) extra.set('areaMax', input.areaMax);
   if (input.isNew) extra.set('new', 'true');
@@ -236,6 +254,22 @@ export function listingsHrefFromSearchParams(params: URLSearchParams): string {
   });
 }
 
+function parseDistrictList(raw: string | null, city?: string): string[] | undefined {
+  if (!raw) return undefined;
+  const out: string[] = [];
+  for (const slug of raw.split(',').map(s => s.trim()).filter(Boolean)) {
+    const hit = resolveDistrict(slug, city);
+    if (hit && !out.includes(hit.district)) out.push(hit.district);
+  }
+  return out.length ? out : undefined;
+}
+
+function parseRoomList(raw: string | null): string[] | undefined {
+  if (!raw) return undefined;
+  const out = [...new Set(raw.split(',').map(s => s.trim()).filter(s => /^[1-5]$/.test(s)))];
+  return out.length ? out.sort() : undefined;
+}
+
 export function parseListingsLocation(pathname: string, search: string): ListingUrlFilters {
   const fromPath = parseListingsPath(pathname);
   const params = new URLSearchParams(search.startsWith('?') ? search.slice(1) : search);
@@ -253,11 +287,14 @@ export function parseListingsLocation(pathname: string, search: string): Listing
     ...fromQuery,
     ...fromPath,
     q: fromPath.q || params.get('q') || undefined,
+    districts: parseDistrictList(params.get('districts'), fromPath.city || (fromQuery as ListingUrlFilters).city),
+    rooms: parseRoomList(params.get('rooms')),
     isNew: params.get('new') === 'true' || fromPath.isNew,
     isPremium: params.get('premium') === 'true' || fromPath.isPremium,
     vip: params.get('vip') === 'true',
     priceMin: params.get('priceMin') || undefined,
     priceMax: params.get('priceMax') || undefined,
+    currency: params.get('cur') || undefined,
     areaMin: params.get('areaMin') || undefined,
     areaMax: params.get('areaMax') || undefined,
   };
@@ -272,7 +309,7 @@ export function listingsCanonicalPath(filters: ListingUrlFilters): string {
     city: filters.city,
     district: filters.district,
     q: knownStreetSlug(filters.q) ? filters.q : undefined,
-  });
+  }).split('?')[0];
 }
 
 export function listingSitemapPaths(): string[] {
