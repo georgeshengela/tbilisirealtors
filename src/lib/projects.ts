@@ -1,6 +1,8 @@
 import { kaToSlug } from './seoListingsUrl';
 import type {
   ConstructionProject,
+  ProjectBlock,
+  ProjectCurrency,
   ProjectPaymentOption,
   ProjectStatus,
   ProjectUnit,
@@ -9,6 +11,8 @@ import type {
 
 export type {
   ConstructionProject,
+  ProjectBlock,
+  ProjectCurrency,
   ProjectPaymentOption,
   ProjectStatus,
   ProjectUnit,
@@ -59,37 +63,127 @@ export function isProjectStatus(value: unknown): value is ProjectStatus {
   return value === 'building' || value === 'completed' || value === 'presale';
 }
 
-export function generateProjectUnits(
+export const MAX_PROJECT_FLOORS = 120;
+export const MAX_UNITS_PER_FLOOR = 40;
+export const MAX_PROJECT_BLOCKS = 26;
+
+function clampInt(value: unknown, min: number, max: number): number {
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : min;
+}
+
+/** A, B, C… — the first letter not taken yet. */
+export function nextBlockName(blocks: ProjectBlock[]): string {
+  const taken = new Set(blocks.map(b => b.name));
+  for (let i = 0; i < MAX_PROJECT_BLOCKS; i += 1) {
+    const name = String.fromCharCode(65 + i);
+    if (!taken.has(name)) return name;
+  }
+  return String(blocks.length + 1);
+}
+
+export function newBlockId(): string {
+  return `blk${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
+/** Legacy projects have units but no blocks — treat them as one implicit block. */
+export function blocksOf(project: Pick<ConstructionProject, 'blocks' | 'projectUnits'>): ProjectBlock[] {
+  if (project.blocks.length) return project.blocks;
+  if (!project.projectUnits.length) return [];
+  const perFloor = new Map<number, number>();
+  for (const unit of project.projectUnits) perFloor.set(unit.floor, (perFloor.get(unit.floor) ?? 0) + 1);
+  return [{
+    id: 'b1',
+    name: 'A',
+    floors: Math.max(...perFloor.keys()),
+    unitsPerFloor: Math.max(...perFloor.values()),
+  }];
+}
+
+/** Block a unit belongs to — units without one sit in the first block. */
+export function unitBlockName(unit: ProjectUnit, blocks: ProjectBlock[]): string {
+  return unit.block || blocks[0]?.name || '';
+}
+
+export function unitNumber(block: string, floor: number, position: number, prefixed: boolean): string {
+  const base = `${floor}${String(position).padStart(2, '0')}`;
+  return prefixed && block ? `${block}-${base}` : base;
+}
+
+/**
+ * Lay out units for every block. Existing units are matched by block (via its id,
+ * so renames are safe) + floor + position and keep their area/price/status; new
+ * slots start empty and available — nothing is invented.
+ */
+export function rebuildBlockUnits(
   projectId: string,
-  floors: number,
-  unitsPerFloor: number,
-  basePrice: number,
-  bedroomOptions: number[] = [1, 2, 3],
+  prevBlocks: ProjectBlock[],
+  nextBlocks: ProjectBlock[],
+  units: ProjectUnit[],
 ): ProjectUnit[] {
-  const rooms = bedroomOptions.filter(n => n > 0).length ? bedroomOptions.filter(n => n > 0) : [1, 2, 3];
-  const maxFloors = Math.min(Math.max(Math.round(floors) || 1, 1), 40);
-  const perFloor = Math.min(Math.max(Math.round(unitsPerFloor) || 1, 1), 12);
-  const units: ProjectUnit[] = [];
-  for (let floor = 1; floor <= maxFloors; floor += 1) {
-    for (let index = 1; index <= perFloor; index += 1) {
-      const bedrooms = rooms[(floor + index - 2) % rooms.length];
-      const area = 38 + bedrooms * 22 + index * 4 + Math.floor(floor / 2);
-      const price = Math.round(basePrice + area * 1850 + floor * 4200);
-      const statusSeed = (floor * 7 + index * 3) % 10;
-      const status: ProjectUnitStatus = statusSeed <= 1 ? 'sold' : statusSeed <= 3 ? 'reserved' : 'available';
-      units.push({
-        id: `${projectId}-f${floor}-u${index}`,
-        floor,
-        number: `${floor}${String(index).padStart(2, '0')}`,
-        bedrooms,
-        area,
-        price,
-        pricePerSqm: Math.round(price / area),
-        status,
-      });
+  const slots = new Map<string, ProjectUnit>();
+  const counters = new Map<string, number>();
+  for (const unit of units) {
+    const prev = unit.block
+      ? prevBlocks.find(b => b.name === unit.block)
+      : prevBlocks[0];
+    if (!prev) continue;
+    const floorKey = `${prev.id}|${unit.floor}`;
+    const position = unit.position ?? (counters.get(floorKey) ?? 0) + 1;
+    counters.set(floorKey, position);
+    slots.set(`${floorKey}|${position}`, unit);
+  }
+
+  const prefixed = nextBlocks.length > 1;
+  const out: ProjectUnit[] = [];
+  for (const block of nextBlocks) {
+    const floors = clampInt(block.floors, 1, MAX_PROJECT_FLOORS);
+    const perFloor = clampInt(block.unitsPerFloor, 1, MAX_UNITS_PER_FLOOR);
+    for (let floor = 1; floor <= floors; floor += 1) {
+      for (let position = 1; position <= perFloor; position += 1) {
+        const kept = slots.get(`${block.id}|${floor}|${position}`);
+        const number = unitNumber(block.name, floor, position, prefixed);
+        out.push(kept
+          ? { ...kept, floor, number, block: block.name, position }
+          : {
+            id: `${projectId}-${block.id}-f${floor}-u${position}`,
+            floor,
+            number,
+            bedrooms: 0,
+            area: 0,
+            price: 0,
+            pricePerSqm: 0,
+            status: 'available',
+            block: block.name,
+            position,
+          });
+      }
     }
   }
-  return units;
+  return out;
+}
+
+/** Units that would disappear with the next layout and carry real data. */
+export function droppedUnitsWithData(
+  prevBlocks: ProjectBlock[],
+  nextBlocks: ProjectBlock[],
+  units: ProjectUnit[],
+): ProjectUnit[] {
+  const kept = new Set(rebuildBlockUnits('x', prevBlocks, nextBlocks, units).map(unit => unit.id));
+  return units.filter(unit => !kept.has(unit.id) && !isBlankUnit(unit));
+}
+
+function isBlankUnit(unit: ProjectUnit): boolean {
+  return unit.status === 'available' && !unit.area && !unit.price && !unit.bedrooms;
+}
+
+/** Empty plan for a single block (seed/demo data). No prices, every unit available. */
+export function generateProjectUnits(projectId: string, floors: number, unitsPerFloor: number): ProjectUnit[] {
+  return rebuildBlockUnits(projectId, [], [{ id: 'b1', name: 'A', floors, unitsPerFloor }], []);
+}
+
+export function isProjectCurrency(value: unknown): value is ProjectCurrency {
+  return value === 'GEL' || value === 'USD';
 }
 
 function num(value: unknown): number {
@@ -133,7 +227,23 @@ function unitsOf(value: unknown): ProjectUnit[] {
         price,
         pricePerSqm: num(row.pricePerSqm) || (area > 0 ? Math.round(price / area) : 0),
         status,
+        block: text(row.block) || undefined,
+        position: num(row.position) > 0 ? Math.round(num(row.position)) : undefined,
       } satisfies ProjectUnit;
+    });
+}
+
+function blocksFromApi(value: unknown): ProjectBlock[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item, index) => {
+      const row = (item ?? {}) as Record<string, unknown>;
+      return {
+        id: text(row.id) || `b${index + 1}`,
+        name: text(row.name) || String.fromCharCode(65 + index),
+        floors: clampInt(row.floors, 1, MAX_PROJECT_FLOORS),
+        unitsPerFloor: clampInt(row.unitsPerFloor, 1, MAX_UNITS_PER_FLOOR),
+      };
     });
 }
 
@@ -156,6 +266,7 @@ export function mapProjectFromApi(row: Record<string, unknown>): ConstructionPro
     units: Math.round(num(row.units)),
     priceFrom: num(row.priceFrom),
     priceTo: num(row.priceTo),
+    priceCurrency: isProjectCurrency(row.priceCurrency) ? row.priceCurrency : 'GEL',
     pricePerSqmFrom: num(row.pricePerSqmFrom),
     pricePerSqmTo: num(row.pricePerSqmTo),
     areaFrom: num(row.areaFrom),
@@ -182,6 +293,7 @@ export function mapProjectFromApi(row: Record<string, unknown>): ConstructionPro
       lat: num(coords.lat) || 41.7151,
       lng: num(coords.lng) || 44.8271,
     },
+    blocks: blocksFromApi(row.blocks),
     projectUnits: unitsOf(row.projectUnits),
     published: row.published !== false,
     sortOrder: Math.round(num(row.sortOrder)),

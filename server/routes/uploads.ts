@@ -14,8 +14,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { v2 as cloudinary } from 'cloudinary';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
-import { can } from '../permissions.js';
-import { WATERMARK_TAG, WATERMARK_TRANSFORM, ensureWatermark } from '../lib/watermark.js';
+import { can, isStaffRole } from '../permissions.js';
+import { WATERMARK_CONTEXT, WATERMARK_TAG, WATERMARK_TRANSFORM, ensureWatermark } from '../lib/watermark.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONTRACTS_DIR = path.join(__dirname, '../../uploads/contracts');
@@ -50,7 +50,7 @@ async function mapPool<T, R>(items: T[], size: number, fn: (item: T) => Promise<
   return out;
 }
 
-function uploadPhoto(file: Express.Multer.File): Promise<{
+function uploadPhoto(file: Express.Multer.File, watermark: boolean): Promise<{
   url: string;
   name: string;
   size: number;
@@ -65,9 +65,9 @@ function uploadPhoto(file: Express.Multer.File): Promise<{
         resource_type: 'image',
         overwrite: false,
         access_mode: 'public',
-        tags: [WATERMARK_TAG],
-        context: 'watermarked=v2',
-        transformation: WATERMARK_TRANSFORM,
+        ...(watermark
+          ? { tags: [WATERMARK_TAG], context: WATERMARK_CONTEXT, transformation: WATERMARK_TRANSFORM }
+          : { tags: ['no-watermark'] }),
       },
       (err, result) => {
         if (err || !result?.secure_url) {
@@ -138,9 +138,12 @@ router.post('/', upload.array('files', 20), async (req: AuthRequest, res: Respon
     return;
   }
 
+  // Staff may skip the stamp for portraits (?watermark=0) — a logo over a face is useless.
+  const watermark = !(req.query.watermark === '0' && isStaffRole(req.user?.role ?? ''));
+
   try {
-    if (photos.length) await ensureWatermark();
-    const uploadedPhotos = await mapPool(photos, 3, uploadPhoto);
+    if (photos.length && watermark) await ensureWatermark();
+    const uploadedPhotos = await mapPool(photos, 3, file => uploadPhoto(file, watermark));
     const savedContracts = contracts.map(saveContract);
     res.json({ files: [...uploadedPhotos, ...savedContracts] });
   } catch (err) {

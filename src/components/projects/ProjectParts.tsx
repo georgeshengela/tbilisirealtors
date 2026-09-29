@@ -54,8 +54,8 @@ export function ProjectCard({ project }: { project: ConstructionProject }) {
         </div>
         <div className="pcard__price">
           <span>{t('home.showcase.priceFrom')}</span>
-          <strong>{formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000 })}</strong>
-          {project.pricePerSqmFrom > 0 && <em>{formatMoney(project.pricePerSqmFrom, { perSqm: true })}</em>}
+          <strong>{formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000, from: project.priceCurrency })}</strong>
+          {project.pricePerSqmFrom > 0 && <em>{formatMoney(project.pricePerSqmFrom, { perSqm: true, from: project.priceCurrency })}</em>}
         </div>
       </div>
 

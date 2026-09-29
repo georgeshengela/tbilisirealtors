@@ -7,7 +7,7 @@ import { eq } from 'drizzle-orm';
 import { v2 as cloudinary } from 'cloudinary';
 import { db, client } from '../server/db.js';
 import { properties } from '../server/schema.js';
-import { WATERMARK_TAG, ensureWatermark, watermarkImageUrl } from '../server/lib/watermark.js';
+import { WATERMARK_TAGS, ensureWatermark, watermarkImageUrl } from '../server/lib/watermark.js';
 
 cloudinary.config(true);
 
@@ -24,7 +24,9 @@ async function alreadyWatermarked(url: string): Promise<boolean> {
     const resource = await cloudinary.api.resource(match[1], { context: true, tags: true });
     const tags: string[] = resource.tags ?? [];
     const context = resource.context?.custom ?? {};
-    return tags.includes(WATERMARK_TAG) || context.watermarked === 'v2';
+    // Any stamped version counts — this script only handles never-watermarked photos
+    // (it overwrites in place). Re-stamping v2 → v3 is scripts/rewatermark-v3.ts.
+    return tags.some(tag => WATERMARK_TAGS.includes(tag)) || Boolean(context.watermarked);
   } catch {
     return false;
   }

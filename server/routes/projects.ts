@@ -6,10 +6,14 @@ import { requirePermission, requireStaff, type AuthRequest } from '../middleware
 import { nanoid } from '../utils.js';
 import {
   DELIVERY_CONDITIONS,
-  generateProjectUnits,
+  isProjectCurrency,
   isProjectStatus,
   mapProjectFromApi,
+  MAX_PROJECT_BLOCKS,
+  MAX_PROJECT_FLOORS,
+  MAX_UNITS_PER_FLOOR,
   slugFromProjectName,
+  type ProjectBlock,
   type ProjectPaymentOption,
   type ProjectUnit,
 } from '../../src/lib/projects.ts';
@@ -49,24 +53,45 @@ function paymentsOf(value: unknown): ProjectPaymentOption[] {
   return strArr(value).filter((item): item is ProjectPaymentOption => PAYMENTS.has(item as ProjectPaymentOption));
 }
 
-function unitsOf(value: unknown, projectId: string): ProjectUnit[] {
+function unitsOf(value: unknown, projectId: string, blockNames: Set<string>): ProjectUnit[] {
   if (!Array.isArray(value)) return [];
-  return value.slice(0, 500).map((item, index) => {
-    const row = item as Record<string, unknown>;
+  return value.slice(0, 5000).map((item, index) => {
+    const row = (item ?? {}) as Record<string, unknown>;
     const area = Math.max(0, asNum(row.area));
     const price = Math.max(0, asNum(row.price));
     const status = row.status === 'sold' || row.status === 'reserved' ? row.status : 'available';
+    const block = asText(row.block, 12);
+    const position = asInt(row.position, 0, MAX_UNITS_PER_FLOOR);
     return {
       id: asText(row.id, 80) || `${projectId}-u${index + 1}`,
-      floor: asInt(row.floor, 1, 80),
+      floor: asInt(row.floor, 1, MAX_PROJECT_FLOORS),
       number: asText(row.number, 20) || String(index + 1),
       bedrooms: asInt(row.bedrooms, 0, 12),
       area,
       price,
       pricePerSqm: asInt(row.pricePerSqm) || (area > 0 ? Math.round(price / area) : 0),
       status,
+      ...(block && blockNames.has(block) ? { block } : {}),
+      ...(position ? { position } : {}),
     };
   });
+}
+
+function blocksOf(value: unknown): ProjectBlock[] {
+  if (!Array.isArray(value)) return [];
+  const out: ProjectBlock[] = [];
+  for (const item of value.slice(0, MAX_PROJECT_BLOCKS)) {
+    const row = (item ?? {}) as Record<string, unknown>;
+    const name = asText(row.name, 12) || String.fromCharCode(65 + out.length);
+    if (out.some(b => b.name === name)) continue;
+    out.push({
+      id: asText(row.id, 40) || `b${out.length + 1}`,
+      name,
+      floors: asInt(row.floors, 1, MAX_PROJECT_FLOORS),
+      unitsPerFloor: asInt(row.unitsPerFloor, 1, MAX_UNITS_PER_FLOOR),
+    });
+  }
+  return out;
 }
 
 function imagesOf(value: unknown): string[] {
@@ -114,19 +139,23 @@ function payloadOf(
   const gallery = cover && !images.includes(cover) ? [cover, ...images] : images;
   const status = isProjectStatus(body.status) ? body.status : 'building';
   const deliveryCondition = asText(body.deliveryCondition, 120);
-  const incomingUnits = Array.isArray(body.projectUnits) ? body.projectUnits : null;
-  const existingUnits = Array.isArray(existing?.projectUnits) ? existing.projectUnits : [];
-  const projectUnits = incomingUnits && incomingUnits.length
-    ? unitsOf(incomingUnits, id)
-    : existingUnits.length
-      ? existingUnits
-      : generateProjectUnits(
-        id,
-        asInt(body.floors, 1, 80),
-        asInt(body.unitsPerFloor, 1, 12) || 4,
-        asNum(body.priceFrom),
-        (body.bedroomOptions as number[]) || [1, 2, 3],
-      );
+  // Blocks + units come from the admin plan editor; a body without them keeps what is stored.
+  const blocks = Array.isArray(body.blocks)
+    ? blocksOf(body.blocks)
+    : blocksOf(existing?.blocks);
+  const blockNames = new Set(blocks.map(b => b.name));
+  const projectUnits = Array.isArray(body.projectUnits)
+    ? unitsOf(body.projectUnits, id, blockNames)
+    : (existing?.projectUnits ?? []);
+  const priceCurrency = isProjectCurrency(body.priceCurrency)
+    ? body.priceCurrency
+    : (existing?.priceCurrency === 'USD' ? 'USD' : 'GEL');
+  // With blocks the counts are derived, so the public floor picker can never drift from them.
+  const floors = blocks.length
+    ? Math.max(...blocks.map(b => b.floors))
+    : asInt(body.floors, 1, MAX_PROJECT_FLOORS);
+  const buildings = blocks.length ? blocks.length : asInt(body.buildings, 1, 40);
+  const units = blocks.length ? projectUnits.length : asInt(body.units, 0, 20_000) || projectUnits.length;
   return {
     slug,
     name: asText(body.name, 255),
@@ -136,9 +165,10 @@ function payloadOf(
     developer: asText(body.developer, 255),
     managementCompany: asText(body.managementCompany, 255) || null,
     phone: asText(body.phone, 50),
-    units: asInt(body.units, 0, 20_000) || projectUnits.length,
+    units,
     priceFrom: String(Math.max(0, Math.round(asNum(body.priceFrom)))),
     priceTo: String(Math.max(0, Math.round(asNum(body.priceTo)))),
+    priceCurrency,
     pricePerSqmFrom: String(Math.max(0, Math.round(asNum(body.pricePerSqmFrom)))),
     pricePerSqmTo: String(Math.max(0, Math.round(asNum(body.pricePerSqmTo)))),
     areaFrom: String(Math.max(0, asNum(body.areaFrom))),
@@ -148,8 +178,8 @@ function payloadOf(
     status,
     image: cover,
     images: gallery,
-    floors: asInt(body.floors, 1, 80),
-    buildings: asInt(body.buildings, 1, 40),
+    floors,
+    buildings,
     parking: asInt(body.parking, 0, 20_000),
     bedroomOptions: Array.isArray(body.bedroomOptions)
       ? (body.bedroomOptions as unknown[]).map(n => asInt(n, 1, 10)).filter(n => n > 0)
@@ -164,6 +194,7 @@ function payloadOf(
     postDeliveryServices: strArr(body.postDeliveryServices),
     securityFeatures: strArr(body.securityFeatures),
     coordinates: coordsOf(body.coordinates),
+    blocks,
     projectUnits,
     published: body.published !== false,
     sortOrder: asInt(body.sortOrder, 0, 10_000),

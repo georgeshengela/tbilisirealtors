@@ -8,6 +8,7 @@ import { useTranslation } from '../i18n/LocaleContext';
 import { useAgents, useTeam } from '../hooks/usePublicData';
 import { CONTACT } from '../data/contactInfo';
 import type { Agent, TeamMember } from '../types/listing';
+import { avatarUrl, portraitUrl } from '../lib/imageUrl';
 
 const PAGE_BG = '#f7f9fb';
 const CARD_BORDER = '#e6e8ea';
@@ -297,7 +298,7 @@ function TeamCard({
             style={{ background: color }}
           >
             {member.photo
-              ? <img src={member.photo} alt="" className="w-full h-full object-cover" />
+              ? <img src={avatarUrl(member.photo, 128)} alt="" className="w-full h-full object-cover" />
               : initials(member.name)}
           </div>
         </div>
@@ -346,9 +347,9 @@ function AgentCard({
     >
       <Link to={`/agent/${agent.id}`} className="relative block h-56 overflow-hidden bg-slate-100">
         <img
-          src={agent.photo}
+          src={portraitUrl(agent.photo, 720, 448)}
           alt=""
-          className="w-full h-full object-cover object-top transition-transform duration-500 group-hover:scale-[1.03]"
+          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
         <div className="absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-black/35 to-transparent" />
         <div className="absolute top-3 left-3 right-3 flex items-start justify-between gap-2">

@@ -48,7 +48,7 @@ export default function ProjectsMap({ projects }: { projects: ConstructionProjec
               <span className="pmap-card__body">
                 <strong>{p.name}</strong>
                 <small>{p.developer} · {p.district}</small>
-                <em>{t('home.showcase.priceFrom')} {formatMoney(p.priceFrom)}</em>
+                <em>{t('home.showcase.priceFrom')} {formatMoney(p.priceFrom, { from: p.priceCurrency })}</em>
               </span>
             </Link>
           </Popup>

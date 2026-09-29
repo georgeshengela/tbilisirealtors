@@ -511,6 +511,15 @@ export interface ConstructionProjectUnit {
   price: number;
   pricePerSqm: number;
   status: 'available' | 'reserved' | 'sold';
+  block?: string;
+  position?: number;
+}
+
+export interface ConstructionProjectBlock {
+  id: string;
+  name: string;
+  floors: number;
+  unitsPerFloor: number;
 }
 
 export const constructionProjects = pgTable('construction_projects', {
@@ -526,6 +535,7 @@ export const constructionProjects = pgTable('construction_projects', {
   units: integer('units').notNull().default(0),
   priceFrom: numeric('price_from').notNull().default('0'),
   priceTo: numeric('price_to').notNull().default('0'),
+  priceCurrency: varchar('price_currency', { length: 3 }).notNull().default('GEL'),
   pricePerSqmFrom: numeric('price_per_sqm_from').notNull().default('0'),
   pricePerSqmTo: numeric('price_per_sqm_to').notNull().default('0'),
   areaFrom: numeric('area_from').notNull().default('0'),
@@ -549,6 +559,7 @@ export const constructionProjects = pgTable('construction_projects', {
   postDeliveryServices: jsonb('post_delivery_services').$type<string[]>().notNull().default([]),
   securityFeatures: jsonb('security_features').$type<string[]>().notNull().default([]),
   coordinates: jsonb('coordinates').$type<{ lat: number; lng: number }>(),
+  blocks: jsonb('blocks').$type<ConstructionProjectBlock[]>().notNull().default([]),
   projectUnits: jsonb('project_units').$type<ConstructionProjectUnit[]>().notNull().default([]),
   published: boolean('published').notNull().default(true),
   sortOrder: integer('sort_order').notNull().default(0),

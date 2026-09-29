@@ -59,7 +59,7 @@ export default function ConstructionProjectCard({ project }: { project: Construc
             {project.district}, {project.city}
           </p>
           <p className="font-extrabold text-[14px] sm:text-[15px] mt-1.5 leading-none" style={{ color: '#60a5fa' }}>
-            {formatMoney(project.priceFrom)}+
+            {formatMoney(project.priceFrom, { from: project.priceCurrency })}+
           </p>
         </div>
       </div>

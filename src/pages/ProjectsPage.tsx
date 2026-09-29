@@ -26,7 +26,7 @@ function completionKey(p: ConstructionProject): number {
 export default function ProjectsPage() {
   const { t } = useTranslation();
   const { locale } = useLocale();
-  const { formatMoney } = useCurrency();
+  const { formatMoney, listingToGel } = useCurrency();
   const { data: projects, loading } = useProjects();
   const statusLabels = projectStatusLabels(t);
 
@@ -39,9 +39,13 @@ export default function ProjectsPage() {
   const stats = useMemo(() => ({
     projects: projects.length,
     units: projects.reduce((sum, p) => sum + (p.units || 0), 0),
-    priceFrom: projects.reduce((min, p) => (p.priceFrom > 0 && p.priceFrom < min ? p.priceFrom : min), Infinity),
+    // Projects may be priced in ₾ or $ — compare in GEL.
+    priceFrom: projects.reduce((min, p) => {
+      const gel = listingToGel(p.priceFrom, p.priceCurrency);
+      return gel > 0 && gel < min ? gel : min;
+    }, Infinity),
     developers: new Set(projects.map(p => p.developer).filter(Boolean)).size,
-  }), [projects]);
+  }), [projects, listingToGel]);
 
   const cities = useMemo(() => [...new Set(projects.map(p => p.city).filter(Boolean))], [projects]);
   const statusTabs = useMemo(() => {
@@ -55,12 +59,12 @@ export default function ProjectsPage() {
   const shown = useMemo(() => {
     const list = projects.filter(p => (!status || p.status === status) && (!city || p.city === city));
     switch (sort) {
-      case 'price': return [...list].sort((a, b) => a.priceFrom - b.priceFrom);
+      case 'price': return [...list].sort((a, b) => listingToGel(a.priceFrom, a.priceCurrency) - listingToGel(b.priceFrom, b.priceCurrency));
       case 'completion': return [...list].sort((a, b) => completionKey(a) - completionKey(b));
       case 'progress': return [...list].sort((a, b) => (b.status === 'completed' ? 100 : b.constructionProgress) - (a.status === 'completed' ? 100 : a.constructionProgress));
       default: return list; // admin order
     }
-  }, [projects, status, city, sort]);
+  }, [projects, status, city, sort, listingToGel]);
 
   const sortOptions: { v: Sort; l: string }[] = [
     { v: 'recommended', l: t('projectsPage.sortRecommended') },

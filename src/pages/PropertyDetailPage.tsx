@@ -28,6 +28,7 @@ import { formatPhone, priceInsight, similarListings, whatsappNumber } from '../l
 import VerifiedListingBadge from '../components/VerifiedListingBadge';
 import { CONTACT } from '../data/contactInfo';
 import { rememberViewed } from '../lib/recentlyViewed';
+import { avatarUrl } from '../lib/imageUrl';
 
 /** Long descriptions collapse to a few lines until the reader asks for more. */
 const CLAMP_AT_CHARS = 460;
@@ -875,7 +876,7 @@ export default function PropertyDetailPage() {
 
               <div className="pdp-agent">
                 {property.agent.photo ? (
-                  <img className="pdp-agent__photo" src={property.agent.photo} alt={property.agent.name} />
+                  <img className="pdp-agent__photo" src={avatarUrl(property.agent.photo, 96)} alt={property.agent.name} />
                 ) : (
                   <div className="pdp-agent__photo pdp-agent__initials" aria-hidden>
                     {personInitials(property.agent.name)}

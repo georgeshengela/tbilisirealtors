@@ -5,6 +5,7 @@ import { Clock, Tag, ArrowLeft, Share2, ArrowRight, Link2, MessageSquare } from 
 import { useBlogPost, useBlogPosts } from '../hooks/usePublicData';
 import { useTranslation } from '../i18n/LocaleContext';
 import { applySeo, clipMeta, pageUrl, setJsonLd, SITE_NAME, absoluteImage } from '../lib/seo';
+import { avatarUrl } from '../lib/imageUrl';
 
 export default function BlogDetailPage() {
   const { t } = useTranslation();
@@ -124,7 +125,7 @@ export default function BlogDetailPage() {
         {/* Meta */}
         <div className="flex flex-wrap items-center gap-6 py-5 border-y border-slate-200 dark:border-slate-700 mb-10">
           <div className="flex items-center gap-3">
-            <img src={post.author.photo} alt={post.author.name} className="w-11 h-11 rounded-full object-cover" />
+            <img src={avatarUrl(post.author.photo, 88)} alt={post.author.name} className="w-11 h-11 rounded-full object-cover" />
             <div>
               <p className="font-semibold text-slate-800 dark:text-white text-sm">{post.author.name}</p>
               <p className="text-xs text-slate-500">TBILISIREALTOR.GE</p>
@@ -180,7 +181,7 @@ export default function BlogDetailPage() {
 
         {/* Author Card */}
         <div className="mt-12 bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-100 dark:border-slate-700 flex gap-5">
-          <img src={post.author.photo} alt={post.author.name} className="w-20 h-20 rounded-2xl object-cover flex-shrink-0" />
+          <img src={avatarUrl(post.author.photo, 160)} alt={post.author.name} className="w-20 h-20 rounded-2xl object-cover flex-shrink-0" />
           <div>
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">ავტორი</p>
             <h3 className="text-xl font-bold text-slate-900 dark:text-white mb-2">{post.author.name}</h3>

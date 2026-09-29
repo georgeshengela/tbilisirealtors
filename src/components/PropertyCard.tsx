@@ -10,6 +10,7 @@ import { personInitials } from '../lib/personInitials';
 import { propertyHref, withEmbedQuery } from '../lib/seoPropertyUrl';
 import { listingIsVerified } from '../lib/listingBadges';
 import VerifiedListingBadge from './VerifiedListingBadge';
+import { avatarUrl } from '../lib/imageUrl';
 
 function useListingHref() {
   const location = useLocation();
@@ -214,7 +215,7 @@ export default function PropertyCard({ property, variant = 'default' }: Property
             <div className="ml-auto flex items-center gap-1.5">
               {property.agent.photo ? (
                 <img
-                  src={property.agent.photo}
+                  src={avatarUrl(property.agent.photo, 48)}
                   alt={property.agent.name}
                   className="w-6 h-6 rounded-full object-cover"
                   style={{ border: '1.5px solid #e8eaed' }}

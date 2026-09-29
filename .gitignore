@@ -25,6 +25,9 @@ dist-server
 # Admin uploads (listing photos, signed contracts)
 uploads
 
+# Photo re-stamp old→new URL maps (rollback data)
+backups
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

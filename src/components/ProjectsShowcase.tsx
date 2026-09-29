@@ -24,12 +24,12 @@ function FeatureCard({ project }: { project: ConstructionProject }) {
         <dl className="pc__stats">
           <div>
             <dt>{t('home.showcase.priceFrom')}</dt>
-            <dd>{formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000 })}</dd>
+            <dd>{formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000, from: project.priceCurrency })}</dd>
           </div>
           {project.pricePerSqmFrom > 0 && (
             <div>
               <dt>{t('home.showcase.perSqm')}</dt>
-              <dd>{formatMoney(project.pricePerSqmFrom)}</dd>
+              <dd>{formatMoney(project.pricePerSqmFrom, { from: project.priceCurrency })}</dd>
             </div>
           )}
           {project.units > 0 && (
@@ -70,7 +70,7 @@ function CompactCard({ project }: { project: ConstructionProject }) {
         <p className="pc__loc"><MapPin size={12} strokeWidth={2.4} />{[project.district, project.city].filter(Boolean).join(', ')}</p>
         <p className="pc__price">
           <span>{t('home.showcase.priceFrom')}</span>
-          <strong>{formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000 })}</strong>
+          <strong>{formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000, from: project.priceCurrency })}</strong>
           {project.bedroomOptions?.length > 0 && (
             <em>· {t('home.showcase.rooms', { list: project.bedroomOptions.join(', ') })}</em>
           )}

@@ -10,6 +10,7 @@ import { useTranslation } from '../i18n/LocaleContext';
 import { applySeo, clipMeta, pageUrl, setJsonLd, SITE_NAME, absoluteImage } from '../lib/seo';
 
 import PropertyCard from '../components/PropertyCard';
+import { avatarUrl } from '../lib/imageUrl';
 
 export default function AgentProfilePage() {
   const { t } = useTranslation();
@@ -93,7 +94,7 @@ export default function AgentProfilePage() {
               className="relative"
             >
               <img
-                src={agent.photo}
+                src={avatarUrl(agent.photo, 288)}
                 alt={agent.name}
                 className="w-36 h-36 rounded-3xl object-cover border-4 border-white/20 shadow-2xl"
               />

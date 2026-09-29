@@ -10,6 +10,11 @@ export interface UploadedFile {
 
 const CHUNK = 5;
 
+export interface UploadOptions {
+  /** false = no brand stamp (broker portraits). Only honoured for staff. */
+  watermark?: boolean;
+}
+
 /**
  * Posts files to the upload route and hands back their public URLs.
  * Large batches go up in chunks so the picker can send 10–20 photos at once.
@@ -21,7 +26,7 @@ export function useFileUpload(tokenOverride?: string | null) {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const upload = useCallback(async (files: File[] | FileList): Promise<UploadedFile[]> => {
+  const upload = useCallback(async (files: File[] | FileList, options: UploadOptions = {}): Promise<UploadedFile[]> => {
     const list = Array.from(files);
     if (!list.length) return [];
 
@@ -35,13 +40,13 @@ export function useFileUpload(tokenOverride?: string | null) {
         const chunk = list.slice(i, i + CHUNK);
         const body = new FormData();
         chunk.forEach(file => body.append('files', file));
-        const res = await fetch('/api/uploads', {
+        const res = await fetch(options.watermark === false ? '/api/uploads?watermark=0' : '/api/uploads', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body,
         });
         const data = await res.json().catch(() => ({}));
-          if (!res.ok) throw new Error(data.error || 'ატვირთვა ვერ მოხერხდა');
+        if (!res.ok) throw new Error(data.error || 'ატვირთვა ვერ მოხერხდა');
         collected.push(...((data.files as UploadedFile[]) ?? []));
         setProgress({ done: Math.min(i + chunk.length, list.length), total: list.length });
       }

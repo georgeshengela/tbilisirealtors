@@ -8,6 +8,7 @@ import {
 import { useAdminAuth } from '../../contexts/AdminAuthContext';
 import { useFileUpload } from '../../hooks/useFileUpload';
 import { formatGeorgianShortDate } from '../../lib/dateFormat';
+import { avatarUrl } from '../../lib/imageUrl';
 
 export interface BrokerStats {
   agentId: string;
@@ -856,7 +857,7 @@ function BrokerFormModal({
 
   async function handlePhoto(files: FileList | null) {
     if (!files?.length) return;
-    const uploaded = await upload(files);
+    const uploaded = await upload(files, { watermark: false });
     if (uploaded[0]?.url) set('photo', uploaded[0].url);
   }
 
@@ -902,7 +903,7 @@ function BrokerFormModal({
           <Field label="ფოტო">
             <div className="flex gap-3 items-center">
               {form.photo ? (
-                <img src={form.photo} alt="" className="w-14 h-14 rounded-2xl object-cover bg-slate-100" />
+                <img src={avatarUrl(form.photo, 112)} alt="" className="w-14 h-14 rounded-2xl object-cover bg-slate-100" />
               ) : (
                 <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 font-bold">
                   {form.name.charAt(0) || '?'}
@@ -989,7 +990,7 @@ function BrokerAvatar({
 }) {
   const dim = size === 'xl' ? 'w-20 h-20 text-2xl rounded-2xl' : 'w-10 h-10 text-sm rounded-xl';
   const cls = `${dim} object-cover flex-shrink-0 ${ring ? 'ring-4 ring-white shadow-md' : ''}`;
-  if (photo) return <img src={photo} alt={name} className={`${cls} bg-slate-100`} />;
+  if (photo) return <img src={avatarUrl(photo, size === 'xl' ? 160 : 80)} alt={name} className={`${cls} bg-slate-100`} />;
   return (
     <div className={`${cls} bg-slate-900 text-white font-extrabold flex items-center justify-center`}>
       {name.charAt(0).toUpperCase()}

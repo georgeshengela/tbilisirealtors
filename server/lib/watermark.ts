@@ -4,16 +4,21 @@ import { v2 as cloudinary } from 'cloudinary';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export const WATERMARK_PUBLIC_ID = 'tbilisirealtor/brand/watermark';
-export const WATERMARK_TAG = 'watermarked-v2';
+/** v4: the TBILISIREALTOR.GE wordmark alone (no icon, no subtitle), larger and clearly visible. */
+export const WATERMARK_VERSION = 'v4';
+export const WATERMARK_PUBLIC_ID = 'tbilisirealtor/brand/watermark-v4';
+export const WATERMARK_TAG = 'watermarked-v4';
+export const WATERMARK_CONTEXT = `watermarked=${WATERMARK_VERSION}`;
+/** Every tag a stamped photo may carry — older versions still count as "has a watermark". */
+export const WATERMARK_TAGS = ['watermarked-v2', 'watermarked-v3', WATERMARK_TAG];
 
-/** Centered brand lockup — faint enough to sit on the photo, still readable. */
+/** Centered wordmark — 60% of the photo width, half-transparent. */
 export const WATERMARK_TRANSFORM = [
   {
     overlay: WATERMARK_PUBLIC_ID.replace(/\//g, ':'),
-    opacity: 8,
+    opacity: 50,
     gravity: 'center' as const,
-    width: 0.62,
+    width: 0.6,
     flags: 'relative' as const,
   },
 ];
@@ -26,7 +31,7 @@ export function ensureWatermark(): Promise<void> {
 }
 
 async function uploadWatermark() {
-  const file = path.join(__dirname, '../assets/watermark.png');
+  const file = path.join(__dirname, '../assets/watermark-v4.png');
   await cloudinary.uploader.upload(file, {
     public_id: WATERMARK_PUBLIC_ID,
     overwrite: true,
@@ -59,7 +64,7 @@ export async function watermarkImageUrl(url: string): Promise<string> {
     invalidate: true,
     resource_type: 'image',
     tags: [WATERMARK_TAG],
-    context: 'watermarked=v2',
+    context: WATERMARK_CONTEXT,
     transformation: WATERMARK_TRANSFORM,
   });
 

@@ -664,6 +664,8 @@ async function migrate() {
     `;
     await client`CREATE UNIQUE INDEX IF NOT EXISTS construction_projects_slug_idx ON construction_projects (slug)`;
     await client`CREATE INDEX IF NOT EXISTS construction_projects_status_idx ON construction_projects (published, sort_order, created_at DESC)`;
+    await client`ALTER TABLE construction_projects ADD COLUMN IF NOT EXISTS blocks JSONB NOT NULL DEFAULT '[]'::jsonb`;
+    await client`ALTER TABLE construction_projects ADD COLUMN IF NOT EXISTS price_currency VARCHAR(3) NOT NULL DEFAULT 'GEL'`;
 
     const PROJECT_KEYS = ['projects.view', 'projects.create', 'projects.edit', 'projects.delete'];
     const NEW_PROJECT_PERMISSIONS: Record<string, string[]> = {

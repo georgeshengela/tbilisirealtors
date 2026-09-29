@@ -1,6 +1,15 @@
 export type ProjectUnitStatus = 'available' | 'reserved' | 'sold';
 export type ProjectPaymentOption = 'installment' | 'mortgage' | 'cash';
 export type ProjectStatus = 'building' | 'completed' | 'presale';
+export type ProjectCurrency = 'GEL' | 'USD';
+
+/** One building (კორპუსი / ბლოკი) of a complex; its units are generated from these counts. */
+export interface ProjectBlock {
+  id: string;
+  name: string;
+  floors: number;
+  unitsPerFloor: number;
+}
 
 export interface ProjectUnit {
   id: string;
@@ -11,6 +20,10 @@ export interface ProjectUnit {
   price: number;
   pricePerSqm: number;
   status: ProjectUnitStatus;
+  /** Block name (A, B…). Missing on legacy units: they belong to the first block. */
+  block?: string;
+  /** 1-based slot on the floor; the same position on every floor is a "column" / stack. */
+  position?: number;
 }
 
 export interface ConstructionProject {
@@ -26,6 +39,8 @@ export interface ConstructionProject {
   units: number;
   priceFrom: number;
   priceTo: number;
+  /** Currency every price of the project (ranges, per m², units) is stored in. */
+  priceCurrency: ProjectCurrency;
   pricePerSqmFrom: number;
   pricePerSqmTo: number;
   areaFrom: number;
@@ -49,6 +64,7 @@ export interface ConstructionProject {
   postDeliveryServices: string[];
   securityFeatures: string[];
   coordinates: { lat: number; lng: number };
+  blocks: ProjectBlock[];
   projectUnits: ProjectUnit[];
   published?: boolean;
   sortOrder?: number;
