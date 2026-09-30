@@ -484,6 +484,19 @@ export default function AdminPage() {
         body: JSON.stringify(patch),
       });
       setPropList(prev => prev.map(p => p.id === id ? { ...p, ...updated } : p));
+      // A status change moves the lifecycle counters; refresh them without reloading the table.
+      if ('lifecycleState' in patch && section === 'properties') {
+        const qs = new URLSearchParams({ limit: '20', page: String(listPage) });
+        if (staffFilter) qs.set('staffId', staffFilter);
+        if (memberFilter) qs.set('member', memberFilter);
+        if (listQ) qs.set('q', listQ);
+        api(`/properties?${qs}`)
+          .then(data => {
+            setPropSummary(data.summary ?? null);
+            setPropTotal(Number(data.total) || 0);
+          })
+          .catch(() => {});
+      }
       showToast(
         'price' in patch ? 'ფასი განახლდა'
           : 'lifecycleState' in patch ? 'სტატუსი განახლდა'

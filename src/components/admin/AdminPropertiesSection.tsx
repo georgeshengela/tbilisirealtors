@@ -1225,7 +1225,7 @@ function LifecycleStatusDialog({
                 />
               </label>
               <p className="text-[10px] leading-snug text-teal-700">
-                ვადამდე რჩება გაყიდვაზე. ამ თარიღზე ავტომატურად გადავა <b className="text-red-500">დასარეკი / New R</b>.
+                {sellsAt(p) ? 'ვადამდე რჩება გაყიდვაზე' : 'ვადამდე old-შია'}. ამ თარიღზე ავტომატურად გადავა <b className="text-red-500">დასარეკი / New R</b>.
               </p>
             </div>
           )}
@@ -1341,7 +1341,7 @@ function LifecycleCell({
 
   const state = lifecycleOf(p);
   const outcome = outcomeOf(p);
-  const chipState = outcome === 'rented_owner' ? 'current' : state;
+  const chipState = state;
   const meta = LIFECYCLE_META[chipState];
   const days = daysUntil(p.rentExpiresAt);
   const outcomeMeta = outcome ? LIFECYCLE_OUTCOME_META[outcome] : null;

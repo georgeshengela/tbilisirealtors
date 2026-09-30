@@ -1866,7 +1866,7 @@ export default function AdminAddListingPage() {
                             />
                           </label>
                           <p className="text-xs text-teal-800 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2.5 leading-snug">
-                            ვადამდე რჩება გაყიდვაზე. ამ თარიღზე ავტომატურად გადავა დასარეკი / New R სტატუსში.
+                            {form.dealTypes.includes('sale') ? 'ვადამდე რჩება გაყიდვაზე' : 'ვადამდე old-შია'}. ამ თარიღზე ავტომატურად გადავა დასარეკი / New R სტატუსში.
                           </p>
                         </div>
                       )}

@@ -4,7 +4,7 @@ import { listingTasks, properties, propertyPriceHistory } from '../schema.js';
 
 /**
  * new     — just added, not worked yet
- * current — live and actively offered (also: rented_owner until its end date)
+ * current — live and actively offered (also: a for-sale listing the owner rented out, until its end date)
  * old     — parked with a reason: sold, withdrawn, paused, or we rented it
  * new_r   — pause/rental term ran out: call the owner and re-check
  */
@@ -126,11 +126,17 @@ function termDates(
   return { termMonths, startedAt, expiresAt };
 }
 
+/** A rental by the owner leaves a listing live only if it can still be sold. */
+export function staysLiveWhenRented(status: string | null | undefined): boolean {
+  return status == null || status === 'sale' || status === 'both' || status === 'pledge';
+}
+
 /**
  * Turns whatever the admin form sent into a consistent lifecycle record.
  *
- * "old" always carries a reason. Owner-rented-while-for-sale (`rented_owner`)
- * stays live as `current` until the required end date, then becomes new_r.
+ * "old" always carries a reason. Owner-rented (`rented_owner`) stays live as
+ * `current` only while the listing is still for sale; a rent-only listing is
+ * taken, so it parks as `old`. Either way it becomes new_r on the end date.
  */
 export function buildLifecycleFields(
   input: LifecycleInput,
@@ -141,6 +147,8 @@ export function buildLifecycleFields(
     rentTermMonths?: number | null;
     lifecycleOutcome?: string | null;
     lifecycleDealPrice?: string | number | null;
+    /** Deal type (sale / rent / both / …) — decides whether an owner rental stays live. */
+    status?: string | null;
   },
 ): LifecycleFields {
   const requested = isLifecycleState(input.lifecycleState)
@@ -157,10 +165,11 @@ export function buildLifecycleFields(
 
   if (outcome === 'rented_owner') {
     const { termMonths, startedAt, expiresAt } = termDates(input, current, 12);
+    const stillForSale = staysLiveWhenRented(current?.status);
     return {
       lifecycleState: expiresAt && expiresAt <= today()
         ? 'new_r'
-        : (requested === 'new' ? 'new' : 'current'),
+        : !stillForSale ? 'old' : (requested === 'new' ? 'new' : 'current'),
       rentTermMonths: termMonths,
       rentStartedAt: startedAt,
       rentExpiresAt: expiresAt,

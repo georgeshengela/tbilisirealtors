@@ -667,6 +667,9 @@ async function migrate() {
     await client`ALTER TABLE construction_projects ADD COLUMN IF NOT EXISTS blocks JSONB NOT NULL DEFAULT '[]'::jsonb`;
     await client`ALTER TABLE construction_projects ADD COLUMN IF NOT EXISTS price_currency VARCHAR(3) NOT NULL DEFAULT 'GEL'`;
 
+    // A rent-only listing the owner rented out is taken, not live — it waits as "old" for its end date.
+    await client`UPDATE properties SET lifecycle_state = 'old' WHERE lifecycle_outcome = 'rented_owner' AND lifecycle_state = 'current' AND status IN ('rent', 'daily_rent')`;
+
     const PROJECT_KEYS = ['projects.view', 'projects.create', 'projects.edit', 'projects.delete'];
     const NEW_PROJECT_PERMISSIONS: Record<string, string[]> = {
       super_admin: PROJECT_KEYS,

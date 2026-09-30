@@ -1024,7 +1024,7 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
         agingCall && !keepParked
           ? { ...data, lifecycleState: data.lifecycleState === 'new' ? 'new' : 'current', lifecycleOutcome: null }
           : data,
-        existing,
+        { ...existing, status: typeof data.status === 'string' && data.status ? data.status : existing.status },
       )
       : {};
 
@@ -1327,7 +1327,10 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
         res.status(403).json({ error: 'სტატუსის შეცვლის უფლება არ გაქვთ' });
         return;
       }
-      const next = buildLifecycleFields(req.body, existing);
+      const next = buildLifecycleFields(req.body, {
+        ...existing,
+        status: typeof updates.status === 'string' ? updates.status : existing.status,
+      });
       Object.assign(updates, next);
       if (next.lifecycleState === 'current' || next.lifecycleState === 'new') {
         updates.refreshedAt = today();
