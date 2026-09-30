@@ -97,7 +97,6 @@ await mapPool(jobs, async (job) => {
     .set({
       images: nextImages,
       hiddenImages: nextHidden,
-      updatedAt: new Date(),
     })
     .where(eq(properties.id, job.id));
 });

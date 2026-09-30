@@ -65,6 +65,7 @@ import {
   type PriceSource,
 } from '../services/listingLifecycle.js';
 import { offerCountsForProperties } from '../services/propertyOffers.js';
+import { patchTouchAction, touchedBy } from '../services/listingTouch.js';
 import { buildDisplayName, profileFieldsFromBody, splitLegacyName } from '../utils/adminProfile.js';
 import { normalizeCadastralCode, parseCadastralRegistry } from '../lib/cadastralCode.js';
 import { CadastralLookupError, lookupCadastral } from '../services/cadastralLookup.js';
@@ -883,6 +884,7 @@ router.post('/cadastral-lookup', requirePermission('listings.view'), async (req:
             cadastralCode: result.code,
             cadastralRegistry: result,
             updatedAt: new Date(),
+            ...touchedBy(req.user, 'cadastral'),
           })
           .where(eq(properties.id, propertyId));
       }
@@ -928,6 +930,7 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
         district: data.district,
         type: data.type || 'apartment',
         status: data.status || 'sale',
+        ...touchedBy(req.user, 'create'),
         bedrooms: data.bedrooms,
         rooms: data.rooms ?? data.bedrooms ?? null,
         bathrooms: data.bathrooms,
@@ -1096,6 +1099,7 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
           ? { lifecycleState: 'current', lifecycleOutcome: null, nextFollowUpAt: null }
           : {}),
         updatedAt: new Date(),
+        ...touchedBy(req.user, 'edit'),
       })
       .where(eq(properties.id, String(req.params.id)))
       .returning();
@@ -1201,6 +1205,7 @@ router.post('/properties/:id/moderate', requirePermission('listings.moderate'), 
         moderatedByUserId: req.user!.id,
         moderatedAt: new Date(),
         updatedAt: new Date(),
+        ...touchedBy(req.user, 'moderation'),
       })
       .where(eq(properties.id, String(req.params.id)))
       .returning();
@@ -1238,7 +1243,8 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
     }
 
     const actor = req.user!;
-    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    const touchAction = patchTouchAction(req.body ?? {});
+    const updates: Record<string, unknown> = { updatedAt: new Date(), ...touchedBy(actor, touchAction) };
 
     if (['isFeatured', 'isNew', 'isPremium'].some(key => key in req.body)) {
       if (!can(actor, 'listings.flags')) {
@@ -1347,6 +1353,8 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
     if (updated.lifecycleState === 'current' || updated.lifecycleState === 'new') {
       await completeRefreshTasks(updated.id);
     }
+
+    await logActivity(req, `listing.${touchAction}`, 'property', updated.id, { fields: Object.keys(req.body ?? {}) });
 
     if (priceChanged) {
       await recordPriceChange({

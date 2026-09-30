@@ -17,6 +17,7 @@ import {
 } from '../schema.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { allocateListingId } from '../services/listingId.js';
+import { touchedBy } from '../services/listingTouch.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -313,6 +314,7 @@ router.post('/my-listings', async (req: AuthRequest, res: Response): Promise<voi
         ...values,
         price,
         listedDate: new Date().toISOString().split('T')[0],
+        ...touchedBy(req.user, 'member_edit'),
         viewCount: 0,
         isFeatured: false,
         isPremium: false,
@@ -372,6 +374,7 @@ router.put('/my-listings/:id', async (req: AuthRequest, res: Response): Promise<
         moderatedByUserId: null,
         moderatedAt: null,
         updatedAt: new Date(),
+        ...touchedBy(req.user, 'member_edit'),
       })
       .where(eq(properties.id, String(req.params.id)))
       .returning();

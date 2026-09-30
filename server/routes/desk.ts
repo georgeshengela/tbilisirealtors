@@ -29,6 +29,7 @@ import {
   type PermissionActor,
 } from '../permissions.js';
 import { buildLifecycleFields, asDateOnly } from '../services/listingLifecycle.js';
+import { touchedBy } from '../services/listingTouch.js';
 import {
   MODERATION_CHECKS,
   MODERATION_CHECK_KEYS,
@@ -323,6 +324,7 @@ router.post('/assign', requirePermission('listings.assign'), async (req: AuthReq
         assignedByUserId: assignedToUserId === null ? null : req.user!.id,
         assignedAt: assignedToUserId === null ? null : new Date(),
         updatedAt: new Date(),
+        ...touchedBy(req.user, 'assign'),
       })
       .where(inArray(properties.id, changing.map(row => row.id)))
       .returning({ id: properties.id, assignedToUserId: properties.assignedToUserId, assignedAt: properties.assignedAt });
@@ -446,6 +448,7 @@ router.post('/listings/:id/calls', requirePermission('listings.tasks'), async (r
       lastCallOutcome: outcome,
       nextFollowUpAt: followUpAt,
       updatedAt: now,
+      ...touchedBy(req.user, typeof req.body?.lifecycleState === 'string' && req.body.lifecycleState ? 'status' : 'call', now),
     };
 
     // A call is the natural moment to move the listing on — if allowed.
@@ -681,6 +684,7 @@ router.post('/moderation/:id/decision', requirePermission('listings.moderate'), 
         // Sending it back reopens the clock the moment the member resubmits.
         moderationRequestedAt: null,
         updatedAt: new Date(),
+        ...touchedBy(req.user, 'moderation'),
       })
       .where(eq(properties.id, propertyId))
       .returning();
@@ -720,6 +724,7 @@ router.post('/moderation/bulk-approve', requirePermission('listings.moderate'), 
         moderatedAt: new Date(),
         moderationRequestedAt: null,
         updatedAt: new Date(),
+        ...touchedBy(req.user, 'moderation'),
       })
       .where(and(inArray(properties.id, ids), ne(properties.moderationStatus, 'approved')))
       .returning({ id: properties.id });

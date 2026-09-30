@@ -186,6 +186,11 @@ export const properties = pgTable('properties', {
   moderationRequestedAt: timestamp('moderation_requested_at'),
   /* Reviewer's per-item verdicts, e.g. { photos: true, price: false }. */
   moderationChecklist: jsonb('moderation_checklist').$type<Record<string, boolean>>().default({}),
+  /* Last person who acted on the listing (edit, price, status, call…); system jobs never set it. */
+  touchedAt: timestamp('touched_at'),
+  touchedByUserId: integer('touched_by_user_id'),
+  touchedByName: varchar('touched_by_name', { length: 255 }),
+  touchAction: varchar('touch_action', { length: 30 }),
 
   createdAt: timestamp('created_at').defaultNow(),
   updatedAt: timestamp('updated_at').defaultNow(),

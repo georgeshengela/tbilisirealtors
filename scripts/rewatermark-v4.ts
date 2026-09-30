@@ -167,7 +167,8 @@ await pool(listingJobs, async row => {
   const hidden = await mapList(row.hiddenImages ?? []);
   if (DRY_RUN || (!images.changed && !hidden.changed)) return;
   await db.update(properties)
-    .set({ images: images.next, hiddenImages: hidden.next, updatedAt: new Date() })
+    // A photo re-stamp is not an edit — leave the listing's dates alone.
+    .set({ images: images.next, hiddenImages: hidden.next })
     .where(eq(properties.id, row.id));
   stats.rows += 1;
   console.log(`ok  listing ${row.id}`);

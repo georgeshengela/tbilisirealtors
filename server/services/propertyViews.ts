@@ -50,7 +50,7 @@ export async function recordPropertyView(
   const next = currentCount + 1;
   await db
     .update(properties)
-    .set({ viewCount: next, updatedAt: new Date() })
+    .set({ viewCount: next })
     .where(eq(properties.id, propertyId));
 
   return { viewCount: next, counted: true };

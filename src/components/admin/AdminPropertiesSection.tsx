@@ -99,6 +99,10 @@ export interface AdminPropertyRow {
   listedDate: string;
   createdAt: string;
   updatedAt?: string | null;
+  /** Last person who acted on the listing — system jobs never set these. */
+  touchedAt?: string | null;
+  touchedByName?: string | null;
+  touchAction?: string | null;
   agentName: string;
   agentPhone: string;
   agentEmail: string;
@@ -259,6 +263,61 @@ function PriceCommissionTip({
         className="pointer-events-none absolute bottom-[calc(100%+6px)] left-0 z-40 hidden whitespace-nowrap rounded-lg bg-slate-900 px-2 py-1 text-[10px] font-semibold tabular-nums text-white shadow-lg group-hover/comm:block"
       >
         {label}
+      </span>
+    </span>
+  );
+}
+
+const TOUCH_LABELS: Record<string, string> = {
+  create: 'დაამატა',
+  edit: 'დაარედაქტირა',
+  price: 'ფასი შეცვალა',
+  status: 'სტატუსი შეცვალა',
+  owner: 'მესაკუთრის ინფო შეცვალა',
+  notes: 'შენიშვნა დაწერა',
+  contracts: 'ხელშეკრულება შეცვალა',
+  flags: 'VIP / ნიშნები შეცვალა',
+  call: 'დარეკა',
+  moderation: 'მოდერაცია გაიარა',
+  assign: 'აგენტზე გადაანაწილა',
+  cadastral: 'საკადასტრო მოძებნა',
+  member_edit: 'მესაკუთრემ შეცვალა საიტიდან',
+};
+
+function formatDotDateTime(input: string): string {
+  const date = new Date(input);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${formatDotDate(date)} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+}
+
+/* ── Date column: last person's touch on top, created below; hover says who did what ── */
+function TouchedDateCell({ p }: { p: AdminPropertyRow }) {
+  const touched = formatDotDate(p.touchedAt || p.createdAt || p.listedDate);
+  const created = formatDotDate(p.createdAt || p.listedDate);
+  const who = p.touchedByName || (p.touchAction === 'member_edit' ? 'მესაკუთრე' : '');
+  const what = p.touchAction ? TOUCH_LABELS[p.touchAction] ?? 'შეცვალა' : '';
+
+  return (
+    <span className="relative inline-flex flex-col items-center group/touch cursor-default">
+      <span className="font-semibold tabular-nums text-slate-700 underline decoration-dotted decoration-slate-300 underline-offset-2">
+        {touched || '—'}
+      </span>
+      {created && created !== touched && (
+        <span className="tabular-nums text-[11px] text-slate-400">{created}</span>
+      )}
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-[calc(100%+6px)] left-1/2 z-40 hidden -translate-x-1/2 whitespace-nowrap rounded-lg bg-slate-900 px-2.5 py-1.5 text-left text-[10px] font-semibold leading-snug text-white shadow-lg group-hover/touch:block"
+      >
+        {p.touchedAt ? (
+          <>
+            <span className="block text-[9px] font-bold uppercase tracking-wide text-white/50">ბოლოს შეეხო</span>
+            <span className="block text-[11px] font-extrabold">{who || 'უცნობი'}</span>
+            <span className="block text-white/80">{what}{what ? ' · ' : ''}{formatDotDateTime(p.touchedAt)}</span>
+          </>
+        ) : (
+          <span className="block text-white/80">ცვლილება არ დაფიქსირებულა — დამატებულია {created || '—'}</span>
+        )}
       </span>
     </span>
   );
@@ -2557,8 +2616,6 @@ export default function AdminPropertiesSection({
                 </tr>
               ) : filtered.map(p => {
                 const state = lifecycleOf(p);
-                const updated = formatDotDate(p.updatedAt || p.createdAt);
-                const created = formatDotDate(p.createdAt || p.listedDate);
                 return (
                 <tr
                   key={p.id}
@@ -2612,8 +2669,7 @@ export default function AdminPropertiesSection({
                       : <Badge label={LIFECYCLE_META[state]?.label ?? state} color={LIFECYCLE_META[state]?.color ?? '#94a3b8'} />}
                   </td>
                   <td className="py-1.5 px-1.5 align-middle bg-slate-50/90 text-center leading-tight">
-                    <p className="font-semibold tabular-nums text-slate-700">{updated || '—'}</p>
-                    <p className="tabular-nums text-[11px] text-slate-400">{created && created !== updated ? created : created || ''}</p>
+                    <TouchedDateCell p={p} />
                   </td>
                   <td className="py-1.5 px-1.5 align-middle text-center">
                     {p.origin && p.origin !== 'office' ? (

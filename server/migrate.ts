@@ -670,6 +670,44 @@ async function migrate() {
     // A rent-only listing the owner rented out is taken, not live — it waits as "old" for its end date.
     await client`UPDATE properties SET lifecycle_state = 'old' WHERE lifecycle_outcome = 'rented_owner' AND lifecycle_state = 'current' AND status IN ('rent', 'daily_rent')`;
 
+    // Who last touched a listing (staff edit, price, status, call…). Photo re-stamps and
+    // view counts no longer bump dates, so the admin date column follows people only.
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS touched_at TIMESTAMP`;
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS touched_by_user_id INTEGER`;
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS touched_by_name VARCHAR(255)`;
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS touch_action VARCHAR(30)`;
+    // Backfill from the history we already keep: activity log, admin price changes, call log.
+    await client`
+      UPDATE properties p
+      SET touched_at = t.at, touched_by_user_id = t.uid, touched_by_name = t.name, touch_action = t.action
+      FROM (
+        SELECT DISTINCT ON (pid) pid, at, uid, name, action
+        FROM (
+          SELECT entity_id AS pid, created_at AS at, actor_user_id AS uid, actor_name AS name,
+            CASE action
+              WHEN 'listing.create' THEN 'create'
+              WHEN 'listing.call' THEN 'call'
+              WHEN 'listing.approve' THEN 'moderation'
+              WHEN 'listing.reject' THEN 'moderation'
+              ELSE 'edit'
+            END AS action
+          FROM activity_log
+          WHERE entity = 'property' AND entity_id IS NOT NULL
+            AND action IN ('listing.create', 'listing.update', 'listing.call', 'listing.approve', 'listing.reject')
+          UNION ALL
+          SELECT property_id, created_at, NULL, changed_by, 'price'
+          FROM property_price_history
+          WHERE source = 'admin' AND old_price IS NOT NULL
+          UNION ALL
+          SELECT property_id, created_at, actor_user_id, actor_name, 'call'
+          FROM listing_call_logs
+        ) touches
+        WHERE at IS NOT NULL
+        ORDER BY pid, at DESC
+      ) t
+      WHERE p.id = t.pid AND p.touched_at IS NULL
+    `;
+
     const PROJECT_KEYS = ['projects.view', 'projects.create', 'projects.edit', 'projects.delete'];
     const NEW_PROJECT_PERMISSIONS: Record<string, string[]> = {
       super_admin: PROJECT_KEYS,
