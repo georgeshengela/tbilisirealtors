@@ -22,10 +22,12 @@ function FeatureCard({ project }: { project: ConstructionProject }) {
         <p className="pc__loc"><MapPin size={13} strokeWidth={2.4} />{[project.district, project.city].filter(Boolean).join(', ')}</p>
         <h3 className="pc__name">{project.name}</h3>
         <dl className="pc__stats">
-          <div>
-            <dt>{t('home.showcase.priceFrom')}</dt>
-            <dd>{formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000, from: project.priceCurrency })}</dd>
-          </div>
+          {project.priceFrom > 0 && (
+            <div>
+              <dt>{t('home.showcase.priceFrom')}</dt>
+              <dd>{formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000, from: project.priceCurrency })}</dd>
+            </div>
+          )}
           {project.pricePerSqmFrom > 0 && (
             <div>
               <dt>{t('home.showcase.perSqm')}</dt>
@@ -70,7 +72,11 @@ function CompactCard({ project }: { project: ConstructionProject }) {
         <p className="pc__loc"><MapPin size={12} strokeWidth={2.4} />{[project.district, project.city].filter(Boolean).join(', ')}</p>
         <p className="pc__price">
           <span>{t('home.showcase.priceFrom')}</span>
-          <strong>{formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000, from: project.priceCurrency })}</strong>
+          <strong>
+            {project.priceFrom > 0
+              ? formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000, from: project.priceCurrency })
+              : formatMoney(project.pricePerSqmFrom, { perSqm: true, from: project.priceCurrency })}
+          </strong>
           {project.bedroomOptions?.length > 0 && (
             <em>· {t('home.showcase.rooms', { list: project.bedroomOptions.join(', ') })}</em>
           )}

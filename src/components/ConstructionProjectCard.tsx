@@ -4,6 +4,7 @@ import type { ConstructionProject } from '../types/project';
 import { useCurrency } from '../contexts/CurrencyContext';
 import { useTranslation } from '../i18n/LocaleContext';
 import { projectStatusLabels } from '../i18n/labels';
+import { projectDeliveryLabel } from '../lib/projects';
 
 export default function ConstructionProjectCard({ project }: { project: ConstructionProject }) {
   const { t } = useTranslation();
@@ -78,7 +79,7 @@ export default function ConstructionProjectCard({ project }: { project: Construc
           <p className="project-card__stat-label">{t('home.projectCard.rooms')}</p>
         </div>
         <div className="project-card__stat">
-          <p className="project-card__stat-value">{project.completion}</p>
+          <p className="project-card__stat-value">{projectDeliveryLabel(project)}</p>
           <p className="project-card__stat-label">{t('home.projectCard.completion')}</p>
         </div>
       </div>

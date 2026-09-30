@@ -299,3 +299,29 @@ export function mapProjectFromApi(row: Record<string, unknown>): ConstructionPro
     sortOrder: Math.round(num(row.sortOrder)),
   };
 }
+
+/**
+ * Fills empty headline prices (from/to, per m²) from the unit table, so a
+ * project whose admin left "price from" at 0 never advertises "$0".
+ */
+export function withUnitPriceRanges(project: ConstructionProject): ConstructionProject {
+  const units: ProjectUnit[] = project.projectUnits;
+  const priced = units.filter((u: ProjectUnit) => u.price > 0);
+  const perSqm = units.map((u: ProjectUnit) => u.pricePerSqm).filter((n: number) => n > 0);
+  if (!priced.length && !perSqm.length) return project;
+  const prices = priced.map((u: ProjectUnit) => u.price);
+  return {
+    ...project,
+    priceFrom: project.priceFrom || (prices.length ? Math.min(...prices) : 0),
+    priceTo: project.priceTo || (prices.length ? Math.max(...prices) : 0),
+    pricePerSqmFrom: project.pricePerSqmFrom || (perSqm.length ? Math.min(...perSqm) : 0),
+    pricePerSqmTo: project.pricePerSqmTo || (perSqm.length ? Math.max(...perSqm) : 0),
+  };
+}
+
+/** Short delivery label for cards: "2027 Q2" style, else the delivery date. */
+export function projectDeliveryLabel(project: Pick<ConstructionProject, 'completion' | 'deliveryDate'>): string {
+  const completion = project.completion?.trim() ?? '';
+  if (completion && completion.length <= 24) return completion;
+  return project.deliveryDate?.trim() ?? '';
+}

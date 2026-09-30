@@ -133,7 +133,7 @@ export default function Footer() {
             }}
           >
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-              <div className="flex items-start gap-4">
+              <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
                 <div
                   className="w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0"
                   style={{

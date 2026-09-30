@@ -2,7 +2,7 @@ import { Router, Response } from 'express';
 import { db } from '../db.js';
 import { properties, agents, blogPosts, users, constructionProjects } from '../schema.js';
 import { and, count, desc, eq, inArray, ne, asc } from 'drizzle-orm';
-import { mapProjectFromApi } from '../../src/lib/projects.ts';
+import { mapProjectFromApi, withUnitPriceRanges } from '../../src/lib/projects.ts';
 import { toPublicTeamMember } from '../utils/adminProfile.js';
 import { recordPropertyView } from '../services/propertyViews.js';
 import { STAFF_ROLES, isStaffRole } from '../permissions.js';
@@ -265,7 +265,7 @@ router.get('/projects', async (_req, res: Response): Promise<void> => {
       .orderBy(asc(constructionProjects.sortOrder), desc(constructionProjects.createdAt));
     res.json({
       data: rows.map(row => {
-        const mapped = mapProjectFromApi(row as unknown as Record<string, unknown>);
+        const mapped = withUnitPriceRanges(mapProjectFromApi(row as unknown as Record<string, unknown>));
         return { ...mapped, projectUnits: [] };
       }),
     });
@@ -285,7 +285,7 @@ router.get('/projects/:slug', async (req, res: Response): Promise<void> => {
       res.status(404).json({ error: 'პროექტი ვერ მოიძებნა' });
       return;
     }
-    res.json(mapProjectFromApi(row as unknown as Record<string, unknown>));
+    res.json(withUnitPriceRanges(mapProjectFromApi(row as unknown as Record<string, unknown>)));
   } catch (err) {
     console.error('Public project get error:', err);
     res.status(500).json({ error: 'პროექტი ვერ ჩაიტვირთა' });

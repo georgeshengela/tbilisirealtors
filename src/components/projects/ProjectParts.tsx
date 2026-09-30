@@ -6,16 +6,18 @@ import type { ConstructionProject } from '../../types/project';
 import { useCurrency } from '../../contexts/CurrencyContext';
 import { useTranslation } from '../../i18n/LocaleContext';
 import { projectStatusLabels } from '../../i18n/labels';
+import { projectDeliveryLabel } from '../../lib/projects';
 
 export function ProjectProgress({ project, compact = false }: { project: ConstructionProject; compact?: boolean }) {
   const { t } = useTranslation();
   const done = project.status === 'completed';
   const pct = done ? 100 : Math.min(Math.max(Math.round(project.constructionProgress || 0), 0), 100);
+  const delivery = projectDeliveryLabel(project);
   return (
     <div className={`pc-progress ${compact ? 'is-compact' : ''} ${done ? 'is-done' : ''}`}>
       <div className="pc-progress__row">
         <span>{done ? t('home.showcase.delivered') : t('home.showcase.progress', { pct })}</span>
-        {project.completion && <span className="pc-progress__date"><CalendarClock size={12} strokeWidth={2.4} />{project.completion}</span>}
+        {delivery && <span className="pc-progress__date"><CalendarClock size={12} strokeWidth={2.4} />{delivery}</span>}
       </div>
       <div className="pc-progress__track" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct} aria-label={t('home.showcase.progress', { pct })}>
         <span style={{ width: `${pct}%` }} />
@@ -52,11 +54,19 @@ export function ProjectCard({ project }: { project: ConstructionProject }) {
           <ProjectStatusPills project={project} />
           <span className="pc-dev"><Building2 size={12} strokeWidth={2.4} />{project.developer}</span>
         </div>
-        <div className="pcard__price">
-          <span>{t('home.showcase.priceFrom')}</span>
-          <strong>{formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000, from: project.priceCurrency })}</strong>
-          {project.pricePerSqmFrom > 0 && <em>{formatMoney(project.pricePerSqmFrom, { perSqm: true, from: project.priceCurrency })}</em>}
-        </div>
+        {(project.priceFrom > 0 || project.pricePerSqmFrom > 0) && (
+          <div className="pcard__price">
+            <span>{t('home.showcase.priceFrom')}</span>
+            <strong>
+              {project.priceFrom > 0
+                ? formatMoney(project.priceFrom, { compact: project.priceFrom >= 1_000_000, from: project.priceCurrency })
+                : formatMoney(project.pricePerSqmFrom, { perSqm: true, from: project.priceCurrency })}
+            </strong>
+            {project.priceFrom > 0 && project.pricePerSqmFrom > 0 && (
+              <em>{formatMoney(project.pricePerSqmFrom, { perSqm: true, from: project.priceCurrency })}</em>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="pcard__body">

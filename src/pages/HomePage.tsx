@@ -493,8 +493,8 @@ function VipListingCard({ property, badge = 'vip' }: { property: Property; badge
         </div>
 
         <p
-          className="font-semibold line-clamp-1 leading-snug mb-1.5 transition-colors duration-200"
-          style={{ fontSize: 12.5, color: hovered ? accentColor : '#45464d' }}
+          className="font-semibold line-clamp-2 leading-snug mb-1.5 transition-colors duration-200"
+          style={{ fontSize: 12.5, minHeight: 'calc(1.375em * 2)', color: hovered ? accentColor : '#45464d' }}
         >
           {property.title}
         </p>
@@ -687,9 +687,11 @@ function DistrictGrid({ tiles }: { tiles: DistrictTile[] }) {
               <span className="home-district__copy">
                 <strong>{name}</strong>
                 <small>
-                  <MapPin size={11} strokeWidth={2.4} /> {cityName}
-                  <span className="home-district__dot" />
-                  {t('home.districtCount', { n: tile.count })}
+                  <span className="home-district__city">
+                    <MapPin size={11} strokeWidth={2.4} /> {cityName}
+                    <span className="home-district__dot" />
+                  </span>
+                  <span>{t('home.districtCount', { n: tile.count })}</span>
                 </small>
               </span>
             </Link>

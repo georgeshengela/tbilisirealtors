@@ -325,23 +325,23 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
         {mobileOpen && (
           <>
             <motion.div
-              className="site-drawer-backdrop lg:hidden"
+              className="site-drawer-backdrop xl:hidden"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setMobileOpen(false)}
             />
             <motion.div
-              className="site-drawer lg:hidden"
+              className="site-drawer xl:hidden"
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 30, stiffness: 280 }}
+              transition={{ type: 'spring', damping: 36, stiffness: 420 }}
             >
               <div className="site-drawer__head">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <BrandLogo variant="dark" size="md" tagline={t('header.tagline')} href="/" />
-                  <button type="button" className="site-icon-btn" style={{ color: '#fff', background: 'rgba(255,255,255,0.08)' }} onClick={() => setMobileOpen(false)}>
+                <div className="site-drawer__top">
+                  <BrandLogo variant="dark" size="sm" tagline={t('header.tagline')} href="/" />
+                  <button type="button" className="site-icon-btn" style={{ color: '#fff', background: 'rgba(255,255,255,0.08)', flexShrink: 0 }} onClick={() => setMobileOpen(false)} aria-label={t('common.close')}>
                     <X size={18} strokeWidth={2} />
                   </button>
                 </div>
@@ -351,21 +351,21 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                 </div>
               </div>
 
+              <div className="site-drawer__body">
               <div className="site-drawer__quick">
                 <LocaleCurrencySwitcher className="w-full" compact />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <a href={`tel:${CONTACT.phone.tel}`} className="site-drawer__chip" style={{ background: '#eff6ff', color: '#2563eb', border: '1.5px solid #dbeafe' }}>
-                    <Phone size={14} strokeWidth={2} /> {CONTACT.phone.display}
-                  </a>
-                  <a href={CONTACT.mobile.whatsapp} target="_blank" rel="noopener noreferrer" className="site-drawer__chip" style={{ background: 'rgba(16,185,129,0.08)', color: '#059669', border: '1.5px solid rgba(16,185,129,0.22)' }}>
-                    <WhatsAppIcon /> WhatsApp
-                  </a>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <a href={`tel:${CONTACT.phone.tel}`} className="site-drawer__chip is-phone" style={{ background: '#eff6ff', color: '#2563eb', border: '1.5px solid #dbeafe' }}>
+                  <Phone size={14} strokeWidth={2} /> {CONTACT.phone.display}
+                </a>
+                <div className="site-drawer__row">
                   <Link to="/favorites" onClick={() => setMobileOpen(false)} className="site-drawer__chip" style={{ background: '#fff1f2', color: '#ef4444', border: '1.5px solid #fecdd3' }}>
                     <Heart size={14} strokeWidth={2} /> {t('common.favorites')}
+                    {favoriteCount > 0 && <b style={{ fontWeight: 800 }}>· {favoriteCount}</b>}
                   </Link>
-                  <button type="button" onClick={toggleDarkMode} className="site-icon-btn" style={{ border: '1.5px solid #e4e7eb', background: '#f7f9fb' }}>
+                  <a href={CONTACT.mobile.whatsapp} target="_blank" rel="noopener noreferrer" title="WhatsApp" aria-label="WhatsApp" className="site-drawer__square" style={{ background: 'rgba(16,185,129,0.1)', color: '#059669', border: '1.5px solid rgba(16,185,129,0.25)' }}>
+                    <WhatsAppIcon />
+                  </a>
+                  <button type="button" onClick={toggleDarkMode} className="site-drawer__square" style={{ border: '1.5px solid #e4e7eb', background: '#f7f9fb', color: '#45505e' }} aria-label="dark mode">
                     {darkMode ? <Sun size={16} strokeWidth={2} /> : <Moon size={16} strokeWidth={2} />}
                   </button>
                 </div>
@@ -437,6 +437,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                   );
                 })}
               </nav>
+              </div>
 
               <div className="site-drawer__foot">
                 {user ? (
@@ -449,7 +450,7 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                         <Shield size={16} strokeWidth={2} /> {t('common.adminPanel')}
                       </Link>
                     )}
-                    <button type="button" onClick={() => { setMobileOpen(false); signOut(); }} className="site-drawer__cta is-danger">
+                    <button type="button" onClick={() => { setMobileOpen(false); signOut(); }} className={`site-drawer__cta is-danger ${isStaff ? 'is-wide' : ''}`}>
                       <LogOut size={16} strokeWidth={2} /> {t('common.logout')}
                     </button>
                   </>
