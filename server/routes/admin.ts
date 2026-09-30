@@ -576,7 +576,8 @@ router.get('/properties', requirePermission('listings.view'), async (req: AuthRe
       .leftJoin(listingCreator, eq(listingCreator.id, properties.createdByUserId))
       .leftJoin(listingAssignee, eq(listingAssignee.id, properties.assignedToUserId))
       .where(where)
-      .orderBy(desc(properties.createdAt))
+      // Last refreshed first; never-refreshed listings fall back to when they were added.
+      .orderBy(desc(sql`COALESCE(${properties.bumpedAt}, ${properties.createdAt})`), desc(properties.createdAt))
       .limit(limit)
       .offset(offset);
 
@@ -949,6 +950,7 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
         viewCount: 0,
         listedDate: new Date().toISOString().split('T')[0],
         refreshedAt: today(),
+        bumpedAt: new Date(),
         agentId: data.agentId,
         agentName: nonempty(data.agentName) || staffAgentName(req.user) || null,
         agentPhone: nonempty(data.agentPhone) || req.user?.phone || null,
@@ -1095,6 +1097,7 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
           : existing.placementPackage,
         ...lifecycle,
         refreshedAt: today(),
+        bumpedAt: new Date(),
         ...(agingCall && !keepParked
           ? { lifecycleState: 'current', lifecycleOutcome: null, nextFollowUpAt: null }
           : {}),
@@ -1340,6 +1343,7 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
       Object.assign(updates, next);
       if (next.lifecycleState === 'current' || next.lifecycleState === 'new') {
         updates.refreshedAt = today();
+        updates.bumpedAt = new Date();
         updates.nextFollowUpAt = null;
       }
     }

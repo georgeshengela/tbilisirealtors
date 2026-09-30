@@ -53,6 +53,8 @@ export interface Property {
   coordinates: { lat: number; lng: number };
   viewCount: number;
   listedDate: string;
+  /** Last refresh time (ISO); "newest first" sorts by it so refreshed listings rise. */
+  bumpedAt?: string;
   cadastralCode?: string | null;
   sourceUrl?: string | null;
 }
@@ -132,6 +134,8 @@ export type ApiPropertyRow = {
   coordinates: { lat: number; lng: number } | null;
   viewCount: number | null;
   listedDate: string | null;
+  bumpedAt?: string | null;
+  createdAt?: string | null;
   agentId: string | null;
   agentName: string | null;
   agentPhone: string | null;

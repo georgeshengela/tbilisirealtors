@@ -93,6 +93,7 @@ export function mapPropertyFromApi(row: ApiPropertyRow): Property {
     coordinates: row.coordinates ?? DEFAULT_COORDS,
     viewCount: row.viewCount ?? 0,
     listedDate: row.listedDate || new Date().toISOString().split('T')[0],
+    bumpedAt: row.bumpedAt || row.createdAt || undefined,
     cadastralCode: row.cadastralCode || undefined,
     sourceUrl: row.sourceUrl || undefined,
   };

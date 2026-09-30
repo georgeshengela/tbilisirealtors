@@ -124,6 +124,8 @@ export const properties = pgTable('properties', {
   listedDate: date('listed_date'),
   /** Last time a broker refreshed / verified the listing. Aging is measured from here. */
   refreshedAt: date('refreshed_at'),
+  /* Exact time of the last refresh (edit / back to current); lists sort by it so a refreshed listing rises to the top. */
+  bumpedAt: timestamp('bumped_at'),
   agentId: varchar('agent_id', { length: 50 }),
   agentName: varchar('agent_name', { length: 255 }),
   agentPhone: varchar('agent_phone', { length: 50 }),

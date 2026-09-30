@@ -173,7 +173,8 @@ export default function ListingsPage() {
       case 'price-asc': r.sort((a, b) => price(a) - price(b)); break;
       case 'area-desc': r.sort((a, b) => b.area - a.area); break;
       case 'popular': r.sort((a, b) => b.viewCount - a.viewCount); break;
-      default: r.sort((a, b) => new Date(b.listedDate).getTime() - new Date(a.listedDate).getTime());
+      // Newest = last refreshed first; a refresh lifts a listing back to the top.
+      default: r.sort((a, b) => new Date(b.bumpedAt || b.listedDate).getTime() - new Date(a.bumpedAt || a.listedDate).getTime());
     }
     // Exact / prefix ID hits float to the top so a code search feels instant.
     if (q && /^\d+$/.test(q)) {

@@ -28,7 +28,7 @@ import {
   sanitizeListingFor,
   type PermissionActor,
 } from '../permissions.js';
-import { buildLifecycleFields, asDateOnly } from '../services/listingLifecycle.js';
+import { buildLifecycleFields, asDateOnly, today } from '../services/listingLifecycle.js';
 import { touchedBy } from '../services/listingTouch.js';
 import {
   MODERATION_CHECKS,
@@ -458,7 +458,14 @@ router.post('/listings/:id/calls', requirePermission('listings.tasks'), async (r
         fail(res, 403, 'სტატუსის შეცვლის უფლება არ გაქვთ');
         return;
       }
-      Object.assign(updates, buildLifecycleFields({ ...req.body, lifecycleNote: note || listing.lifecycleNote }, listing));
+      const next = buildLifecycleFields({ ...req.body, lifecycleNote: note || listing.lifecycleNote }, listing);
+      Object.assign(updates, next);
+      // Owner confirmed it is still on offer: that is a refresh, so it rises to the top.
+      const wasLive = listing.lifecycleState === 'current' || listing.lifecycleState === 'new';
+      if (!wasLive && (next.lifecycleState === 'current' || next.lifecycleState === 'new')) {
+        updates.refreshedAt = today();
+        updates.bumpedAt = now;
+      }
     }
 
     const [updated] = await db

@@ -10,7 +10,7 @@ import {
   ArrowUpDown, ArrowUp, ArrowDown, X, Building2, TrendingUp, Home,
   Image as ImageIcon, Calendar, ChevronDown, Check, Copy, History,
   PhoneCall, CalendarClock, Loader2, Mail, FileText, MessageSquare,
-  CreditCard as IdCard, Upload, ClipboardList, Lock, Archive, Key,
+  CreditCard as IdCard, Upload, ClipboardList, Lock, Archive, Key, RefreshCw,
   type LucideIcon,
 } from 'lucide-react';
 import { listingIdMatches } from '../../lib/listingId';
@@ -101,6 +101,8 @@ export interface AdminPropertyRow {
   updatedAt?: string | null;
   /** Last person who acted on the listing — system jobs never set these. */
   touchedAt?: string | null;
+  /** Last refresh time — the default order: refreshed listings rise to the top. */
+  bumpedAt?: string | null;
   touchedByName?: string | null;
   touchAction?: string | null;
   agentName: string;
@@ -163,7 +165,7 @@ type BadgeFilter = 'all' | 'premium' | 'featured' | 'new' | 'verified' | 'rented
 type OutcomeFilter = 'all' | LifecycleOutcome;
 type SortKey =
   | 'title' | 'price' | 'pricePerSqm' | 'area' | 'city' | 'type' | 'status'
-  | 'bedrooms' | 'floor' | 'viewCount' | 'createdAt' | 'agentName' | 'lifecycle' | 'owner';
+  | 'bedrooms' | 'floor' | 'viewCount' | 'createdAt' | 'bumpedAt' | 'agentName' | 'lifecycle' | 'owner';
 type SortDir = 'asc' | 'desc';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -488,6 +490,7 @@ function sortValue(p: AdminPropertyRow, key: SortKey): string | number {
     case 'floor': return p.floor || 0;
     case 'viewCount': return p.viewCount || 0;
     case 'createdAt': return p.createdAt || p.listedDate || '';
+    case 'bumpedAt': return p.bumpedAt || p.createdAt || p.listedDate || '';
     case 'agentName': return (p.agentName || '').toLowerCase();
     /* new R first, then the ones about to free up. */
     case 'lifecycle': return LIFECYCLE_ORDER.indexOf(lifecycleOf(p) as (typeof LIFECYCLE_ORDER)[number]);
@@ -496,7 +499,8 @@ function sortValue(p: AdminPropertyRow, key: SortKey): string | number {
 }
 
 const SORT_PRESETS: { id: string; label: string; key: SortKey; dir: SortDir; icon: LucideIcon }[] = [
-  { id: 'created-desc', label: 'უახლესი პირველი', key: 'createdAt', dir: 'desc', icon: Calendar },
+  { id: 'bumped-desc',  label: 'ბოლოს განახლებული', key: 'bumpedAt', dir: 'desc', icon: RefreshCw },
+  { id: 'created-desc', label: 'უახლესი დამატებული', key: 'createdAt', dir: 'desc', icon: Calendar },
   { id: 'created-asc',  label: 'ძველი პირველი',   key: 'createdAt', dir: 'asc',  icon: Calendar },
   { id: 'price-desc',   label: 'ფასი — ძვირი',    key: 'price',     dir: 'desc', icon: TrendingUp },
   { id: 'price-asc',    label: 'ფასი — იაფი',     key: 'price',     dir: 'asc',  icon: TrendingUp },
@@ -2117,7 +2121,7 @@ export default function AdminPropertiesSection({
   const [badgeFilter, setBadgeFilter] = useState<BadgeFilter>('all');
   const [outcomeFilter, setOutcomeFilter] = useState<OutcomeFilter>('all');
   const [cityFilter, setCityFilter] = useState('all');
-  const [sortKey, setSortKey] = useState<SortKey>('createdAt');
+  const [sortKey, setSortKey] = useState<SortKey>('bumpedAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [mode, setMode] = useState<'active' | 'archive'>('active');
 

@@ -1,7 +1,7 @@
 import { Router, Response } from 'express';
 import { db } from '../db.js';
 import { properties, agents, blogPosts, users, constructionProjects } from '../schema.js';
-import { and, count, desc, eq, inArray, ne, asc } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, ne, asc, sql } from 'drizzle-orm';
 import { mapProjectFromApi, withUnitPriceRanges } from '../../src/lib/projects.ts';
 import { toPublicTeamMember } from '../utils/adminProfile.js';
 import { recordPropertyView } from '../services/propertyViews.js';
@@ -105,7 +105,7 @@ router.get('/properties', async (req, res: Response): Promise<void> => {
       .select()
       .from(properties)
       .where(publiclyVisible)
-      .orderBy(desc(properties.createdAt))
+      .orderBy(desc(sql`COALESCE(${properties.bumpedAt}, ${properties.createdAt})`), desc(properties.createdAt))
       .limit(limit);
 
     const [total] = await db.select({ count: count() }).from(properties).where(publiclyVisible);

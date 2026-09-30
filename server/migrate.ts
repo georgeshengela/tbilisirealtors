@@ -676,6 +676,9 @@ async function migrate() {
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS touched_by_user_id INTEGER`;
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS touched_by_name VARCHAR(255)`;
     await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS touch_action VARCHAR(30)`;
+    // Exact refresh time — lists sort by it so a refreshed listing rises to the top.
+    await client`ALTER TABLE properties ADD COLUMN IF NOT EXISTS bumped_at TIMESTAMP`;
+    await client`CREATE INDEX IF NOT EXISTS properties_bumped_idx ON properties ((COALESCE(bumped_at, created_at)) DESC)`;
     // Backfill from the history we already keep: activity log, admin price changes, call log.
     await client`
       UPDATE properties p
@@ -706,6 +709,16 @@ async function migrate() {
         ORDER BY pid, at DESC
       ) t
       WHERE p.id = t.pid AND p.touched_at IS NULL
+    `;
+    // Backfill the refresh time from what we know: added, last refresh date, last staff edit.
+    await client`
+      UPDATE properties
+      SET bumped_at = GREATEST(
+        created_at,
+        refreshed_at::timestamp,
+        CASE WHEN touch_action IN ('create', 'edit') THEN touched_at END
+      )
+      WHERE bumped_at IS NULL
     `;
 
     const PROJECT_KEYS = ['projects.view', 'projects.create', 'projects.edit', 'projects.delete'];
