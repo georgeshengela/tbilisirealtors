@@ -2,13 +2,13 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Search, Star, CheckCircle, Phone, Mail, Building2, Users, ArrowRight, X,
+  Search, Star, CheckCircle, Phone, Mail, Building2, Users, ArrowRight, X, MessageCircle,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/LocaleContext';
 import { useAgents, useTeam } from '../hooks/usePublicData';
 import { CONTACT } from '../data/contactInfo';
 import type { Agent, TeamMember } from '../types/listing';
-import { avatarUrl, portraitUrl } from '../lib/imageUrl';
+import { portraitUrl } from '../lib/imageUrl';
 
 const PAGE_BG = '#f7f9fb';
 const CARD_BORDER = '#e6e8ea';
@@ -198,9 +198,9 @@ export default function AgentsPage() {
         </div>
 
         {loading ? (
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-[460px] rounded-2xl bg-white border animate-pulse" style={{ borderColor: CARD_BORDER }} />
+          <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="aspect-[4/6] rounded-3xl bg-white border animate-pulse" style={{ borderColor: CARD_BORDER }} />
             ))}
           </div>
         ) : empty ? (
@@ -219,7 +219,7 @@ export default function AgentsPage() {
             )}
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 min-[480px]:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-5">
             {filteredTeam.map((member, index) => (
               <TeamCard key={member.id} member={member} index={index} t={t} />
             ))}
@@ -275,6 +275,13 @@ function SpecChip({ label, active, onClick }: { label: string; active: boolean; 
   );
 }
 
+/** WhatsApp only works on a Georgian mobile (9955…); anything else gets no button. */
+function waLink(phone: string | null): string | null {
+  const digits = (phone ?? '').replace(/\D/g, '');
+  const intl = digits.startsWith('995') ? digits : digits.length === 9 ? `995${digits}` : '';
+  return intl.startsWith('9955') ? `https://wa.me/${intl}` : null;
+}
+
 function TeamCard({
   member, index, t,
 }: {
@@ -283,46 +290,72 @@ function TeamCard({
   t: (key: string) => string;
 }) {
   const color = avatarColor(member.name);
+  // Some profiles carry an e-mail in the title field; that is not a job title.
+  const role = member.jobTitle && !member.jobTitle.includes('@') ? member.jobTitle : '';
+  const wa = waLink(member.phone);
   return (
     <motion.article
-      initial={{ opacity: 0, y: 14 }}
+      initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index * 0.04, 0.24), duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-      className="rounded-2xl border bg-white overflow-hidden hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col"
+      transition={{ delay: Math.min(index * 0.05, 0.3), duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+      className="group rounded-3xl bg-white overflow-hidden flex flex-col border transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_50px_-24px_rgba(15,23,42,0.45)]"
       style={{ borderColor: CARD_BORDER, boxShadow: CARD_SHADOW }}
     >
-      <div className="h-28 relative" style={{ background: `linear-gradient(135deg, ${color}14 0%, #ffffff 70%)` }}>
-        <div className="absolute -bottom-8 left-5">
-          <div
-            className="w-16 h-16 rounded-2xl overflow-hidden border-[3px] border-white shadow-md flex items-center justify-center text-lg font-extrabold text-white"
-            style={{ background: color }}
-          >
-            {member.photo
-              ? <img src={avatarUrl(member.photo, 128)} alt="" className="w-full h-full object-cover" />
-              : initials(member.name)}
+      <div
+        className="relative aspect-[4/5] overflow-hidden"
+        style={{ background: `radial-gradient(120% 80% at 50% 20%, ${color}26 0%, #eef1f6 60%, #e2e7ef 100%)` }}
+      >
+        {member.photo ? (
+          <img
+            src={portraitUrl(member.photo, 720, 900)}
+            alt={member.name}
+            loading="lazy"
+            decoding="async"
+            className="absolute inset-0 w-full h-full object-cover object-top transition-transform duration-700 ease-out group-hover:scale-[1.05]"
+          />
+        ) : (
+          <div className="absolute inset-0 flex items-center justify-center text-6xl font-extrabold text-white/90" style={{ background: color }}>
+            {initials(member.name)}
           </div>
+        )}
+        <div className="absolute inset-x-0 bottom-0 h-2/5 bg-gradient-to-t from-slate-950/85 via-slate-950/35 to-transparent" />
+        <span className="absolute top-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/90 backdrop-blur px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider text-blue-700 shadow-sm">
+          <CheckCircle size={11} />
+          TBILISIREALTOR
+        </span>
+        <div className="absolute inset-x-0 bottom-0 p-4 sm:p-5 text-white">
+          <h3 className="text-lg sm:text-xl font-extrabold leading-tight drop-shadow-sm">{member.name}</h3>
+          <p className="text-[13px] font-semibold text-white/80 mt-0.5">{role || t('agents.role')}</p>
         </div>
       </div>
-      <div className="flex-1 flex flex-col px-5 pt-11 pb-5">
-        <p className="text-[10px] font-bold uppercase tracking-widest text-blue-600">{t('agents.badge')}</p>
-        <h3 className="text-[17px] font-extrabold text-slate-900 leading-snug mt-0.5">{member.name}</h3>
-        {member.jobTitle && (
-          <p className="text-sm font-semibold text-slate-500 mt-0.5">{member.jobTitle}</p>
-        )}
+
+      <div className="flex flex-col gap-3 p-4 sm:p-5 flex-1">
         {member.bio && (
-          <p className="text-sm text-slate-500 leading-relaxed mt-3 line-clamp-3">{member.bio}</p>
+          <p className="text-sm text-slate-500 leading-relaxed line-clamp-3">{member.bio}</p>
         )}
-        <div className="mt-auto pt-4">
+        <div className="mt-auto flex items-center gap-2">
           {member.phone ? (
             <a
               href={`tel:${member.phone}`}
-              className="inline-flex items-center gap-2 w-full justify-center px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:border-blue-300 hover:text-blue-700 hover:bg-blue-50/40 transition-colors"
+              className="flex-1 min-w-0 inline-flex items-center justify-center gap-2 h-11 px-3 rounded-xl bg-slate-900 text-white text-sm font-bold hover:bg-blue-600 transition-colors"
             >
-              <Phone size={14} />
-              {formatPhone(member.phone)}
+              <Phone size={15} className="shrink-0" />
+              <span className="truncate">{formatPhone(member.phone)}</span>
             </a>
           ) : (
             <p className="text-xs font-semibold text-slate-400">{t('agents.write')}</p>
+          )}
+          {wa && (
+            <a
+              href={wa}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="WhatsApp"
+              aria-label="WhatsApp"
+              className="h-11 w-11 shrink-0 inline-flex items-center justify-center rounded-xl border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-colors"
+            >
+              <MessageCircle size={18} />
+            </a>
           )}
         </div>
       </div>

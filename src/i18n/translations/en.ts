@@ -984,6 +984,7 @@ export const en = {
   },
   agents: {
     badge: 'Brokers',
+    role: 'Broker',
     title: 'Professional brokers',
     subtitle: 'Experienced specialists in Tbilisi and across Georgia — pick a broker for buying, selling or renting.',
     searchPlaceholder: 'Name, company, specialization...',
