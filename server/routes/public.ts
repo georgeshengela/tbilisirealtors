@@ -5,7 +5,7 @@ import { and, count, desc, eq, inArray, ne, asc } from 'drizzle-orm';
 import { mapProjectFromApi } from '../../src/lib/projects.ts';
 import { toPublicTeamMember } from '../utils/adminProfile.js';
 import { recordPropertyView } from '../services/propertyViews.js';
-import { STAFF_ROLES } from '../permissions.js';
+import { STAFF_ROLES, isStaffRole } from '../permissions.js';
 import { optionalAuth, type AuthRequest } from '../middleware/auth.js';
 import { toPublicAddress } from '../lib/publicAddress.js';
 
@@ -58,6 +58,10 @@ function toPublic(row: PropertyRow, _viewerRole?: string) {
     lastCallAt: _lastCallAt,
     lastCallOutcome: _lastCallOutcome,
     nextFollowUpAt: _nextFollowUpAt,
+    touchedAt: _touchedAt,
+    touchedByUserId: _touchedByUserId,
+    touchedByName: _touchedByName,
+    touchAction: _touchAction,
     ...pub
   } = row;
 
@@ -114,13 +118,23 @@ router.get('/properties', async (req, res: Response): Promise<void> => {
 
 router.get('/properties/:id', optionalAuth, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+    // Staff preview archived / pending listings from the admin (same public fields only).
+    const staffViewer = isStaffRole(req.user?.role ?? '');
     const [property] = await db
       .select()
       .from(properties)
-      .where(and(eq(properties.id, String(req.params.id)), publiclyVisible));
+      .where(staffViewer
+        ? eq(properties.id, String(req.params.id))
+        : and(eq(properties.id, String(req.params.id)), publiclyVisible));
 
     if (!property) {
       res.status(404).json({ error: 'Property not found' });
+      return;
+    }
+
+    const hidden = property.moderationStatus !== 'approved' || property.lifecycleState === 'old';
+    if (hidden) {
+      res.json(toPublic(property, req.user?.role));
       return;
     }
 

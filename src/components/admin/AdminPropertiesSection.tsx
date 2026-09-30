@@ -799,6 +799,7 @@ function AnchoredPopover({
   return createPortal(
     <div
       ref={ref}
+      data-popover=""
       className="rounded-2xl border border-slate-200 bg-white p-3.5"
       style={{
         position: 'fixed',

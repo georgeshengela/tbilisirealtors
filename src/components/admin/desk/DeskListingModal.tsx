@@ -68,7 +68,7 @@ export default function DeskListingModal({
     document.body.style.overflow = 'hidden';
     const onKey = (event: KeyboardEvent) => {
       // Escape closes the top-most window only (status editor, tasks panel…).
-      if (event.key === 'Escape' && !workPanel && !document.querySelector('[role="dialog"]')) onClose();
+      if (event.key === 'Escape' && !workPanel && !document.querySelector('[role="dialog"], [data-popover]')) onClose();
     };
     window.addEventListener('keydown', onKey);
     return () => {

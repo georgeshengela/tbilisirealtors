@@ -65,6 +65,7 @@ function matches(row: CallbackListing, filter: Filter): boolean {
 }
 
 export default function CallbackBoard({ api, showToast, onCountsChanged }: DeskBoardProps) {
+  const { openListing, version: listingVersion } = useDeskListing();
   const [rows, setRows] = useState<CallbackListing[]>([]);
   const [buckets, setBuckets] = useState<CallbackBuckets>({
     expired: 0, followUpDue: 0, expiringSoon: 0, neverCalled: 0,
@@ -89,7 +90,6 @@ export default function CallbackBoard({ api, showToast, onCountsChanged }: DeskB
 
   useEffect(() => { void load(); }, [load]);
 
-  const { version: listingVersion } = useDeskListing();
   useEffect(() => { if (listingVersion) void load(); }, [listingVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visible = useMemo(() => {
@@ -183,9 +183,23 @@ export default function CallbackBoard({ api, showToast, onCountsChanged }: DeskB
                     >
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2.5">
-                          <Thumb src={row.images?.[0]} size={40} />
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); openListing(row.id); }}
+                            className="shrink-0 rounded-xl transition-opacity hover:opacity-80"
+                            title="განცხადების გახსნა"
+                          >
+                            <Thumb src={row.images?.[0]} size={40} />
+                          </button>
                           <div className="min-w-0">
-                            <p className="max-w-[240px] truncate text-xs font-bold text-slate-800">{row.title}</p>
+                            <button
+                              type="button"
+                              onClick={e => { e.stopPropagation(); openListing(row.id); }}
+                              className="block max-w-[240px] truncate text-left text-xs font-bold text-slate-800 hover:text-blue-600 hover:underline"
+                              title="განცხადების გახსნა"
+                            >
+                              {row.title}
+                            </button>
                             <p className="mt-0.5 text-[11px] text-slate-400">
                               <span className="font-mono">{row.id}</span> · {row.district || row.city || '—'}
                             </p>
@@ -406,7 +420,7 @@ function CallModal({
         <div className="flex items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => openListing(listing.id)}
+            onClick={() => { onClose(); openListing(listing.id); }}
             className="text-xs font-bold text-slate-500 hover:text-slate-800 hover:underline"
           >
             განცხადების გახსნა →

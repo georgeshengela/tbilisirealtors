@@ -93,6 +93,10 @@ function toMemberListing(row: typeof properties.$inferSelect) {
     nextFollowUpAt: _nextFollowUpAt,
     assignedByUserId: _assignedByUserId,
     assignedAt: _assignedAt,
+    touchedAt: _touchedAt,
+    touchedByUserId: _touchedByUserId,
+    touchedByName: _touchedByName,
+    touchAction: _touchAction,
     ...rest
   } = row;
   // moderationStatus / moderationNote / moderationChecklist stay: the member is
