@@ -18,7 +18,7 @@ import {
   Timer,
   XCircle,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useDeskListing } from './deskListing';
 import {
   MODERATION_CHECKS,
   MODERATION_COLOR,
@@ -270,6 +270,7 @@ function QueueCard({
   onToggle: () => void;
   onReview: () => void;
 }) {
+  const { openListing } = useDeskListing();
   const tone = MODERATION_COLOR[row.moderationStatus] ?? MODERATION_COLOR.draft;
 
   return (
@@ -358,12 +359,13 @@ function QueueCard({
             >
               <Sparkles size={14} />განხილვა
             </button>
-            <Link
-              to={`/admin/listings/${row.id}`}
+            <button
+              type="button"
+              onClick={() => openListing(row.id)}
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-xs font-bold text-slate-600 transition-colors hover:bg-slate-50"
             >
-              რედაქტირება
-            </Link>
+              გახსნა / რედაქტირება
+            </button>
           </div>
         </div>
       </div>

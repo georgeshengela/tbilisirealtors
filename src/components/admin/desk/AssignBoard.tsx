@@ -18,7 +18,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useDeskListing } from './deskListing';
 import { LIFECYCLE_LABEL } from '../../../lib/permissions';
 import type { AssignListing, AssignStaff, DeskBoardProps } from './types';
 import { Avatar, Chip, EmptyState, GEL, RoleChip, Spinner, StatTile, Thumb, inputCls, selectCls } from './ui';
@@ -63,6 +63,9 @@ export default function AssignBoard({ api, showToast, onCountsChanged }: DeskBoa
   }, [api, showToast]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const { version: listingVersion } = useDeskListing();
+  useEffect(() => { if (listingVersion) void load(); }, [listingVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const unassigned = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -361,6 +364,7 @@ function ListingChip({
   onDragStart: (event: React.DragEvent) => void;
   onUnassign?: () => void;
 }) {
+  const { openListing } = useDeskListing();
   const tone = LIFECYCLE_TONE[row.lifecycleState] ?? LIFECYCLE_TONE.new;
 
   return (
@@ -393,13 +397,14 @@ function ListingChip({
         </div>
       </div>
       <div className="flex flex-col gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-        <Link
-          to={`/admin/listings/${row.id}`}
-          title="რედაქტირება"
+        <button
+          type="button"
+          onClick={() => openListing(row.id)}
+          title="განცხადების გახსნა"
           className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
         >
           <Pencil size={13} />
-        </Link>
+        </button>
         {onUnassign && (
           <button
             onClick={onUnassign}

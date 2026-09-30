@@ -13,7 +13,7 @@ import {
   Search,
   User,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useDeskListing } from './deskListing';
 import {
   CALL_OUTCOME_COLOR,
   CALL_OUTCOME_LABEL,
@@ -88,6 +88,9 @@ export default function CallbackBoard({ api, showToast, onCountsChanged }: DeskB
   }, [api, showToast]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const { version: listingVersion } = useDeskListing();
+  useEffect(() => { if (listingVersion) void load(); }, [listingVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const visible = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -312,6 +315,7 @@ function CallModal({
   onClose: () => void;
   onLogged: (propertyId: string, patch: Partial<CallbackListing>) => void;
 }) {
+  const { openListing } = useDeskListing();
   const [journal, setJournal] = useState<CallLog[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -400,12 +404,13 @@ function CallModal({
       width="max-w-2xl"
       footer={
         <div className="flex items-center justify-between gap-3">
-          <Link
-            to={`/admin/listings/${listing.id}`}
+          <button
+            type="button"
+            onClick={() => openListing(listing.id)}
             className="text-xs font-bold text-slate-500 hover:text-slate-800 hover:underline"
           >
-            განცხადების რედაქტირება →
-          </Link>
+            განცხადების გახსნა →
+          </button>
           <button
             disabled={saving}
             onClick={() => void submit()}

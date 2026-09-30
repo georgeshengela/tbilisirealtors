@@ -142,6 +142,7 @@ export type PropertyPatch = Partial<{
   isFeatured: boolean;
   isNew: boolean;
   price: number;
+  priceCurrency: string;
   rentPrice: number | null;
   status: string;
   lifecycleState: string;
@@ -291,7 +292,7 @@ function formatDotDateTime(input: string): string {
 }
 
 /* ── Date column: last person's touch on top, created below; hover says who did what ── */
-function TouchedDateCell({ p }: { p: AdminPropertyRow }) {
+export function TouchedDateCell({ p }: { p: AdminPropertyRow }) {
   const touched = formatDotDate(p.touchedAt || p.createdAt || p.listedDate);
   const created = formatDotDate(p.createdAt || p.listedDate);
   const who = p.touchedByName || (p.touchAction === 'member_edit' ? 'მესაკუთრე' : '');
@@ -947,7 +948,7 @@ function PriceLine({
 }
 
 /* ── Sale and/or rent price, read-only in the table, with the change log ── */
-function PriceCell({
+export function PriceCell({
   p,
 }: {
   p: AdminPropertyRow;
@@ -1389,7 +1390,7 @@ function LifecycleStatusDialog({
 }
 
 /* ── Lifecycle state + the old-subcategory that explains why it left the live table ── */
-function LifecycleCell({
+export function LifecycleCell({
   p, onPatch,
 }: {
   p: AdminPropertyRow;
@@ -1580,7 +1581,7 @@ const OWNER_FIELDS: { key: keyof PropertyOwnerInfo; label: string; placeholder: 
   { key: 'address',  label: 'მისამართი',       placeholder: 'ქ. თბილისი, ...',    icon: MapPin },
 ];
 
-function OwnerCell({
+export function OwnerCell({
   p, onPatch,
 }: {
   p: AdminPropertyRow;
@@ -1902,7 +1903,7 @@ function ContractCell({
 }
 
 /* ── Internal comments: registry details that must not reach the public site ── */
-function NotesButton({
+export function NotesButton({
   p, onPatch,
 }: {
   p: AdminPropertyRow;

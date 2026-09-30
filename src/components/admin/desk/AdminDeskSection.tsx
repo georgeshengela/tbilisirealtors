@@ -15,6 +15,8 @@ import {
 import { useAdminAuth } from '../../../contexts/AdminAuthContext';
 import AssignBoard from './AssignBoard';
 import CallbackBoard from './CallbackBoard';
+import DeskListingModal from './DeskListingModal';
+import { DeskListingContext } from './deskListing';
 import LeadsBoard from './LeadsBoard';
 import ModerationInbox from './ModerationInbox';
 import PerformanceBoard from './PerformanceBoard';
@@ -129,6 +131,23 @@ export default function AdminDeskSection({
   useEffect(() => { refreshSummary(); }, [refreshSummary]);
 
   const boardProps = { api, showToast, onCountsChanged: refreshSummary };
+
+  // A listing opened in place; boards reload once it closes if anything was saved.
+  const [openListingId, setOpenListingId] = useState<string | null>(null);
+  const [listingDirty, setListingDirty] = useState(false);
+  const [listingVersion, setListingVersion] = useState(0);
+  const listingApi = useMemo(() => ({
+    openListing: (id: string) => { setListingDirty(false); setOpenListingId(id); },
+    version: listingVersion,
+  }), [listingVersion]);
+  const closeListing = useCallback(() => {
+    setOpenListingId(null);
+    if (listingDirty) {
+      setListingVersion(v => v + 1);
+      refreshSummary();
+    }
+  }, [listingDirty, refreshSummary]);
+  const markListingDirty = useCallback(() => setListingDirty(true), []);
   const canAssignOthers = can('listings.assign');
   const active = tabs.find(item => item.id === tab);
 
@@ -141,6 +160,7 @@ export default function AdminDeskSection({
   }
 
   return (
+    <DeskListingContext.Provider value={listingApi}>
     <div className="space-y-4">
       <div>
         <h2 className="text-lg font-extrabold text-slate-800">მენეჯერის დესკი</h2>
@@ -199,6 +219,17 @@ export default function AdminDeskSection({
       {tab === 'moderation' && <ModerationInbox {...boardProps} />}
       {tab === 'assign' && <AssignBoard {...boardProps} />}
       {tab === 'performance' && <PerformanceBoard {...boardProps} />}
+
+      {openListingId && (
+        <DeskListingModal
+          propertyId={openListingId}
+          api={api}
+          showToast={showToast}
+          onClose={closeListing}
+          onChanged={markListingDirty}
+        />
+      )}
     </div>
+    </DeskListingContext.Provider>
   );
 }

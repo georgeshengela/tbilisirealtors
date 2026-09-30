@@ -15,7 +15,7 @@ import {
   Trash2,
   User,
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useDeskListing } from './deskListing';
 import {
   TASK_KIND_LABEL,
   TASK_PRIORITY_COLOR,
@@ -96,6 +96,9 @@ export default function TasksBoard({
   }, [api, showToast, statusFilter, assigneeFilter, onlyOverdue]);
 
   useEffect(() => { void load(); }, [load]);
+
+  const { version: listingVersion } = useDeskListing();
+  useEffect(() => { if (listingVersion) void load(); }, [listingVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let cancelled = false;
@@ -301,6 +304,7 @@ function TaskRow({
   onDueChange: (value: string) => void;
   onDelete: () => void;
 }) {
+  const { openListing } = useDeskListing();
   const done = task.status !== 'open';
   const due = relativeDays(task.daysUntilDue);
   const priority = TASK_PRIORITY_COLOR[task.priority] ?? TASK_PRIORITY_COLOR.normal;
@@ -326,7 +330,9 @@ function TaskRow({
           {done ? <RotateCcw size={14} /> : <CheckCircle2 size={14} />}
         </button>
 
-        <Thumb src={task.propertyImage} size={44} />
+        <button type="button" onClick={() => openListing(task.propertyId)} className="shrink-0 rounded-xl transition-opacity hover:opacity-80" title="განცხადების გახსნა">
+          <Thumb src={task.propertyImage} size={44} />
+        </button>
 
         <div className="min-w-0 flex-1">
           <p className={`text-sm font-bold ${done ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
@@ -334,12 +340,14 @@ function TaskRow({
           </p>
 
           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400">
-            <Link
-              to={`/admin/listings/${task.propertyId}`}
+            <button
+              type="button"
+              onClick={() => openListing(task.propertyId)}
               className="font-mono font-bold text-slate-500 hover:text-blue-600 hover:underline"
+              title="განცხადების გახსნა"
             >
               {task.propertyId}
-            </Link>
+            </button>
             <span className="max-w-[220px] truncate">{task.propertyTitle}</span>
             {task.propertyDistrict && <span>{task.propertyDistrict}</span>}
           </div>
