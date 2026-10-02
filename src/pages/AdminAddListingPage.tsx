@@ -11,6 +11,9 @@ import {
   Languages, MessageSquare, X, Upload, Maximize2, Minimize2,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
+import { useAccountRequest, useUserAuth } from '../contexts/UserAuthContext';
+import { useOptionalAccountData } from './account/AccountLayout';
+import { Alert, useToast } from '../components/account/ui';
 import { useCurrency, FALLBACK_USD_RATE } from '../contexts/CurrencyContext';
 import {
   convertEntryAmount,
@@ -177,6 +180,19 @@ const inputCls = 'w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-s
 const cardCls  = 'bg-white rounded-2xl border border-slate-100 shadow-sm';
 const labelCls = 'flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide';
 const sectionTitle = 'text-sm font-bold text-slate-700 mb-3';
+
+/** Fields a member's submission carries — the server enforces the same list. */
+const MEMBER_PAYLOAD_KEYS = new Set([
+  'title', 'description', 'price', 'rentPrice', 'priceCurrency', 'pricePerSqm', 'area', 'landArea',
+  'type', 'status', 'rooms', 'bedrooms', 'bathrooms', 'floor', 'totalFloors', 'city', 'district',
+  'address', 'cadastralCode', 'showCadastral', 'coordinates', 'images', 'amenities', 'features',
+]);
+
+/** Admin chrome for staff; members get the form bare inside their account area. */
+function FormShell({ member, subtitle, children }: { member: boolean; subtitle: string; children: ReactNode }) {
+  if (member) return <>{children}</>;
+  return <AdminLayout subtitle={subtitle} activeSection="properties">{children}</AdminLayout>;
+}
 
 function FormSection({
   id, title, desc, icon: Icon, children,
@@ -535,13 +551,35 @@ function applyPriceFields(
 }
 
 /* ─── Main component ─────────────────────────────────────── */
-export default function AdminAddListingPage() {
+/**
+ * The listing form. Staff use it in the admin panel; with `member` it is the
+ * public "add a listing" form — same fields, minus the import, owner, notes,
+ * billing, promotion and lifecycle blocks, and every save goes to moderation.
+ */
+export default function AdminAddListingPage({ member = false }: { member?: boolean }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { id }   = useParams();
   const isEdit   = Boolean(id);
-  const { user, can, token, loading: authLoading } = useAdminAuth();
-  const api = useApiRequest();
+  const adminAuth = useAdminAuth();
+  const memberAuth = useUserAuth();
+  const adminApi = useApiRequest();
+  const accountApi = useAccountRequest();
+  const accountData = useOptionalAccountData();
+  const toast = useToast();
+  const user = member ? memberAuth.user : adminAuth.user;
+  const token = member ? memberAuth.token : adminAuth.token;
+  const authLoading = member ? memberAuth.loading : adminAuth.loading;
+  // Members hold no back-office permissions, so every gated block stays hidden for them.
+  const can = useMemo(() => (member ? () => false : adminAuth.can), [member, adminAuth.can]);
+  // Members talk to their own endpoints: /properties/:id → /my-listings/:id.
+  const api = useMemo(
+    () => (member
+      ? (path: string, options?: RequestInit) => accountApi(path.replace(/^\/properties(?=\/|$)/, '/my-listings'), options)
+      : adminApi),
+    [member, accountApi, adminApi],
+  );
+  const [moderation, setModeration] = useState<{ status: string; note: string | null } | null>(null);
   const { formatMoney, rates } = useCurrency();
   const usdRate = rates.USD ?? FALLBACK_USD_RATE;
 
@@ -581,11 +619,11 @@ export default function AdminAddListingPage() {
   const [dropActive, setDropActive] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
   const priceAnchorRef = useRef<PriceAnchor>('total');
-  const { upload, uploading, progress, error: uploadError } = useFileUpload();
+  const { upload, uploading, progress, error: uploadError } = useFileUpload(member ? memberAuth.token : undefined);
 
   useEffect(() => {
-    if (!authLoading && !user) navigate('/admin/login');
-  }, [user, authLoading, navigate]);
+    if (!authLoading && !user) navigate(member ? '/login' : '/admin/login');
+  }, [user, authLoading, navigate, member]);
 
   // New listing: prefill agent contact from the logged-in staff account.
   useEffect(() => {
@@ -701,6 +739,7 @@ export default function AdminAddListingPage() {
           owner.phone || owner.email || owner.idNumber || owner.address || owner.note,
         );
         setListingLocked(data.canEdit === false);
+        if (member) setModeration({ status: String(data.moderationStatus ?? ''), note: data.moderationNote ?? null });
         setOwnerContactsVisible(hasOwnerContacts || data.canEdit !== false);
       } catch { setError('განცხადების ჩატვირთვა ვერ მოხერხდა'); }
       finally  { setLoading(false); }
@@ -1042,6 +1081,16 @@ export default function AdminAddListingPage() {
       setError('რედაქტირება მხოლოდ საკუთარ განცხადებაზე შეგიძლიათ');
       return;
     }
+    if (member && !form.photos.length) {
+      setError('დაამატეთ მინიმუმ ერთი ფოტო');
+      scrollToSection('section-media');
+      return;
+    }
+    if (member && !form.district) {
+      setError('აირჩიეთ რაიონი');
+      scrollToSection('section-location');
+      return;
+    }
     if (!form.price) {
       setError('ფასი სავალდებულოა');
       scrollToSection('section-details');
@@ -1186,10 +1235,21 @@ export default function AdminAddListingPage() {
         priceSource:    form.sourceUrl && !isEdit ? 'import' : 'admin',
       };
 
+      const body = member
+        ? Object.fromEntries(Object.entries(payload).filter(([key]) => MEMBER_PAYLOAD_KEYS.has(key)))
+        : payload;
       if (isEdit) {
-        await api(`/properties/${id}`, { method: 'PUT', body: JSON.stringify(payload) });
+        await api(`/properties/${id}`, { method: 'PUT', body: JSON.stringify(body) });
       } else {
-        await api('/properties', { method: 'POST', body: JSON.stringify(payload) });
+        await api('/properties', { method: 'POST', body: JSON.stringify(body) });
+      }
+      if (member) {
+        await accountData?.reload();
+        toast(isEdit
+          ? 'ცვლილებები შენახულია — განცხადება ხელახლა გადამოწმდება'
+          : 'განცხადება გადამოწმებაზე გაიგზავნა');
+        navigate('/dashboard/listings');
+        return;
       }
       navigate(adminReturnPath(searchParams.get('from')));
     } catch (err) {
@@ -1207,11 +1267,11 @@ export default function AdminAddListingPage() {
 
   if (authLoading || !user) return null;
   if (loading) return (
-    <AdminLayout subtitle="იტვირთება..." activeSection="properties">
-      <div className="container-xl py-24 flex items-center justify-center">
+    <FormShell member={member} subtitle="იტვირთება...">
+      <div className={`${member ? '' : 'container-xl '}py-24 flex items-center justify-center`}>
         <Loader2 size={32} className="text-blue-600 animate-spin" />
       </div>
-    </AdminLayout>
+    </FormShell>
   );
 
   /* ── Chip button helper ── */
@@ -1224,7 +1284,17 @@ export default function AdminAddListingPage() {
     >{label}</button>
   );
 
-  const actionButtons = (
+  const actionButtons = member ? (
+    <button
+      type="button"
+      onClick={() => handleSubmit(true)}
+      disabled={saving || uploading}
+      className="flex-1 lg:flex-none flex items-center justify-center gap-2 px-5 sm:px-6 py-2.5 rounded-xl text-white text-sm font-bold transition-colors disabled:opacity-40 bg-blue-600 hover:bg-blue-700"
+    >
+      {saving ? <Loader2 size={15} className="animate-spin" /> : <Sparkles size={15} />}
+      {isEdit ? 'შენახვა და ხელახლა გაგზავნა' : 'გადამოწმებაზე გაგზავნა'}
+    </button>
+  ) : (
     <>
       <button
         type="button"
@@ -1249,32 +1319,46 @@ export default function AdminAddListingPage() {
   );
 
   return (
-    <AdminLayout
-      subtitle={isEdit ? 'განცხადების რედაქტირება' : 'ახალი განცხადება'}
-      activeSection="properties"
-    >
-      <div className="container-xl py-6 sm:py-8 pb-28 lg:pb-10">
+    <FormShell member={member} subtitle={isEdit ? 'განცხადების რედაქტირება' : 'ახალი განცხადება'}>
+      <div className={member ? 'pb-28 lg:pb-10' : 'container-xl py-6 sm:py-8 pb-28 lg:pb-10'}>
         {/* Page header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
           <div>
             <button
               type="button"
-              onClick={() => navigate('/admin?section=properties')}
+              onClick={() => navigate(member ? '/dashboard/listings' : '/admin?section=properties')}
               className="inline-flex items-center gap-1.5 text-slate-500 hover:text-slate-800 text-xs font-semibold mb-2 transition-colors"
               style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
             >
               <ArrowLeft size={14} />
-              უკან განცხადებებში
+              {member ? 'ჩემი განცხადებები' : 'უკან განცხადებებში'}
             </button>
             <h1 className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">
               {isEdit ? 'განცხადების რედაქტირება' : 'ახალი განცხადება'}
             </h1>
-            <p className="text-slate-500 text-sm mt-1">ყველა ველი ერთ გვერდზე — შეავსეთ და გამოაქვეყნეთ</p>
+            <p className="text-slate-500 text-sm mt-1">
+              {member
+                ? 'შეავსეთ ველები — გადამოწმების შემდეგ განცხადება საიტზე გამოჩნდება'
+                : 'ყველა ველი ერთ გვერდზე — შეავსეთ და გამოაქვეყნეთ'}
+            </p>
           </div>
           <div className="hidden lg:flex items-center gap-3">
             {actionButtons}
           </div>
         </div>
+
+        {member && (
+          <div className="mb-5 space-y-3">
+            {moderation && (moderation.status === 'rejected' || moderation.status === 'changes_requested') && moderation.note && (
+              <Alert tone="error" title="მოდერატორის კომენტარი">{moderation.note}</Alert>
+            )}
+            <Alert tone="info">
+              {isEdit
+                ? 'შენახვის შემდეგ განცხადება ხელახლა გაივლის გადამოწმებას.'
+                : 'განცხადება ჯერ ჩვენი გუნდის მიერ გადამოწმდება და დადასტურების შემდეგ გამოჩნდება საიტზე. თქვენი სახელი და ტელეფონი დაერთვება განცხადებას.'}
+            </Alert>
+          </div>
+        )}
 
         {listingLocked && (
           <div className="mb-5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium">
@@ -1483,6 +1567,7 @@ export default function AdminAddListingPage() {
             )}
 
             {/* ── Owner + contact, kept at the top where they are needed first ── */}
+            {!member && (
             <FormSection id="section-contact" title="მესაკუთრე & კონტაქტი" desc="შიდა ინფორმაცია — საიტზე არ ქვეყნდება" icon={User}>
               <div className="space-y-6">
                 {canOwner && (
@@ -1616,6 +1701,7 @@ export default function AdminAddListingPage() {
                 </div>
               </div>
             </FormSection>
+            )}
 
             <FormSection id="section-type" title="ტიპი & სტატუსი" desc="აირჩიეთ ქონების, გარიგების ტიპი და მდგომარეობა" icon={Building2}>
               <div className="space-y-6">
@@ -1885,7 +1971,7 @@ export default function AdminAddListingPage() {
                 </div>
 
                 {/* Origin of the listing */}
-                <div className="pt-5 border-t border-slate-100">
+                <div className={`pt-5 border-t border-slate-100 ${member ? 'hidden' : ''}`}>
                   <h3 className="font-bold text-slate-800 text-sm mb-1">წყარო</h3>
                   <p className="text-slate-500 text-xs mb-3">
                     გარე ვებსაიტის ბმული — საჯარო გვერდზე და ადმინის სიაში Property ID-ს გვერდით გამოჩნდება გადასვლის ქმედება.
@@ -2181,7 +2267,9 @@ export default function AdminAddListingPage() {
                   <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
                     <div>
                       <h3 className="font-bold text-slate-800 text-sm mb-1">აღწერა</h3>
-                      <p className="text-slate-400 text-xs">ქართული ტექსტი ითარგმნება დანარჩენ ორ ენაზე</p>
+                      <p className="text-slate-400 text-xs">
+                        {member ? 'აღწერეთ ქონება ქართულად — მდგომარეობა, რემონტი, ინფრასტრუქტურა' : 'ქართული ტექსტი ითარგმნება დანარჩენ ორ ენაზე'}
+                      </p>
                     </div>
                     {canTranslate && (
                       <button
@@ -2208,7 +2296,7 @@ export default function AdminAddListingPage() {
                       ['description',   'ქართული', 'დეტალური აღწერა ქართულ ენაზე...', 148],
                       ['descriptionEn', 'English', 'Detailed description in English...', 128],
                       ['descriptionRu', 'Русский', 'Подробное описание на русском...', 128],
-                    ] as const).map(([key, label, placeholder, defaultHeight]) => (
+                    ] as const).filter(([key]) => !member || key === 'description').map(([key, label, placeholder, defaultHeight]) => (
                       <ResizableDescriptionField
                         key={key}
                         label={label}
@@ -2282,13 +2370,15 @@ export default function AdminAddListingPage() {
                         <input type="text" value={form.cadastralCode} onChange={e => set('cadastralCode', e.target.value)}
                           className={inputCls} placeholder="01.13.15.123.456" />
                         <p className="text-xs text-slate-400 mt-1">კოდის ჩაწერა ზრდის განცხადების სანდოობას</p>
-                        <CadastralRegistryPanel
-                          code={form.cadastralCode}
-                          registry={cadastralRegistry}
-                          syncing={cadastralSyncing}
-                          error={cadastralSyncError}
-                          onSync={() => { void syncCadastral(); }}
-                        />
+                        {!member && (
+                          <CadastralRegistryPanel
+                            code={form.cadastralCode}
+                            registry={cadastralRegistry}
+                            syncing={cadastralSyncing}
+                            error={cadastralSyncError}
+                            onSync={() => { void syncCadastral(); }}
+                          />
+                        )}
                         <button
                           type="button"
                           onClick={() => set('showCadastral', !form.showCadastral)}
@@ -2314,11 +2404,11 @@ export default function AdminAddListingPage() {
                         </button>
                       </div>
 
-                      {/* Exact number goes public only for paid placements */}
+                      {/* Exact number goes public only for paid placements — staff decide */}
                       <button
                         type="button"
                         onClick={() => set('showAddress', !form.showAddress)}
-                        className="w-full flex items-start gap-3 p-4 rounded-2xl border-2 text-left transition-all"
+                        className={`${member ? 'hidden ' : ''}w-full flex items-start gap-3 p-4 rounded-2xl border-2 text-left transition-all`}
                         style={form.showAddress
                           ? { background: '#ecfdf5', borderColor: '#10b981' }
                           : { background: '#fff', borderColor: '#e2e8f0' }}
@@ -2411,10 +2501,12 @@ export default function AdminAddListingPage() {
                     <h3 className="font-bold text-slate-800 text-sm">ბეჯები</h3>
                   </div>
                   <p className="text-[11px] text-slate-400 mb-3">
-                    ვერიფიცირებული ბეჯი ჩანს საიტზეც — მომხმარებელი ხედავს, რომ განცხადება შემოწმებულია.
+                    {member
+                      ? 'მონიშნეთ, რაც თქვენს ქონებას ეხება.'
+                      : 'ვერიფიცირებული ბეჯი ჩანს საიტზეც — მომხმარებელი ხედავს, რომ განცხადება შემოწმებულია.'}
                   </p>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    {BADGE_OPTIONS.map(b => {
+                    {(member ? BADGE_OPTIONS.filter(b => b.id !== VERIFIED_LISTING_BADGE) : BADGE_OPTIONS).map(b => {
                       const on = form.badges.includes(b.id);
                       const verified = b.id === VERIFIED_LISTING_BADGE;
                       return (
@@ -2446,14 +2538,14 @@ export default function AdminAddListingPage() {
               </div>
             </FormSection>
 
-            <FormSection id="section-media" title="ფოტოგალერეა & კომენტარები" desc="რიგითობა, ჩამალვა და შიდა ჩანაწერები" icon={Sparkles}>
+            <FormSection id="section-media" title={member ? 'ფოტოები' : 'ფოტოგალერეა & კომენტარები'} desc={member ? 'ატვირთეთ და დაალაგეთ ფოტოები' : 'რიგითობა, ჩამალვა და შიდა ჩანაწერები'} icon={Sparkles}>
               <div className="space-y-6">
 
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <ImageIcon size={16} className="text-blue-600" />
                     <h3 className="font-bold text-slate-800 text-sm">ფოტოგალერეა</h3>
-                    {form.photos.length > 0 && (
+                    {!member && form.photos.length > 0 && (
                       <button
                         type="button"
                         onClick={() => { void downloadAllPhotos(); }}
@@ -2466,7 +2558,9 @@ export default function AdminAddListingPage() {
                     )}
                   </div>
                   <p className="text-slate-400 text-xs mb-4">
-                    გადაათრიეთ რიგითობის შესაცვლელად. მწვანე ნიშანი — ჩანს საიტზე, წითელი — ჩამალულია.
+                    {member
+                      ? 'გადაათრიეთ რიგითობის შესაცვლელად. პირველი ფოტო იქნება მთავარი.'
+                      : 'გადაათრიეთ რიგითობის შესაცვლელად. მწვანე ნიშანი — ჩანს საიტზე, წითელი — ჩამალულია.'}
                   </p>
                   {photoDownloadError && (
                     <p className="text-rose-500 text-xs mb-3">{photoDownloadError}</p>
@@ -2580,7 +2674,7 @@ export default function AdminAddListingPage() {
                               photos: f.photos.map((p, i) => (i === index ? { ...p, hidden: !p.hidden } : p)),
                             }))}
                             title={photo.hidden ? 'საიტზე გამოჩენა' : 'ჩამალვა საიტიდან'}
-                            className="absolute top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm"
+                            className={`${member ? 'hidden ' : ''}absolute top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center text-white shadow-sm`}
                             style={{ background: photo.hidden ? '#ef4444' : '#10b981' }}
                           >
                             <CheckCircle size={14} />
@@ -2608,7 +2702,7 @@ export default function AdminAddListingPage() {
                             <button
                               type="button"
                               onClick={() => { void downloadListingPhoto(photo.url, listingPhotoFilename(photo.url, index, id)); }}
-                              className="w-7 h-7 rounded-lg bg-white/95 text-slate-700 flex items-center justify-center"
+                              className={`${member ? 'hidden ' : ''}w-7 h-7 rounded-lg bg-white/95 text-slate-700 flex items-center justify-center`}
                               title="ჩამოტვირთვა"
                             >
                               <Download size={13} />
@@ -2631,7 +2725,9 @@ export default function AdminAddListingPage() {
                   )}
 
                   <p className="text-[11px] text-slate-400 mt-3">
-                    ფოტოები — Cloudinary CDN; ხელშეკრულების PDF — სერვერზე (მხოლოდ ადმინი). გარე ბმულიც მუშაობს.
+                    {member
+                      ? 'JPG, PNG ან WEBP · მაქსიმუმ 30 ფოტო'
+                      : 'ფოტოები — Cloudinary CDN; ხელშეკრულების PDF — სერვერზე (მხოლოდ ადმინი). გარე ბმულიც მუშაობს.'}
                   </p>
                 </div>
 
@@ -2698,7 +2794,7 @@ export default function AdminAddListingPage() {
               <div className={`${cardCls} p-4`}>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-3">სექციები</p>
                 <nav className="space-y-1">
-                  {SECTION_NAV.map(s => (
+                  {SECTION_NAV.filter(s => !member || s.id !== 'section-contact').map(s => (
                     <button
                       key={s.id}
                       type="button"
@@ -2706,7 +2802,7 @@ export default function AdminAddListingPage() {
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-sm font-semibold text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors"
                     >
                       <s.icon size={14} className="text-blue-600 flex-shrink-0" />
-                      {s.label}
+                      {member && s.id === 'section-media' ? 'ფოტოები' : s.label}
                     </button>
                   ))}
                 </nav>
@@ -2837,7 +2933,7 @@ export default function AdminAddListingPage() {
       >
         <button
           type="button"
-          onClick={() => navigate('/admin?section=properties')}
+          onClick={() => navigate(member ? '/dashboard/listings' : '/admin?section=properties')}
           className="flex items-center justify-center px-3 py-2.5 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold"
         >
           <ArrowLeft size={16} />
@@ -2846,6 +2942,6 @@ export default function AdminAddListingPage() {
           {actionButtons}
         </div>
       </div>
-    </AdminLayout>
+    </FormShell>
   );
 }

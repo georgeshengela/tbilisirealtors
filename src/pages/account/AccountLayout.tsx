@@ -60,6 +60,11 @@ interface AccountData {
 
 const AccountDataContext = createContext<AccountData | null>(null);
 
+/** Null outside the account area — for components shared with the admin panel. */
+export function useOptionalAccountData() {
+  return useContext(AccountDataContext);
+}
+
 export function useAccountData() {
   const ctx = useContext(AccountDataContext);
   if (!ctx) throw new Error('useAccountData must be used inside AccountLayout');

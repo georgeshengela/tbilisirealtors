@@ -18,27 +18,44 @@ import {
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import { allocateListingId } from '../services/listingId.js';
 import { touchedBy } from '../services/listingTouch.js';
+import { normalizeCadastralCode } from '../lib/cadastralCode.js';
 
 const router = Router();
 router.use(requireAuth);
 
-/** Fields a member is allowed to set. Everything else is staff territory. */
+/**
+ * Fields a member is allowed to set — the same listing form staff use, minus the
+ * private groups (owner, contracts, notes, billing), the promotion flags, the
+ * lifecycle and the source link. Everything else is staff territory.
+ */
 const MEMBER_FIELDS = [
-  'title', 'description', 'price', 'priceCurrency', 'rentPrice', 'address', 'city', 'district',
-  'type', 'status', 'bedrooms', 'bathrooms', 'area', 'floor', 'totalFloors',
+  'title', 'description', 'price', 'priceCurrency', 'rentPrice', 'pricePerSqm',
+  'address', 'city', 'district', 'cadastralCode', 'showCadastral',
+  'type', 'status', 'rooms', 'bedrooms', 'bathrooms', 'area', 'landArea', 'floor', 'totalFloors',
   'yearBuilt', 'images', 'amenities', 'features', 'coordinates',
 ] as const;
+
+/** Badges only staff may put on a listing. */
+const STAFF_ONLY_FEATURES = new Set(['verified']);
 
 type MemberListingInput = Record<string, unknown>;
 
 function numberOrNull(value: unknown): string | null {
+  if (value === null || value === undefined || value === '') return null;
   const n = Number(value);
   return Number.isFinite(n) && n >= 0 ? String(n) : null;
 }
 
+/** `null`, `''` and garbage stay empty instead of turning into 0. */
+function intOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Math.round(Number(value));
+  return Number.isFinite(n) ? n : null;
+}
+
 function stringList(value: unknown, max = 30): string[] {
   return Array.isArray(value)
-    ? value.filter((item): item is string => typeof item === 'string').slice(0, max)
+    ? value.filter((item): item is string => typeof item === 'string').map(item => item.slice(0, 120)).slice(0, max)
     : [];
 }
 
@@ -47,35 +64,44 @@ function memberListingValues(data: MemberListingInput) {
   const price = numberOrNull(data.price);
   const area = numberOrNull(data.area);
 
-  const coordinates = data.coordinates && typeof data.coordinates === 'object'
-    ? data.coordinates as { lat: number; lng: number }
+  const rawCoords = data.coordinates as { lat?: unknown; lng?: unknown } | null | undefined;
+  const coordinates = rawCoords && Number.isFinite(Number(rawCoords.lat)) && Number.isFinite(Number(rawCoords.lng))
+    ? { lat: Number(rawCoords.lat), lng: Number(rawCoords.lng) }
     : null;
 
-  const pricePerSqm = price && area && Number(area) > 0
-    ? String(Math.round(Number(price) / Number(area)))
-    : null;
+  const sqmInput = numberOrNull(data.pricePerSqm);
+  const pricePerSqm = sqmInput
+    ? String(Math.round(Number(sqmInput)))
+    : price && area && Number(area) > 0 ? String(Math.round(Number(price) / Number(area))) : null;
+
+  const status = data.status === 'rent' || data.status === 'both' ? data.status : 'sale';
+  const type = typeof data.type === 'string' ? data.type.slice(0, 50) : 'apartment';
 
   return {
     title,
     description: typeof data.description === 'string' ? data.description.slice(0, 8000) : null,
     price,
-    rentPrice: 'rentPrice' in data ? numberOrNull(data.rentPrice) : null,
+    rentPrice: status === 'both' ? numberOrNull(data.rentPrice) : null,
     priceCurrency: data.priceCurrency === 'USD' ? 'USD' : 'GEL',
     pricePerSqm,
     address: typeof data.address === 'string' ? data.address.trim().slice(0, 500) : null,
-    city: typeof data.city === 'string' && data.city.trim() ? data.city.trim() : 'თბილისი',
+    city: typeof data.city === 'string' && data.city.trim() ? data.city.trim().slice(0, 100) : 'თბილისი',
     district: typeof data.district === 'string' ? data.district.trim().slice(0, 255) : null,
-    type: typeof data.type === 'string' ? data.type.slice(0, 50) : 'apartment',
-    status: data.status === 'rent' || data.status === 'both' ? data.status : 'sale',
-    bedrooms: Number.isFinite(Number(data.bedrooms)) ? Number(data.bedrooms) : null,
-    bathrooms: Number.isFinite(Number(data.bathrooms)) ? Number(data.bathrooms) : null,
+    cadastralCode: typeof data.cadastralCode === 'string' ? normalizeCadastralCode(data.cadastralCode).slice(0, 64) || null : null,
+    showCadastral: data.showCadastral === true,
+    type,
+    status,
+    rooms: intOrNull(data.rooms),
+    bedrooms: intOrNull(data.bedrooms),
+    bathrooms: intOrNull(data.bathrooms),
     area,
-    floor: Number.isFinite(Number(data.floor)) ? Number(data.floor) : null,
-    totalFloors: Number.isFinite(Number(data.totalFloors)) ? Number(data.totalFloors) : null,
-    yearBuilt: Number.isFinite(Number(data.yearBuilt)) ? Number(data.yearBuilt) : null,
+    landArea: type === 'house' || type === 'villa' ? numberOrNull(data.landArea) : null,
+    floor: intOrNull(data.floor),
+    totalFloors: intOrNull(data.totalFloors),
+    yearBuilt: intOrNull(data.yearBuilt),
     images: stringList(data.images, 30),
-    amenities: stringList(data.amenities, 40),
-    features: stringList(data.features, 40).filter(item => item !== 'verified'),
+    amenities: stringList(data.amenities, 80),
+    features: stringList(data.features, 80).filter(item => !STAFF_ONLY_FEATURES.has(item)),
     coordinates,
   };
 }
@@ -378,8 +404,8 @@ router.put('/my-listings/:id', async (req: AuthRequest, res: Response): Promise<
     }
 
     const { price, ...values } = memberListingValues({ ...existing, ...req.body });
-    if (Array.isArray(existing.features) && existing.features.includes('verified')) {
-      values.features = [...values.features, 'verified'];
+    for (const badge of STAFF_ONLY_FEATURES) {
+      if (Array.isArray(existing.features) && existing.features.includes(badge)) values.features = [...values.features, badge];
     }
     if (!values.title || !price) {
       res.status(400).json({ error: 'სათაური და ფასი სავალდებულოა' });

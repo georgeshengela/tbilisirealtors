@@ -19,7 +19,6 @@ import AccountListingsPage from './pages/account/AccountListingsPage';
 import AccountFavoritesPage from './pages/account/AccountFavoritesPage';
 import AccountSearchesPage from './pages/account/AccountSearchesPage';
 import AccountSettingsPage from './pages/account/AccountSettingsPage';
-import SubmitListingPage from './pages/SubmitListingPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
 import ProjectsPage from './pages/ProjectsPage';
@@ -94,7 +93,7 @@ function DashboardIndex() {
 function LegacySubmitRedirect() {
   const [params] = useSearchParams();
   const id = params.get('id');
-  return id ? <Navigate to={`/dashboard/listings/${encodeURIComponent(id)}/edit`} replace /> : <SubmitListingPage />;
+  return id ? <Navigate to={`/dashboard/listings/${encodeURIComponent(id)}/edit`} replace /> : <AdminAddListingPage member />;
 }
 
 const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/reset-password'];
@@ -159,7 +158,7 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
               <Route path="/dashboard" element={<ProtectedUserRoute><AccountLayout /></ProtectedUserRoute>}>
                 <Route index element={<DashboardIndex />} />
                 <Route path="listings" element={<AccountListingsPage />} />
-                <Route path="listings/:id/edit" element={<SubmitListingPage />} />
+                <Route path="listings/:id/edit" element={<AdminAddListingPage member />} />
                 <Route path="submit" element={<LegacySubmitRedirect />} />
                 <Route path="favorites" element={<AccountFavoritesPage />} />
                 <Route path="searches" element={<AccountSearchesPage />} />
