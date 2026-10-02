@@ -206,7 +206,7 @@ export default function DeskListingModal({
                   </button>
                 )}
                 <p className="mt-2 text-[10px] leading-snug text-slate-400">
-                  გაუქმებისთვის სტატუსზე დააჭირე → old და აირჩიე მიზეზი (გაიყიდა, გაქირავდა, აღარ იყიდება…).
+                  გაუქმებისთვის სტატუსზე დააჭირეთ → old და აირჩიეთ მიზეზი (გაიყიდა, გაქირავდა, აღარ იყიდება…).
                 </p>
               </section>
 

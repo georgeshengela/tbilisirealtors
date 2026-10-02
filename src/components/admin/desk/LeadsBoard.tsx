@@ -432,7 +432,7 @@ function BrokerLoadPanel({
           onClick={onDistribute}
           disabled={distributing || unassigned === 0 || brokers.length === 0}
           className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-1.5 text-[11px] font-bold text-white transition-opacity disabled:opacity-40"
-          title={unassigned === 0 ? 'უპატრონო ლიდი არ არის' : 'თანაბრად გაანაწილე უპატრონო ლიდები'}
+          title={unassigned === 0 ? 'უპატრონო ლიდი არ არის' : 'თანაბრად გაანაწილეთ უპატრონო ლიდები'}
         >
           <Shuffle size={13} />
           {distributing ? 'ნაწილდება…' : `განაწილება (${unassigned})`}

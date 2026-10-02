@@ -541,7 +541,7 @@ function CallModal({
               )}
               {outcomeMeta?.staysLive && (
                 <p className="sm:col-span-2 text-[11px] text-teal-700 bg-teal-50 border border-teal-100 rounded-xl px-3 py-2">
-                  ვადამდე რჩება გაყიდვაზე. თავისუფლების თარიღზე გადავა დასარეკი / New R.
+                  ვადამდე რჩება გაყიდვაზე. გათავისუფლების თარიღზე გადავა დასარეკი / New R.
                 </p>
               )}
             </>

@@ -188,7 +188,7 @@ export function useApiRequest() {
 
     if (res.status === 401) {
       logoutRef.current();
-      throw new Error('Session expired');
+      throw new Error('სესია ამოიწურა — შედით თავიდან');
     }
 
     if (!res.ok) {

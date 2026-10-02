@@ -157,7 +157,7 @@ export default function Footer() {
                     style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.28)' }}
                   >
                     <CheckCircle size={18} style={{ color: '#34d399' }} />
-                    <span className="text-sm font-semibold" style={{ color: '#34d399' }}>მადლობა! სიახლეები მიიღებთ.</span>
+                    <span className="text-sm font-semibold" style={{ color: '#34d399' }}>მადლობა! სიახლეებს მიიღებთ.</span>
                   </div>
                 ) : (
                   <>
@@ -399,7 +399,7 @@ export default function Footer() {
                   { l: 'კონფ. პოლიტიკა', href: '#' },
                   { l: 'გამოყ. წესები',   href: '#' },
                   { l: 'Cookies',          href: '#' },
-                  { l: 'რუქა',             href: '#' },
+                  { l: 'რუკა',             href: '#' },
                 ].map((item, i) => (
                   <span key={item.l} className="flex items-center">
                     {i > 0 && <span className="mx-2" style={{ color: 'rgba(255,255,255,0.12)' }}>·</span>}

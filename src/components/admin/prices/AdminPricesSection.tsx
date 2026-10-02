@@ -791,7 +791,7 @@ export default function AdminPricesSection({ api, showToast }: PricesBoardProps)
       out.push({
         icon: o.trend30d > 0 ? TrendingUp : TrendingDown,
         tone: o.trend30d > 0 ? 'up' : 'down',
-        text: `ბოლო 30 დღეში ₾/მ² ${o.trend30d > 0 ? 'გაიზარდა' : 'დაიკლო'} ${Math.abs(o.trend30d)}%-ით`,
+        text: `ბოლო 30 დღეში ₾/მ² ${o.trend30d > 0 ? 'გაიზარდა' : 'შემცირდა'} ${Math.abs(o.trend30d)}%-ით`,
       });
     }
 

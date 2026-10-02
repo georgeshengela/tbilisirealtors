@@ -109,7 +109,7 @@ export const MODERATION_LABEL: Record<string, string> = {
   pending: 'განხილვაში',
   changes_requested: 'დასაზუსტებელია',
   rejected: 'უარყოფილი',
-  draft: 'დრაფტი',
+  draft: 'მონახაზი',
 };
 
 export const MODERATION_COLOR: Record<string, { bg: string; text: string }> = {

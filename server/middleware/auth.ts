@@ -102,7 +102,7 @@ export async function requireAuth(
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
 
   if (!token) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: 'საჭიროა ავტორიზაცია' });
     return;
   }
 
@@ -110,7 +110,7 @@ export async function requireAuth(
   try {
     payload = jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload;
   } catch {
-    res.status(401).json({ error: 'Invalid or expired token' });
+    res.status(401).json({ error: 'სესია ამოიწურა — შედით თავიდან' });
     return;
   }
 
@@ -118,13 +118,13 @@ export async function requireAuth(
     const actor = await loadActor(payload.id);
 
     if (!actor || !actor.isActive) {
-      res.status(401).json({ error: 'Invalid or expired token' });
+      res.status(401).json({ error: 'სესია ამოიწურა — შედით თავიდან' });
       return;
     }
 
     // Tokens issued before a role / password change are refused.
     if (typeof payload.tokenVersion === 'number' && payload.tokenVersion !== actor.tokenVersion) {
-      res.status(401).json({ error: 'Session expired' });
+      res.status(401).json({ error: 'სესია ამოიწურა — შედით თავიდან' });
       return;
     }
 
@@ -132,7 +132,7 @@ export async function requireAuth(
     next();
   } catch (err) {
     console.error('Auth lookup error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 }
 
@@ -140,7 +140,7 @@ export async function requireAuth(
 export function requireStaff(req: AuthRequest, res: Response, next: NextFunction): void {
   void requireAuth(req, res, () => {
     if (!isStaffRole(req.user?.role ?? '')) {
-      res.status(403).json({ error: 'Admin access required' });
+      res.status(403).json({ error: 'საჭიროა ადმინის უფლება' });
       return;
     }
     next();
@@ -151,7 +151,7 @@ export function requirePermission(...keys: string[]) {
   return (req: AuthRequest, res: Response, next: NextFunction): void => {
     const actor = req.user;
     if (!actor) {
-      res.status(401).json({ error: 'Unauthorized' });
+      res.status(401).json({ error: 'საჭიროა ავტორიზაცია' });
       return;
     }
 
@@ -181,7 +181,7 @@ export const ADMIN_ONLY_MESSAGE = 'ამ მოქმედებას მხ�
  */
 export function requireAdminRole(req: AuthRequest, res: Response, next: NextFunction): void {
   if (!req.user) {
-    res.status(401).json({ error: 'Unauthorized' });
+    res.status(401).json({ error: 'საჭიროა ავტორიზაცია' });
     return;
   }
   if (!isAdminOrAbove(req.user)) {
@@ -194,7 +194,7 @@ export function requireAdminRole(req: AuthRequest, res: Response, next: NextFunc
 export function requireSuperAdmin(req: AuthRequest, res: Response, next: NextFunction): void {
   void requireAuth(req, res, () => {
     if (req.user?.role !== 'super_admin') {
-      res.status(403).json({ error: 'Super admin access required' });
+      res.status(403).json({ error: 'საჭიროა სუპერ ადმინის უფლება' });
       return;
     }
     next();

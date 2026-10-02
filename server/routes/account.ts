@@ -123,7 +123,7 @@ router.get('/favorites', async (req: AuthRequest, res: Response): Promise<void> 
     res.json({ ids: rows.map(row => row.propertyId) });
   } catch (err) {
     console.error('Favorites list error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -153,7 +153,7 @@ router.post('/favorites/merge', async (req: AuthRequest, res: Response): Promise
     res.json({ ids: rows.map(row => row.propertyId) });
   } catch (err) {
     console.error('Favorite merge error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -167,7 +167,7 @@ router.post('/favorites/:propertyId', async (req: AuthRequest, res: Response): P
       .where(eq(properties.id, propertyId));
 
     if (!property) {
-      res.status(404).json({ error: 'Property not found' });
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
       return;
     }
 
@@ -179,7 +179,7 @@ router.post('/favorites/:propertyId', async (req: AuthRequest, res: Response): P
     res.json({ success: true, propertyId });
   } catch (err) {
     console.error('Favorite add error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -194,7 +194,7 @@ router.delete('/favorites/:propertyId', async (req: AuthRequest, res: Response):
     res.json({ success: true });
   } catch (err) {
     console.error('Favorite remove error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -210,7 +210,7 @@ router.get('/saved-searches', async (req: AuthRequest, res: Response): Promise<v
     res.json({ data: rows });
   } catch (err) {
     console.error('Saved searches error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -244,7 +244,7 @@ router.post('/saved-searches', async (req: AuthRequest, res: Response): Promise<
     res.status(201).json(created);
   } catch (err) {
     console.error('Saved search create error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -259,7 +259,7 @@ router.delete('/saved-searches/:id', async (req: AuthRequest, res: Response): Pr
     res.json({ success: true });
   } catch (err) {
     console.error('Saved search delete error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -276,7 +276,7 @@ router.get('/my-listings', async (req: AuthRequest, res: Response): Promise<void
     res.json({ data: rows.map(toMemberListing) });
   } catch (err) {
     console.error('My listings error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -296,7 +296,7 @@ router.get('/my-listings/:id', async (req: AuthRequest, res: Response): Promise<
     res.json(toMemberListing(row));
   } catch (err) {
     console.error('My listing get error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -358,7 +358,7 @@ router.post('/my-listings', async (req: AuthRequest, res: Response): Promise<voi
     res.status(201).json(toMemberListing(created));
   } catch (err) {
     console.error('My listing create error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -373,7 +373,7 @@ router.put('/my-listings/:id', async (req: AuthRequest, res: Response): Promise<
       ));
 
     if (!existing) {
-      res.status(404).json({ error: 'Listing not found' });
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
       return;
     }
 
@@ -407,7 +407,7 @@ router.put('/my-listings/:id', async (req: AuthRequest, res: Response): Promise<
     res.json(toMemberListing(updated));
   } catch (err) {
     console.error('My listing update error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -422,7 +422,7 @@ router.delete('/my-listings/:id', async (req: AuthRequest, res: Response): Promi
       ));
 
     if (!existing) {
-      res.status(404).json({ error: 'Listing not found' });
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
       return;
     }
 
@@ -430,7 +430,7 @@ router.delete('/my-listings/:id', async (req: AuthRequest, res: Response): Promi
     res.json({ success: true });
   } catch (err) {
     console.error('My listing delete error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -470,7 +470,7 @@ router.get('/overview', async (req: AuthRequest, res: Response): Promise<void> =
     });
   } catch (err) {
     console.error('Account overview error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 

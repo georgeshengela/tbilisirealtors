@@ -136,7 +136,7 @@ export default function DistrictCombobox({
               className="w-full flex items-center gap-2 px-3.5 py-2 text-left text-sm font-semibold text-blue-700 hover:bg-blue-50 border-t border-slate-100"
             >
               <Plus size={14} />
-              დაამატე „{query.trim()}“
+              დაამატეთ „{query.trim()}“
             </button>
           )}
           {filtered.length === 0 && !canAdd && (

@@ -193,7 +193,7 @@ router.get('/summary', async (req: AuthRequest, res: Response): Promise<void> =>
     });
   } catch (err) {
     console.error('Desk summary error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -217,7 +217,7 @@ router.get('/staff-options', async (_req: AuthRequest, res: Response): Promise<v
     res.json({ data: rows });
   } catch (err) {
     console.error('Staff options error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -255,7 +255,7 @@ router.get('/listing-search', requirePermission('listings.view'), async (req: Au
     });
   } catch (err) {
     console.error('Listing search error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -275,7 +275,7 @@ router.get('/assignment', requirePermission('listings.assign'), async (_req: Aut
     });
   } catch (err) {
     console.error('Assignment board error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -337,7 +337,7 @@ router.post('/assign', requirePermission('listings.assign'), async (req: AuthReq
     res.json({ updated: updated.length, data: updated });
   } catch (err) {
     console.error('Assign error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -364,7 +364,7 @@ router.get('/callbacks', requirePermission('listings.tasks'), async (req: AuthRe
     });
   } catch (err) {
     console.error('Callback queue error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -390,7 +390,7 @@ router.get('/listings/:id/calls', requirePermission('listings.tasks'), async (re
     res.json({ data: await callLogsFor(propertyId) });
   } catch (err) {
     console.error('Call log read error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -482,7 +482,7 @@ router.post('/listings/:id/calls', requirePermission('listings.tasks'), async (r
     });
   } catch (err) {
     console.error('Call log error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -517,7 +517,7 @@ router.get('/moderation/templates', requirePermission('listings.moderate'), asyn
     res.json({ data: await ensureTemplates(), checks: MODERATION_CHECKS });
   } catch (err) {
     console.error('Templates read error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -540,7 +540,7 @@ router.post('/moderation/templates', requirePermission('listings.moderate'), asy
     res.status(201).json(created);
   } catch (err) {
     console.error('Template create error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -555,7 +555,7 @@ router.delete('/moderation/templates/:id', requirePermission('listings.moderate'
     res.json({ success: true });
   } catch (err) {
     console.error('Template delete error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -629,7 +629,7 @@ router.get('/moderation', requirePermission('listings.moderate'), async (req: Au
     });
   } catch (err) {
     console.error('Moderation inbox error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -705,7 +705,7 @@ router.post('/moderation/:id/decision', requirePermission('listings.moderate'), 
     res.json(sanitizeListingFor(actorOf(req), updated as unknown as Record<string, unknown>));
   } catch (err) {
     console.error('Moderation decision error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -743,7 +743,7 @@ router.post('/moderation/bulk-approve', requirePermission('listings.moderate'), 
     res.json({ updated: updated.length, ids: updated.map(row => row.id) });
   } catch (err) {
     console.error('Bulk approve error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -771,7 +771,7 @@ router.get('/tasks', requirePermission('listings.tasks'), async (req: AuthReques
     res.json({ data, seesTeam });
   } catch (err) {
     console.error('Task feed error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -848,7 +848,7 @@ router.post('/tasks', requirePermission('listings.tasks'), async (req: AuthReque
     res.status(201).json(hydrated ?? created);
   } catch (err) {
     console.error('Task create error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -924,7 +924,7 @@ router.patch('/tasks/:id', requirePermission('listings.tasks'), async (req: Auth
     res.json(hydrated ?? { ...task, ...updates });
   } catch (err) {
     console.error('Task update error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -953,7 +953,7 @@ router.delete('/tasks/:id', requirePermission('listings.tasks'), async (req: Aut
     res.json({ success: true });
   } catch (err) {
     console.error('Task delete error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -978,7 +978,7 @@ router.get('/performance', requirePermission('analytics.full'), async (req: Auth
     res.json({ data: rows, totals, generatedAt: new Date().toISOString(), actorRole: req.user!.role });
   } catch (err) {
     console.error('Performance board error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -1052,7 +1052,7 @@ router.get('/leads', requirePermission('leads.view'), async (req: AuthRequest, r
     });
   } catch (err) {
     console.error('Lead list error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -1070,7 +1070,7 @@ router.get('/leads/:id', requirePermission('leads.view'), async (req: AuthReques
     });
   } catch (err) {
     console.error('Lead detail error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -1104,7 +1104,7 @@ router.post('/leads/:id/assign', requirePermission('leads.assign'), async (req: 
     res.json({ data: sanitizeLead((await getLead(id, null))!, can(actor, 'leads.contact')) });
   } catch (err) {
     console.error('Lead assign error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -1129,7 +1129,7 @@ router.post('/leads/:id/claim', requirePermission('leads.manage'), async (req: A
     res.json({ data: sanitizeLead((await getLead(id, null))!, can(actor, 'leads.contact')) });
   } catch (err) {
     console.error('Lead claim error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -1168,7 +1168,7 @@ router.patch('/leads/:id', requirePermission('leads.manage'), async (req: AuthRe
     });
   } catch (err) {
     console.error('Lead update error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -1209,7 +1209,7 @@ router.post('/leads/:id/events', requirePermission('leads.manage'), async (req: 
     });
   } catch (err) {
     console.error('Lead event error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 
@@ -1235,7 +1235,7 @@ router.post('/leads/auto-assign', requirePermission('leads.assign'), async (req:
     res.json({ assigned });
   } catch (err) {
     console.error('Lead auto-assign error:', err);
-    fail(res, 500, 'Server error');
+    fail(res, 500, 'სერვერის შეცდომა. სცადეთ თავიდან.');
   }
 });
 

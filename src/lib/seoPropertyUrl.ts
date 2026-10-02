@@ -311,7 +311,7 @@ export function propertySeoCopy(input: PropertyUrlInput, locale: 'ka' | 'en' = '
   return {
     h1,
     title: `${bits.join(', ')} | ${SITE_NAME}`,
-    description: `${h1}${where ? `, ${where}` : ''}. ნახე განცხადებების ფოტოები და საკონტაქტო ინფორმაცია.`,
+    description: `${h1}${where ? `, ${where}` : ''}. ნახეთ განცხადებების ფოტოები და საკონტაქტო ინფორმაცია.`,
     keywords: PROPERTY_SEO_KEYWORDS_KA,
     path,
     pathEn,

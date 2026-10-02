@@ -912,7 +912,7 @@ export default function AdminPage() {
                     <span className="block text-[12px] text-slate-500 mt-0.5">
                       {(stats?.freeingSoon ?? 0) > 0
                         ? `კიდევ ${stats?.freeingSoon} თავისუფლდება უახლოეს 30 დღეში`
-                        : 'გადაამოწმე ობიექტები და დაუკავშირდი მესაკუთრეებს'}
+                        : 'გადაამოწმეთ ობიექტები და დაუკავშირდით მესაკუთრეებს'}
                     </span>
                   </span>
                   <span className="px-4 py-2.5 rounded-xl text-xs font-bold text-white flex-shrink-0 bg-red-600">
@@ -1602,7 +1602,7 @@ function StaffModal({ mode, data, actorRole, isSelf, onClose, onSave }: {
               )}
             </select>
           </Field>
-          <Field label="ხედვის არეალი" hint={form.scope === 'own' ? 'ხედავს მთელ ბაზას. ტელეფონი და მეილი მხოლოდ საკუთარ პორტფოლიოში.' : 'ყველა განცხადება და მესაკუთრის კონტაქტი'}>
+          <Field label="ხედვის არეალი" hint={form.scope === 'own' ? 'ხედავს მთელ ბაზას. ტელეფონი და ელ-ფოსტა მხოლოდ საკუთარ პორტფოლიოში.' : 'ყველა განცხადება და მესაკუთრის კონტაქტი'}>
             <select value={form.scope} onChange={e => set('scope', e.target.value)} className={selectCls}>
               <option value="all">სრული წვდომა</option>
               <option value="own">ბაზა ღიაა · კონტაქტი საკუთარზე</option>

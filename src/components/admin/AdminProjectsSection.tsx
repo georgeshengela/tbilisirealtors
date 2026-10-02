@@ -83,7 +83,7 @@ export default function AdminProjectsSection() {
           <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-400">პროექტები</p>
           <h1 className="text-2xl font-extrabold text-slate-900">დეველოპერები და კომპლექსები</h1>
           <p className="mt-1 text-sm text-slate-500">
-            აქ რას დაამატებთ ან შეცვლით, იმ წამს ჩანს საჯარო საიტზე — ჰედერი, მთავარი, /projects.
+            აქ რას დაამატებთ ან შეცვლით, მაშინვე გამოჩნდება საჯარო საიტზე — ჰედერი, მთავარი, /projects.
           </p>
         </div>
         {canCreate && (

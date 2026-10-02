@@ -720,7 +720,7 @@ export default function AdminAddProjectPage() {
                   <input className={inputCls} value={form.developer} onChange={e => set('developer', e.target.value)} placeholder="Archi Group" />
                 </div>
                 <div>
-                  <label className={labelCls}>მენეჯმენტ კომპანია</label>
+                  <label className={labelCls}>მმართველი კომპანია</label>
                   <input className={inputCls} value={form.managementCompany} onChange={e => set('managementCompany', e.target.value)} placeholder="Archi Management" />
                 </div>
                 <div>

@@ -154,7 +154,7 @@ router.get('/orders', requirePermission('orders.view'), async (req: AuthRequest,
     });
   } catch (err) {
     console.error('List orders:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -183,7 +183,7 @@ router.post('/orders', requirePermission('orders.create'), async (req: AuthReque
       return;
     }
     if (!dealType) {
-      res.status(400).json({ error: 'აირჩიე ყიდვა ან ქირაობა' });
+      res.status(400).json({ error: 'აირჩიეთ ყიდვა ან ქირაობა' });
       return;
     }
     if (!budgetAmount) {
@@ -224,7 +224,7 @@ router.post('/orders', requirePermission('orders.create'), async (req: AuthReque
     res.status(201).json(publicOrder(created));
   } catch (err) {
     console.error('Create order:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -295,7 +295,7 @@ router.put('/orders/:id', requirePermission('orders.edit'), async (req: AuthRequ
     res.json(publicOrder(updated));
   } catch (err) {
     console.error('Update order:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -335,7 +335,7 @@ router.patch('/orders/:id', requirePermission('orders.edit'), async (req: AuthRe
     res.json(publicOrder(updated));
   } catch (err) {
     console.error('Patch order:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 

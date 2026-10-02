@@ -24,7 +24,7 @@ export default function AdminLoginPage() {
       navigate('/admin');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'შეცდომა';
-      setError(message === 'Invalid credentials' ? 'არასწორი email ან პაროლი' : message);
+      setError(message === 'Invalid credentials' ? 'არასწორი ელ-ფოსტა ან პაროლი' : message);
     } finally {
       setLoading(false);
     }

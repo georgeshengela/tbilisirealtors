@@ -379,7 +379,7 @@ router.get('/stats', requirePermission('dashboard.view'), async (req: AuthReques
     });
   } catch (err) {
     console.error('Stats error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -487,7 +487,7 @@ router.get('/owners/search', requirePermission('listings.owner'), async (req: Au
     res.json({ owners });
   } catch (err) {
     console.error('Owner search error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -645,7 +645,7 @@ router.get('/properties', requirePermission('listings.view'), async (req: AuthRe
     });
   } catch (err) {
     console.error('Properties list error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -674,7 +674,7 @@ router.get('/listing-staff', requirePermission('listings.view'), async (_req: Au
     })));
   } catch (err) {
     console.error('Listing staff error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -707,7 +707,7 @@ router.get('/moderation', requirePermission('listings.moderate'), async (req: Au
     });
   } catch (err) {
     console.error('Moderation list error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -719,7 +719,7 @@ router.get('/properties/:id', requirePermission('listings.view'), async (req: Au
       .where(eq(properties.id, String(req.params.id)));
 
     if (!property) {
-      res.status(404).json({ error: 'Property not found' });
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
       return;
     }
 
@@ -744,7 +744,7 @@ router.get('/properties/:id', requirePermission('listings.view'), async (req: Au
     });
   } catch (err) {
     console.error('Property get error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -756,7 +756,7 @@ router.get('/properties/:id/price-history', requirePermission('listings.price'),
       .where(eq(properties.id, String(req.params.id)));
 
     if (!property) {
-      res.status(404).json({ error: 'Property not found' });
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
       return;
     }
 
@@ -770,7 +770,7 @@ router.get('/properties/:id/price-history', requirePermission('listings.price'),
     res.json({ data: history });
   } catch (err) {
     console.error('Price history error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -850,7 +850,7 @@ router.post('/photos/zip', requirePermission('listings.view'), async (req: AuthR
     }
 
     if (!files.length) {
-      res.status(502).json({ error: 'Photo download failed' });
+      res.status(502).json({ error: 'ფოტოს ჩამოტვირთვა ვერ მოხერხდა' });
       return;
     }
 
@@ -996,7 +996,7 @@ router.post('/properties', requirePermission('listings.create'), async (req: Aut
     res.status(201).json(clean(req, created));
   } catch (err) {
     console.error('Property create error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1012,7 +1012,7 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
       .where(eq(properties.id, String(req.params.id)));
 
     if (!existing) {
-      res.status(404).json({ error: 'Property not found' });
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
       return;
     }
 
@@ -1125,7 +1125,7 @@ router.put('/properties/:id', requirePermission('listings.edit'), async (req: Au
     res.json(clean(req, withHistory));
   } catch (err) {
     console.error('Property update error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1144,7 +1144,7 @@ router.delete('/properties/:id', requirePermission('listings.delete'), async (re
       .where(eq(properties.id, String(req.params.id)));
 
     if (!existing || !canEditListing(req.user!, existing)) {
-      res.status(404).json({ error: 'Property not found' });
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
       return;
     }
 
@@ -1172,7 +1172,7 @@ router.delete('/properties/:id', requirePermission('listings.delete'), async (re
     res.json({ success: true });
   } catch (err) {
     console.error('Property delete error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1181,7 +1181,7 @@ router.post('/properties/:id/moderate', requirePermission('listings.moderate'), 
   try {
     const decision = req.body?.decision;
     if (decision !== 'approve' && decision !== 'reject') {
-      res.status(400).json({ error: 'decision must be approve or reject' });
+      res.status(400).json({ error: 'გადაწყვეტილება უნდა იყოს დადასტურება ან უარყოფა' });
       return;
     }
 
@@ -1191,7 +1191,7 @@ router.post('/properties/:id/moderate', requirePermission('listings.moderate'), 
       .where(eq(properties.id, String(req.params.id)));
 
     if (!existing) {
-      res.status(404).json({ error: 'Property not found' });
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
       return;
     }
 
@@ -1222,7 +1222,7 @@ router.post('/properties/:id/moderate', requirePermission('listings.moderate'), 
     res.json(clean(req, updated));
   } catch (err) {
     console.error('Moderation error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1237,7 +1237,7 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
       .where(eq(properties.id, String(req.params.id)));
 
     if (!existing) {
-      res.status(404).json({ error: 'Property not found' });
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
       return;
     }
 
@@ -1375,7 +1375,7 @@ router.patch('/properties/:id', requirePermission('listings.edit'), async (req: 
     res.json(clean(req, withHistory));
   } catch (err) {
     console.error('Property patch error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1664,7 +1664,7 @@ router.get('/agents', requirePermission('agents.view'), async (_req: AuthRequest
     res.json([...fromStaff, ...enriched]);
   } catch (err) {
     console.error('Brokers error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1679,7 +1679,7 @@ router.get('/agents/:id/listings', requirePermission('agents.view'), async (req:
         .from(users)
         .where(and(eq(users.id, staffId), eq(users.role, 'broker')));
       if (!staff) {
-        res.status(404).json({ error: 'Broker not found' });
+        res.status(404).json({ error: 'ბროკერი ვერ მოიძებნა' });
         return;
       }
 
@@ -1710,7 +1710,7 @@ router.get('/agents/:id/listings', requirePermission('agents.view'), async (req:
     res.json({ data: rows });
   } catch (err) {
     console.error('Broker listings error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1750,7 +1750,7 @@ router.post('/agents', requirePermission('agents.create'), async (req: AuthReque
     });
   } catch (err) {
     console.error('Broker create error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1766,7 +1766,7 @@ router.put('/agents/:id', requirePermission('agents.edit'), async (req: AuthRequ
         .from(users)
         .where(and(eq(users.id, staffId), eq(users.role, 'broker')));
       if (!existing) {
-        res.status(404).json({ error: 'Broker not found' });
+        res.status(404).json({ error: 'ბროკერი ვერ მოიძებნა' });
         return;
       }
 
@@ -1821,7 +1821,7 @@ router.put('/agents/:id', requirePermission('agents.edit'), async (req: AuthRequ
       .returning();
 
     if (!updated) {
-      res.status(404).json({ error: 'Broker not found' });
+      res.status(404).json({ error: 'ბროკერი ვერ მოიძებნა' });
       return;
     }
 
@@ -1830,7 +1830,7 @@ router.put('/agents/:id', requirePermission('agents.edit'), async (req: AuthRequ
     res.json({ ...updated, propertyCount: stats.liveListings, stats, linkedStaff: null, source: 'catalog' as const });
   } catch (err) {
     console.error('Broker update error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1846,7 +1846,7 @@ router.delete('/agents/:id', requirePermission('agents.delete'), async (req: Aut
     res.json({ success: true });
   } catch (err) {
     console.error('Broker delete error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1858,7 +1858,7 @@ router.get('/blog', requirePermission('blog.view'), async (_req: AuthRequest, re
     res.json(all);
   } catch (err) {
     console.error('Blog error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1890,7 +1890,7 @@ router.post('/blog', requirePermission('blog.create'), async (req: AuthRequest, 
     res.status(201).json(created);
   } catch (err) {
     console.error('Blog create error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1903,7 +1903,7 @@ router.put('/blog/:id', requirePermission('blog.edit'), async (req: AuthRequest,
       .where(eq(blogPosts.id, String(req.params.id)));
 
     if (!current) {
-      res.status(404).json({ error: 'Blog post not found' });
+      res.status(404).json({ error: 'სტატია ვერ მოიძებნა' });
       return;
     }
 
@@ -1927,14 +1927,14 @@ router.put('/blog/:id', requirePermission('blog.edit'), async (req: AuthRequest,
       .returning();
 
     if (!updated) {
-      res.status(404).json({ error: 'Blog post not found' });
+      res.status(404).json({ error: 'სტატია ვერ მოიძებნა' });
       return;
     }
 
     res.json(updated);
   } catch (err) {
     console.error('Blog update error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -1945,7 +1945,7 @@ router.delete('/blog/:id', requirePermission('blog.delete'), async (req: AuthReq
     res.json({ success: true });
   } catch (err) {
     console.error('Blog delete error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2029,7 +2029,7 @@ router.get('/permissions/catalog', requirePermission('staff.view'), async (req: 
     });
   } catch (err) {
     console.error('Permission catalog error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2038,7 +2038,7 @@ router.put('/roles/:role', requirePermission('staff.permissions'), async (req: A
   try {
     const role = String(req.params.role);
     if (!isRole(role)) {
-      res.status(400).json({ error: 'Unknown role' });
+      res.status(400).json({ error: 'უცნობი როლი' });
       return;
     }
     if (role === 'super_admin') {
@@ -2063,7 +2063,7 @@ router.put('/roles/:role', requirePermission('staff.permissions'), async (req: A
     res.json({ role, permissions });
   } catch (err) {
     console.error('Role update error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2080,7 +2080,7 @@ router.get('/staff', requirePermission('staff.view'), async (_req: AuthRequest, 
     res.json(await Promise.all(all.map(decorate)));
   } catch (err) {
     console.error('Staff list error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2101,7 +2101,7 @@ router.post('/staff', requirePermission('staff.create'), async (req: AuthRequest
       || buildDisplayName(firstName, lastName, typeof req.body.name === 'string' ? req.body.name : '');
 
     if (!email || !password || !name) {
-      res.status(400).json({ error: 'Email, სახელი და პაროლი სავალდებულოა' });
+      res.status(400).json({ error: 'ელ-ფოსტა, სახელი და პაროლი სავალდებულოა' });
       return;
     }
     if (String(password).length < 6) {
@@ -2142,11 +2142,11 @@ router.post('/staff', requirePermission('staff.create'), async (req: AuthRequest
     res.status(201).json(await decorate(created));
   } catch (err: unknown) {
     if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '23505') {
-      res.status(409).json({ error: 'Email already exists' });
+      res.status(409).json({ error: 'ამ ელ-ფოსტით ანგარიში უკვე არსებობს' });
       return;
     }
     console.error('Staff create error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2178,7 +2178,7 @@ router.put('/staff/:id/permissions', requirePermission('staff.permissions'), asy
     const [existing] = await db.select().from(users).where(eq(users.id, id));
 
     if (!existing || !isStaffRole(existing.role)) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'მომხმარებელი ვერ მოიძებნა' });
       return;
     }
     if (existing.id === actor.id) {
@@ -2211,7 +2211,7 @@ router.put('/staff/:id/permissions', requirePermission('staff.permissions'), asy
     res.json(await decorate(updated));
   } catch (err) {
     console.error('Staff permissions error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2222,7 +2222,7 @@ router.put('/staff/:id', requirePermission('staff.edit'), async (req: AuthReques
     const [existing] = await db.select().from(users).where(eq(users.id, id));
 
     if (!existing || !isStaffRole(existing.role)) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'მომხმარებელი ვერ მოიძებნა' });
       return;
     }
     if (existing.id !== actor.id && !canManageUser(actor, existing.role)) {
@@ -2332,7 +2332,7 @@ router.put('/staff/:id', requirePermission('staff.edit'), async (req: AuthReques
     res.json(await decorate(updated));
   } catch (err) {
     console.error('Staff update error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2352,7 +2352,7 @@ router.delete('/staff/:id', requirePermission('staff.delete'), async (req: AuthR
       .where(eq(users.id, id));
 
     if (!existing || !isStaffRole(existing.role)) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'მომხმარებელი ვერ მოიძებნა' });
       return;
     }
     if (!canManageUser(actor, existing.role)) {
@@ -2370,7 +2370,7 @@ router.delete('/staff/:id', requirePermission('staff.delete'), async (req: AuthR
     res.json({ success: true });
   } catch (err) {
     console.error('Staff delete error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2462,7 +2462,7 @@ router.get('/members', requirePermission('members.view'), async (req: AuthReques
     res.json(rows);
   } catch (err) {
     console.error('Members list error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2504,7 +2504,7 @@ router.get('/members/:id', requirePermission('members.view'), async (req: AuthRe
     });
   } catch (err) {
     console.error('Member detail error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2599,7 +2599,7 @@ router.put('/members/:id', requirePermission('members.block'), async (req: AuthR
     res.json(toMemberDto(fresh!, stats.get(existing.id)));
   } catch (err) {
     console.error('Member update error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2617,7 +2617,7 @@ router.delete('/members/:id', requirePermission('members.delete'), async (req: A
     res.json({ success: true, listings });
   } catch (err) {
     console.error('Member delete error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2634,7 +2634,7 @@ router.get('/activity', requirePermission('staff.view'), async (req: AuthRequest
     res.json({ data: rows });
   } catch (err) {
     console.error('Activity log error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2646,7 +2646,7 @@ router.get('/settings', requirePermission('settings.view'), async (_req: AuthReq
     res.json(all);
   } catch (err) {
     console.error('Settings error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -2671,7 +2671,7 @@ router.put('/settings', requirePermission('settings.edit'), async (req: AuthRequ
     res.json({ success: true });
   } catch (err) {
     console.error('Settings update error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 

@@ -227,7 +227,7 @@ export default function ModerationInbox({ api, showToast, onCountsChanged }: Des
         <EmptyState
           icon={<CheckCircle size={22} />}
           title={status === 'pending' ? 'რიგი ცარიელია' : 'ჩანაწერი არ არის'}
-          hint={status === 'pending' ? 'ყველა განაცხადი განხილულია' : undefined}
+          hint={status === 'pending' ? 'ყველა განცხადება განხილულია' : undefined}
         />
       ) : (
         <div className="grid gap-3">

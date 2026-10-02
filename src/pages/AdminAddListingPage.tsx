@@ -771,7 +771,7 @@ export default function AdminAddListingPage() {
         body: JSON.stringify({ code, propertyId: id || undefined }),
       });
       if (!isCadastralRegistry(result)) {
-        setCadastralSyncError('საჯარო რეესტრის პასუხი ვერ წაიკითხა');
+        setCadastralSyncError('საჯარო რეესტრის პასუხის წაკითხვა ვერ მოხერხდა');
         return;
       }
       setCadastralRegistry(result);
@@ -998,7 +998,7 @@ export default function AdminAddListingPage() {
       await persistNotes(next);
       set('internalNote', '');
     } catch (err) {
-      setNoteError(err instanceof Error ? err.message : 'კომენტარი ვერ შეინახა');
+      setNoteError(err instanceof Error ? err.message : 'კომენტარის შენახვა ვერ მოხერხდა');
     } finally {
       setNoteSaving(false);
     }
@@ -1058,12 +1058,12 @@ export default function AdminAddListingPage() {
       return;
     }
     if (isEdit && form.lifecycleState === 'old' && !form.lifecycleOutcome) {
-      setError('old სტატუსზე აირჩიე ქვეკატეგორია');
+      setError('old სტატუსზე აირჩიეთ ქვეკატეგორია');
       scrollToSection('section-type');
       return;
     }
     if (isEdit && form.lifecycleState === 'old' && needsDeadline(form.lifecycleOutcome) && !form.rentExpiresAt) {
-      setError('მიუთითე როდემდე გაქირავდა / შეჩერდა');
+      setError('მიუთითეთ, როდემდე გაქირავდა / შეჩერდა');
       scrollToSection('section-type');
       return;
     }
@@ -1279,7 +1279,7 @@ export default function AdminAddListingPage() {
         {listingLocked && (
           <div className="mb-5 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm font-medium">
             რედაქტირება მხოლოდ საკუთარ განცხადებაზე შეგიძლიათ
-            {!ownerContactsVisible ? '. მესაკუთრის ტელეფონი და მეილი დაფარულია.' : '.'}
+            {!ownerContactsVisible ? '. მესაკუთრის ტელეფონი და ელ-ფოსტა დაფარულია.' : '.'}
           </div>
         )}
 
@@ -1490,7 +1490,7 @@ export default function AdminAddListingPage() {
                     <p className={sectionTitle}>მესაკუთრე</p>
                     {listingLocked && !ownerContactsVisible && (
                       <p className="mb-3 text-[11px] font-semibold text-slate-400">
-                        მესაკუთრის ტელეფონი და მეილი მხოლოდ საკუთარ პორტფოლიოში ჩანს.
+                        მესაკუთრის ტელეფონი და ელ-ფოსტა მხოლოდ საკუთარ პორტფოლიოში ჩანს.
                       </p>
                     )}
                     <div className="grid sm:grid-cols-3 gap-3">
@@ -1530,7 +1530,7 @@ export default function AdminAddListingPage() {
                       )}
                     </div>
                     <p className="mt-2 text-[11px] text-slate-400">
-                      ტელეფონი ან სახელი ჩაწერე — ამოვა არსებული მესაკუთრეები, მონიშნე და იგივე პირი მიება შემდეგ განცხადებებსაც.
+                      ჩაწერეთ ტელეფონი ან სახელი — ამოვა არსებული მესაკუთრეები, მონიშნეთ და იგივე პირი მიება შემდეგ განცხადებებსაც.
                     </p>
                   </div>
                 )}
@@ -1688,7 +1688,7 @@ export default function AdminAddListingPage() {
                 <div className={`pt-5 border-t border-slate-100 ${isEdit && canLifecycle ? '' : 'hidden'}`}>
                   <h3 className="font-bold text-slate-800 text-sm mb-1">განცხადების სტატუსი</h3>
                   <p className="text-slate-500 text-xs mb-4">
-                    old-ზე აირჩიე მიზეზი. დროებით შეჩერებული და „გავაქირავეთ“ ვადის გასვლის შემდეგ ავტომატურად გახდება <b>new R</b>.
+                    old-ზე აირჩიეთ მიზეზი. დროებით შეჩერებული და „გავაქირავეთ“ ვადის გასვლის შემდეგ ავტომატურად გახდება <b>new R</b>.
                     „გაქირავდა“ რჩება გაყიდვაზე შიდა ნიშნით.
                   </p>
 
@@ -1931,7 +1931,7 @@ export default function AdminAddListingPage() {
                   />
                   <p className="mt-1.5 text-[11px] text-slate-400">
                     {isEdit
-                      ? 'არსებული სათაური. შეგიძლია ხელით შეცვალო.'
+                      ? 'არსებული სათაური. შეგიძლიათ ხელით შეცვალოთ.'
                       : titleManual
                         ? 'ხელით შეცვლილია.'
                         : 'ივსება ტიპიდან, ოთახებიდან, რაიონიდან და გარიგების ტიპიდან.'}
@@ -2223,7 +2223,7 @@ export default function AdminAddListingPage() {
               </div>
             </FormSection>
 
-            <FormSection id="section-location" title="მდებარეობა" desc="მოძებნეთ ან კარტაზე მონიშნეთ ლოკაცია" icon={MapPin}>
+            <FormSection id="section-location" title="მდებარეობა" desc="მოძებნეთ ან რუკაზე მონიშნეთ ლოკაცია" icon={MapPin}>
               <div className="space-y-5">
                 <LocationPickerMap value={locationValue} onChange={applyLocation} height={360} />
 
@@ -2306,7 +2306,7 @@ export default function AdminAddListingPage() {
                             {form.showCadastral && <CheckCircle size={12} className="text-white" />}
                           </span>
                           <span>
-                            <span className="block text-sm font-bold text-slate-800">აჩვენე საკადასტრო კოდი</span>
+                            <span className="block text-sm font-bold text-slate-800">საკადასტრო კოდის ჩვენება</span>
                             <span className="block text-xs text-slate-500 mt-0.5">
                               გამორთულია — კოდი მხოლოდ ადმინში რჩება. ჩართულია — გამოჩნდება საიტზე.
                             </span>
@@ -2332,7 +2332,7 @@ export default function AdminAddListingPage() {
                           {form.showAddress && <CheckCircle size={12} className="text-white" />}
                         </span>
                         <span>
-                          <span className="block text-sm font-bold text-slate-800">აჩვენე მისამართი</span>
+                          <span className="block text-sm font-bold text-slate-800">მისამართის ჩვენება</span>
                           <span className="block text-xs text-slate-500 mt-0.5">
                             გამორთულია — საიტზე ჩანს ქუჩა (გელოვანი, ცინცაძე…) უბანთან ერთად, სახლის ნომერი არა. ჩართულია — ქუჩა და ნომერი.
                           </span>
@@ -2466,7 +2466,7 @@ export default function AdminAddListingPage() {
                     )}
                   </div>
                   <p className="text-slate-400 text-xs mb-4">
-                    გადაათრიეთ რიგითობის შესაცვლელად. მწვანე პწიჩკა — ჩანს საიტზე, წითელი — ჩამალულია.
+                    გადაათრიეთ რიგითობის შესაცვლელად. მწვანე ნიშანი — ჩანს საიტზე, წითელი — ჩამალულია.
                   </p>
                   {photoDownloadError && (
                     <p className="text-rose-500 text-xs mb-3">{photoDownloadError}</p>

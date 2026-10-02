@@ -185,7 +185,7 @@ const LIFECYCLE_ORDER = ['new', 'current', 'old', 'new_r'] as const;
 const LIFECYCLE_META: Record<string, { label: string; note: string; color: string; bg: string }> = {
   new:     { label: 'new',     note: 'ახლად დამატებული, ჯერ დაუმუშავებელი', color: '#2563eb', bg: '#eff6ff' },
   current: { label: 'current', note: 'აქტიურია — გამოქვეყნებულია და იყიდება/ქირავდება', color: '#10b981', bg: '#ecfdf5' },
-  old:     { label: 'old',     note: 'არქივი — აირჩიე რატომ: გაიყიდა, გაქირავდა, შეჩერდა, აღარ იყიდება', color: '#64748b', bg: '#f1f5f9' },
+  old:     { label: 'old',     note: 'არქივი — აირჩიეთ რატომ: გაიყიდა, გაქირავდა, შეჩერდა, აღარ იყიდება', color: '#64748b', bg: '#f1f5f9' },
   new_r:   { label: 'new R',   note: 'ჩაძველდა — განახლება და მესაკუთრესთან ზარი სავალდებულოა (2 დღე)', color: '#ef4444', bg: '#fef2f2' },
 };
 
@@ -282,7 +282,7 @@ const TOUCH_LABELS: Record<string, string> = {
   flags: 'VIP / ნიშნები შეცვალა',
   call: 'დარეკა',
   moderation: 'მოდერაცია გაიარა',
-  assign: 'აგენტზე გადაანაწილა',
+  assign: 'ბროკერზე გადაანაწილა',
   cadastral: 'საკადასტრო მოძებნა',
   member_edit: 'მესაკუთრემ შეცვალა საიტიდან',
 };
@@ -1351,10 +1351,10 @@ function LifecycleStatusDialog({
           )}
 
           {draftOutcome === 'paused' && !draftEnd && (
-            <p className="text-[10px] font-semibold text-amber-600">მიუთითე როდემდეა შეჩერებული.</p>
+            <p className="text-[10px] font-semibold text-amber-600">მიუთითეთ, როდემდეა შეჩერებული.</p>
           )}
           {(draftOutcome === 'rented_owner' || draftOutcome === 'rented_us') && !draftEnd && (
-            <p className="text-[10px] font-semibold text-amber-600">მიუთითე როდემდე გაქირავდა.</p>
+            <p className="text-[10px] font-semibold text-amber-600">მიუთითეთ, როდემდე გაქირავდა.</p>
           )}
 
           <input
@@ -1365,7 +1365,7 @@ function LifecycleStatusDialog({
           />
 
           {!canSave && needsOutcome && !draftOutcome && (
-            <p className="text-[10px] font-semibold text-amber-600">აირჩიე ქვეკატეგორია, შემდეგ შეინახე.</p>
+            <p className="text-[10px] font-semibold text-amber-600">აირჩიეთ ქვეკატეგორია, შემდეგ შეინახეთ.</p>
           )}
         </div>
 
@@ -1543,7 +1543,7 @@ export function LifecycleCell({
             if (follow !== null && follow < 0) return `განახლება ${Math.abs(follow)} დღით ვადაგასულია`;
             if (follow !== null) return `განახლება საჭიროა · ${follow} დღე`;
             if (days !== null && days < 0) return `ვადა ${Math.abs(days)} დღის წინ გავიდა`;
-            return 'განახლება საჭიროა — დაურეკე';
+            return 'განახლება საჭიროა — დაურეკეთ';
           })()}
         </p>
       )}
@@ -2371,7 +2371,7 @@ export default function AdminPropertiesSection({
               type="text"
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="ძიება ID-ით (24171150), სათაური, ქალაქი, აგენტი..."
+              placeholder="ძიება ID-ით (24171150), სათაური, ქალაქი, ბროკერი..."
               className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-800 placeholder-slate-400 focus:outline-none bg-slate-50/50 font-medium"
             />
             {search && (
@@ -2596,7 +2596,7 @@ export default function AdminPropertiesSection({
                 </th>
                 <th className="py-2 px-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">წყარო</th>
                 <th className="py-2 px-1.5 text-left">
-                  <SortHeader label="აგენტი" sortKey="agentName" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
+                  <SortHeader label="ბროკერი" sortKey="agentName" currentKey={sortKey} dir={sortDir} onSort={handleSort} />
                 </th>
                 <th className="py-2 px-1.5 text-center text-[10px] font-bold uppercase tracking-wider text-slate-500">ნახ.</th>
                 <th

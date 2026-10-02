@@ -88,7 +88,7 @@ router.post(
       res.json({ token, user: session });
     } catch (err) {
       console.error('Login error:', err);
-      res.status(500).json({ error: 'Server error' });
+      res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
     }
   },
 );
@@ -158,7 +158,7 @@ router.post(
         return;
       }
       console.error('Register error:', err);
-      res.status(500).json({ error: 'Server error' });
+      res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
     }
   },
 );
@@ -167,13 +167,13 @@ router.get('/me', requireAuth, async (req: AuthRequest, res: Response): Promise<
   try {
     const session = await sessionFor(req.user!.id);
     if (!session) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'მომხმარებელი ვერ მოიძებნა' });
       return;
     }
     res.json(session);
   } catch (err) {
     console.error('Me error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -186,7 +186,7 @@ router.put('/profile', requireAuth, async (req: AuthRequest, res: Response): Pro
       .where(eq(users.id, req.user!.id));
 
     if (!existing) {
-      res.status(404).json({ error: 'User not found' });
+      res.status(404).json({ error: 'მომხმარებელი ვერ მოიძებნა' });
       return;
     }
 
@@ -249,7 +249,7 @@ router.put('/profile', requireAuth, async (req: AuthRequest, res: Response): Pro
     res.json(newToken ? { ...session, token: newToken } : session);
   } catch (err) {
     console.error('Profile update error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -277,7 +277,7 @@ router.delete(
       res.json({ success: true });
     } catch (err) {
       console.error('Close account error:', err);
-      res.status(500).json({ error: 'Server error' });
+      res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
     }
   },
 );
@@ -374,7 +374,7 @@ router.post(
       res.json({ success: true });
     } catch (err) {
       console.error('Reset password error:', err);
-      res.status(500).json({ error: 'Server error' });
+      res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
     }
   },
 );

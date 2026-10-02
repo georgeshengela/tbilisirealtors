@@ -222,7 +222,7 @@ function extractNextData(html: string): Record<string, unknown> {
   try {
     return JSON.parse(m[1]) as Record<string, unknown>;
   } catch {
-    throw new ImportError('parse_failed', 'გვერდის მონაცემები ვერ წაიკითხა', 'ss.ge');
+    throw new ImportError('parse_failed', 'გვერდის მონაცემების წაკითხვა ვერ მოხერხდა', 'ss.ge');
   }
 }
 

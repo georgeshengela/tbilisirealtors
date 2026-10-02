@@ -94,7 +94,7 @@ router.get('/stats/counts', async (_req, res: Response): Promise<void> => {
     });
   } catch (err) {
     console.error('Public counts error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -112,7 +112,7 @@ router.get('/properties', async (req, res: Response): Promise<void> => {
     res.json({ data: data.map(toPublic), total: Number(total.count) });
   } catch (err) {
     console.error('Public properties error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -128,7 +128,7 @@ router.get('/properties/:id', optionalAuth, async (req: AuthRequest, res: Respon
         : and(eq(properties.id, String(req.params.id)), publiclyVisible));
 
     if (!property) {
-      res.status(404).json({ error: 'Property not found' });
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
       return;
     }
 
@@ -148,7 +148,7 @@ router.get('/properties/:id', optionalAuth, async (req: AuthRequest, res: Respon
     res.json({ ...toPublic(property, req.user?.role), viewCount });
   } catch (err) {
     console.error('Public property error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -163,7 +163,7 @@ router.get('/agents', async (_req, res: Response): Promise<void> => {
     res.json({ data, total: data.length });
   } catch (err) {
     console.error('Public agents error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -201,7 +201,7 @@ router.get('/team', async (_req, res: Response): Promise<void> => {
     res.json({ data, total: data.length });
   } catch (err) {
     console.error('Public team error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -213,14 +213,14 @@ router.get('/agents/:id', async (req, res: Response): Promise<void> => {
       .where(and(eq(agents.id, req.params.id), eq(agents.isActive, true)));
 
     if (!agent) {
-      res.status(404).json({ error: 'Agent not found' });
+      res.status(404).json({ error: 'ბროკერი ვერ მოიძებნა' });
       return;
     }
 
     res.json(agent);
   } catch (err) {
     console.error('Public agent error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -235,7 +235,7 @@ router.get('/blog', async (_req, res: Response): Promise<void> => {
     res.json({ data, total: data.length });
   } catch (err) {
     console.error('Public blog error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 
@@ -247,14 +247,14 @@ router.get('/blog/:id', async (req, res: Response): Promise<void> => {
       .where(and(eq(blogPosts.id, req.params.id), eq(blogPosts.isPublished, true)));
 
     if (!post) {
-      res.status(404).json({ error: 'Post not found' });
+      res.status(404).json({ error: 'სტატია ვერ მოიძებნა' });
       return;
     }
 
     res.json(post);
   } catch (err) {
     console.error('Public blog post error:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ error: 'სერვერის შეცდომა. სცადეთ თავიდან.' });
   }
 });
 

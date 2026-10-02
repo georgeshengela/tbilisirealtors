@@ -487,7 +487,7 @@ export default function AdminBrokersSection({
           </table>
         </div>
         <div className="px-5 py-3 border-t border-slate-50 text-[11px] text-slate-400 font-medium">
-          ნაჩვენებია {filtered.length} / {brokers.length} ბროკერი · დააჭირე რიგს დეტალებისთვის
+          ნაჩვენებია {filtered.length} / {brokers.length} ბროკერი · დააჭირეთ რიგს დეტალებისთვის
         </div>
       </div>
 
@@ -740,7 +740,7 @@ function BrokerDetailModal({
                 </div>
               ) : (
                 <p className="text-sm text-slate-500 leading-relaxed">
-                  ანგარიში არ არის დაკავშირებული. შექმენი თანამშრომელი იმავე ელ-ფოსტით.
+                  ანგარიში არ არის დაკავშირებული. შექმენით თანამშრომელი იმავე ელ-ფოსტით.
                 </p>
               )}
             </Section>
@@ -910,7 +910,7 @@ function BrokerFormModal({
                 </div>
               )}
               <div className="flex-1 space-y-2">
-                <input type="url" value={form.photo} onChange={e => set('photo', e.target.value)} className={inputCls} placeholder="https://... ან ატვირთე" />
+                <input type="url" value={form.photo} onChange={e => set('photo', e.target.value)} className={inputCls} placeholder="https://... ან ატვირთეთ" />
                 <label className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 cursor-pointer hover:text-blue-800">
                   <Upload size={12} />
                   {uploading ? 'იტვირთება...' : 'ფოტოს ატვირთვა'}

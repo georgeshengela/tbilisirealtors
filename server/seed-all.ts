@@ -42,7 +42,7 @@ const seedAgents = [
     phone: '+995 599 123 456', email: 'giorgi@tbilisirealtor.ge',
     rating: '4.9', reviewCount: 127, propertyCount: 48, yearsExperience: 8,
     specialization: ['საცხოვრებელი', 'კომერციული'],
-    bio: 'გამოცდილი უძრავი განცხადების სპეციალისტი, რომელიც 8 წლის განმავლობაში ეხმარება კლიენტებს იდეალური სახლის პოვნაში.',
+    bio: 'გამოცდილი უძრავი ქონების სპეციალისტი, რომელიც 8 წლის განმავლობაში ეხმარება კლიენტებს იდეალური სახლის პოვნაში.',
     company: 'TbilisiRealtor.GE', verified: true, languages: ['ქართული', 'ინგლისური', 'რუსული'], isActive: true,
   },
   {
@@ -58,7 +58,7 @@ const seedAgents = [
     phone: '+995 595 345 678', email: 'lasha@tbilisirealtor.ge',
     rating: '4.7', reviewCount: 78, propertyCount: 62, yearsExperience: 10,
     specialization: ['კომერციული', 'ინვესტიციები'],
-    bio: 'კომერციული უძრავი განცხადების ექსპერტი 10 წლიანი გამოცდილებით.',
+    bio: 'კომერციული უძრავი ქონების ექსპერტი 10 წლიანი გამოცდილებით.',
     company: 'TbilisiRealtor.GE', verified: true, languages: ['ქართული', 'ინგლისური', 'გერმანული'], isActive: true,
   },
   {
@@ -116,9 +116,9 @@ const seedProperties = [
 ];
 
 const seedBlogPosts = [
-  { id:'b1', title:'თბილისის უძრავი განცხადების ბაზრის 2026 წლის ტენდენციები', excerpt:'გაიგეთ, რა ტენდენციები ახასიათებს 2026 წელს თბილისის უძრავი განცხადების ბაზარს.', content:'', authorId:'a1', authorName:'გიორგი ბერიძე', category:'ბაზრის ანალიზი', tags:['ინვესტიცია','ბაზარი','თბილისი'], image:PROPERTY_IMAGES.city1, publishDate:'2026-06-15', readTime:8, isFeatured:true, isPublished:true },
+  { id:'b1', title:'თბილისის უძრავი ქონების ბაზრის 2026 წლის ტენდენციები', excerpt:'გაიგეთ, რა ტენდენციები ახასიათებს 2026 წელს თბილისის უძრავი ქონების ბაზარს.', content:'', authorId:'a1', authorName:'გიორგი ბერიძე', category:'ბაზრის ანალიზი', tags:['ინვესტიცია','ბაზარი','თბილისი'], image:PROPERTY_IMAGES.city1, publishDate:'2026-06-15', readTime:8, isFeatured:true, isPublished:true },
   { id:'b2', title:'ბინის ყიდვის 10 მნიშვნელოვანი ნაბიჯი', excerpt:'სახელმძღვანელო პირველი ბინის მყიდველებისთვის.', content:'', authorId:'a2', authorName:'ნინო კვარაცხელია', category:'გზამკვლევი', tags:['ბინის ყიდვა','გზამკვლევი'], image:PROPERTY_IMAGES.luxury3, publishDate:'2026-06-10', readTime:12, isFeatured:false, isPublished:true },
-  { id:'b3', title:'საინვესტიციო განცხადება: ბათუმი vs თბილისი', excerpt:'შედარებითი ანალიზი - სად ჯობს ინვესტიცია?', content:'', authorId:'a3', authorName:'ლაშა მამულაშვილი', category:'ინვესტიცია', tags:['ბათუმი','თბილისი','ინვესტიცია'], image:PROPERTY_IMAGES.luxury5, publishDate:'2026-06-05', readTime:10, isFeatured:true, isPublished:true },
+  { id:'b3', title:'საინვესტიციო ქონება: ბათუმი vs თბილისი', excerpt:'შედარებითი ანალიზი - სად ჯობს ინვესტიცია?', content:'', authorId:'a3', authorName:'ლაშა მამულაშვილი', category:'ინვესტიცია', tags:['ბათუმი','თბილისი','ინვესტიცია'], image:PROPERTY_IMAGES.luxury5, publishDate:'2026-06-05', readTime:10, isFeatured:true, isPublished:true },
   { id:'b4', title:'ახალი ბინა: ყიდვა თუ კომპენსაცია?', excerpt:'დეველოპერული კომპენსაცია ან ახალი ბინის ყიდვა?', content:'', authorId:'a4', authorName:'მარიამ გელაშვილი', category:'გზამკვლევი', tags:['ახალი ბინა','კომპენსაცია'], image:PROPERTY_IMAGES.apt2, publishDate:'2026-05-28', readTime:7, isFeatured:false, isPublished:true },
   { id:'b5', title:'სად ჯობს ცხოვრება: ვაკე, საბურთალო თუ ისანი?', excerpt:'თბილისის პოპულარული უბნების შედარება.', content:'', authorId:'a5', authorName:'დავით ჩიქოვანი', category:'ცხოვრების სტილი', tags:['ვაკე','საბურთალო','ისანი'], image:PROPERTY_IMAGES.luxury7, publishDate:'2026-05-20', readTime:9, isFeatured:false, isPublished:true },
   { id:'b6', title:'ინტერიერის დიზაინის 2026 წლის ტენდენციები', excerpt:'ყველაზე პოპულარული ინტერიერის სტილები 2026 წელს.', content:'', authorId:'a6', authorName:'ანა ლომიძე', category:'დიზაინი', tags:['ინტერიერი','დიზაინი'], image:PROPERTY_IMAGES.interior1, publishDate:'2026-05-15', readTime:6, isFeatured:false, isPublished:true },

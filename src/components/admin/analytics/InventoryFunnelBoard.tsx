@@ -35,7 +35,7 @@ const COLUMNS: { key: SortKey | 'district'; label: string; hint?: string; numeri
   { key: 'live', label: 'ბაზარზე', hint: 'ახალი ან აქტიური', numeric: true },
   { key: 'parked', label: 'გაქირავებული', numeric: true },
   { key: 'needsCall', label: 'დასარეკი', numeric: true },
-  { key: 'medianPrice', label: 'მედიანა ფასი', hint: 'უფრო სანდოა საშუალოზე', numeric: true },
+  { key: 'medianPrice', label: 'მედიანური ფასი', hint: 'უფრო სანდოა საშუალოზე', numeric: true },
   { key: 'avgAgeDays', label: 'საშ. ასაკი', hint: 'დღე დაფაზე გამოჩენიდან', numeric: true },
   { key: 'stale', label: '90+ დღე', hint: 'დიდი ხანია იდგა უცვლელად', numeric: true },
   { key: 'views', label: 'ნახვები', numeric: true },
@@ -113,7 +113,7 @@ export default function InventoryFunnelBoard({ api, showToast }: AnalyticsBoardP
         <StatTile label="სულ განცხადება" value={totals.listings} icon={<Building2 size={14} />} hint={`${totals.districts} რაიონში`} />
         <StatTile label="ბაზარზე" value={totals.live} tone="green" icon={<Layers size={14} />} hint={`${totals.forSale} იყიდება · ${totals.forRent} ქირავდება`} />
         <StatTile label="დასარეკი" value={totals.needsCall} tone={totals.needsCall ? 'red' : 'slate'} icon={<Phone size={14} />} hint={`${totals.parked} გაქირავებული`} />
-        <StatTile label="მედიანა ასაკი" value={`${totals.medianAgeDays} დღე`} tone="amber" icon={<Clock size={14} />} hint={`საშუალო ${totals.avgAgeDays} დღე`} />
+        <StatTile label="მედიანური ასაკი" value={`${totals.medianAgeDays} დღე`} tone="amber" icon={<Clock size={14} />} hint={`საშუალო ${totals.avgAgeDays} დღე`} />
         <StatTile label="ნახვები" value={totals.views.toLocaleString('ka-GE')} tone="blue" icon={<Eye size={14} />} hint={`${totals.unassigned} გადაუბმელი`} />
       </div>
 
@@ -286,7 +286,7 @@ export default function InventoryFunnelBoard({ api, showToast }: AnalyticsBoardP
                       </td>
                       <td className="px-3 py-3 text-right text-slate-700">
                         {row.avgAgeDays} დღე
-                        <p className="text-[10px] text-slate-400">უხუცესი {row.oldestDays}</p>
+                        <p className="text-[10px] text-slate-400">ყველაზე ძველი {row.oldestDays}</p>
                       </td>
                       <td className={`px-3 py-3 text-right font-semibold ${row.stale ? 'text-amber-700' : 'text-slate-400'}`}>
                         {row.stale ? (
