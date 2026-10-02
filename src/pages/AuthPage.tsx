@@ -1,367 +1,392 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Lock, User, Phone, Eye, EyeOff, CheckCircle, ArrowRight, Loader2, AlertCircle } from 'lucide-react';
+/**
+ * Sign in, sign up, forgotten password and the reset link — one page, four modes.
+ * Staff who sign in here are sent on to the back office; members land in their account.
+ */
+
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  ArrowLeft, ArrowRight, Heart, Loader2, Lock, Mail, Phone, PlusSquare, Search, ShieldCheck, User,
+} from 'lucide-react';
 import { useTranslation } from '../i18n/LocaleContext';
-import { useUserAuth } from '../contexts/UserAuthContext';
+import { AuthError, useUserAuth } from '../contexts/UserAuthContext';
 import BrandLogo from '../components/BrandLogo';
+import { CONTACT } from '../data/contactInfo';
+import {
+  Alert, Field, PasswordField, PasswordStrength, btnPrimary,
+} from '../components/account/ui';
 
-type AuthMode = 'login' | 'register' | 'forgot';
-
-interface AuthPageProps {
-  mode?: AuthMode;
-}
+export type AuthMode = 'login' | 'register' | 'forgot' | 'reset';
 
 const STAFF_ROLES = ['super_admin', 'admin', 'manager', 'broker'];
+const MIN_PASSWORD = 8;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export default function AuthPage({ mode: initialMode = 'login' }: AuthPageProps) {
+type Errors = Partial<Record<'firstName' | 'email' | 'password' | 'confirmPassword' | 'agree', string>>;
+
+const PATHS: Record<AuthMode, string> = {
+  login: '/login',
+  register: '/register',
+  forgot: '/forgot-password',
+  reset: '/reset-password',
+};
+
+export default function AuthPage({ mode }: { mode: AuthMode }) {
   const { t } = useTranslation();
+  const tx = (key: string, vars?: Record<string, string | number>) => t(`account.auth.${key}`, vars);
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, loading: authLoading, login, register, requestPasswordReset } = useUserAuth();
+  const [params] = useSearchParams();
+  const { user, loading, login, register, requestPasswordReset, resetPassword } = useUserAuth();
 
-  const [mode, setMode] = useState<AuthMode>(initialMode);
-  const [showPassword, setShowPassword] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [notice, setNotice] = useState('');
   const [form, setForm] = useState({
-    name: '', email: '', phone: '', password: '', confirmPassword: ''
+    firstName: '', lastName: '', email: '', phone: '', password: '', confirmPassword: '', agree: false,
   });
+  const [errors, setErrors] = useState<Errors>({});
+  const [formError, setFormError] = useState('');
+  const [blocked, setBlocked] = useState<{ reason: string | null } | null>(null);
+  const [notice, setNotice] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  const resetToken = params.get('token') ?? '';
+  const from = (location.state as { from?: string } | null)?.from ?? '/dashboard';
+  // A notice set on the previous screen (e.g. "password changed") survives the switch to login.
+  const carried = (location.state as { notice?: string } | null)?.notice ?? '';
 
   useEffect(() => {
-    setMode(initialMode);
-  }, [initialMode]);
+    setErrors({});
+    setFormError('');
+    setBlocked(null);
+    setNotice(carried);
+  }, [mode, carried]);
 
-  // Clear the previous attempt's feedback when switching tabs.
-  useEffect(() => {
-    setError('');
-    setNotice('');
-  }, [mode]);
+  const set = <K extends keyof typeof form>(key: K, value: (typeof form)[K]) => {
+    setForm(current => ({ ...current, [key]: value }));
+    if (key in errors) setErrors(current => ({ ...current, [key]: undefined }));
+  };
 
-  const redirectTo = (location.state as { from?: string } | null)?.from ?? '/dashboard';
+  const strengthLabels = useMemo(() => [0, 1, 2, 3, 4].map(i => t(`account.auth.strength.${i}`)), [t]);
 
-  if (!authLoading && user) {
-    return <Navigate to={STAFF_ROLES.includes(user.role) ? '/admin' : redirectTo} replace />;
+  const go = (next: AuthMode, state?: object) => navigate(PATHS[next], { state: { ...(location.state as object), ...state } });
+
+  if (!loading && user && mode !== 'reset') {
+    return <Navigate to={STAFF_ROLES.includes(user.role) ? '/admin' : from} replace />;
   }
 
-  /** Staff land in the back office; the hard navigation lets the admin context adopt the session. */
-  function goHome(role: string, fallback: string) {
-    if (STAFF_ROLES.includes(role)) {
-      window.location.assign('/admin');
-      return;
+  function validate(): Errors {
+    const next: Errors = {};
+    if (mode === 'register' && !form.firstName.trim()) next.firstName = tx('firstNameRequired');
+    if (mode !== 'reset' && !EMAIL_RE.test(form.email.trim())) next.email = tx('emailInvalid');
+    if (mode === 'login' && !form.password) next.password = t('account.submit.required');
+    if (mode === 'register' || mode === 'reset') {
+      if (form.password.length < MIN_PASSWORD) next.password = tx('passwordTooShort', { min: MIN_PASSWORD });
+      else if (form.password !== form.confirmPassword) next.confirmPassword = tx('passwordMismatch');
     }
-    navigate(fallback, { replace: true });
+    if (mode === 'register' && !form.agree) next.agree = tx('agreeRequired');
+    return next;
   }
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
-
-    setError('');
+    setFormError('');
+    setBlocked(null);
     setNotice('');
 
+    const found = validate();
+    setErrors(found);
+    if (Object.values(found).some(Boolean)) return;
+
+    setBusy(true);
     try {
       if (mode === 'forgot') {
-        setBusy(true);
-        const message = await requestPasswordReset(form.email.trim());
-        setNotice(message || t('auth.resetSent'));
+        await requestPasswordReset(form.email.trim());
+        setNotice(tx('resetSent', { phone: CONTACT.phone.display }));
         return;
       }
-
-      if (mode === 'register') {
-        if (form.password !== form.confirmPassword) {
-          setError(t('auth.passwordMismatch'));
-          return;
-        }
-        if (form.password.length < 6) {
-          setError(t('auth.passwordTooShort'));
-          return;
-        }
-        setBusy(true);
-        const next = await register({
-          name: form.name.trim(),
+      if (mode === 'reset') {
+        await resetPassword(resetToken, form.password);
+        navigate(PATHS.login, { replace: true, state: { notice: tx('resetDone') } });
+        return;
+      }
+      const next = mode === 'register'
+        ? await register({
+          firstName: form.firstName.trim(),
+          lastName: form.lastName.trim(),
           email: form.email.trim(),
           phone: form.phone.trim() || undefined,
           password: form.password,
-        });
-        goHome(next.role, '/dashboard');
+        })
+        : await login(form.email.trim(), form.password);
+
+      if (STAFF_ROLES.includes(next.role)) {
+        // Hard navigation so the admin context picks up the mirrored session.
+        window.location.assign('/admin');
         return;
       }
-
-      setBusy(true);
-      const next = await login(form.email.trim(), form.password);
-      goHome(next.role, redirectTo);
+      navigate(mode === 'register' ? '/dashboard' : from, { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t('common.error'));
+      if (err instanceof AuthError && err.blocked) {
+        setBlocked({ reason: err.reason ?? null });
+      } else if (err instanceof AuthError && err.field && err.field in form) {
+        setErrors({ [err.field]: err.message });
+      } else {
+        setFormError(err instanceof Error ? err.message : t('account.common.error'));
+      }
     } finally {
       setBusy(false);
     }
   }
 
-  const benefits = [
-    t('auth.benefit1'),
-    t('auth.benefit2'),
-    t('auth.benefit3'),
-    t('favorites.title'),
-    t('nav.listings'),
-  ];
+  const heading = {
+    login: [tx('loginTitle'), tx('loginSubtitle')],
+    register: [tx('registerTitle'), tx('registerSubtitle')],
+    forgot: [tx('forgotTitle'), tx('forgotSubtitle')],
+    reset: [tx('resetTitle'), tx('resetSubtitle')],
+  }[mode];
+
+  const submitLabel = {
+    login: tx('submitLogin'),
+    register: tx('submitRegister'),
+    forgot: tx('submitForgot'),
+    reset: tx('submitReset'),
+  }[mode];
+
+  const passwordLabels = { showLabel: tx('showPassword'), hideLabel: tx('hidePassword') };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 flex">
-      {/* Left: Form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <motion.div
-          initial={{ opacity: 0, x: -30 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="w-full max-w-md"
-        >
-          <Link to="/" className="inline-flex mb-10">
-            <BrandLogo size="lg" href={null} />
+    <div className="min-h-screen bg-white lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] xl:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
+      {/* ── Form side ── */}
+      <div className="flex flex-col min-h-screen px-4 sm:px-10 py-6 sm:py-8">
+        <div className="flex items-center justify-between gap-3">
+          <BrandLogo size="md" />
+          <Link to="/" className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-900 transition">
+            <ArrowLeft size={16} />
+            <span className="hidden sm:inline">{t('account.nav.toSite')}</span>
           </Link>
+        </div>
 
-          {/* Mode tabs */}
-          <div className="flex gap-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl mb-8">
-            {[
-              { value: 'login' as AuthMode, label: t('auth.login') },
-              { value: 'register' as AuthMode, label: t('auth.register') },
-            ].map(tab => (
-              <button
-                key={tab.value}
-                onClick={() => setMode(tab.value)}
-                className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition-all ${
-                  mode === tab.value
-                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow'
-                    : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
-
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={mode}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.2 }}
-            >
-              {/* Header */}
-              <div className="mb-8">
-                <h1 className="text-3xl font-bold text-slate-900 dark:text-white">
-                  {mode === 'login' && t('auth.loginTitle')}
-                  {mode === 'register' && t('auth.registerTitle')}
-                  {mode === 'forgot' && t('auth.forgotTitle')}
-                </h1>
-                <p className="text-slate-500 dark:text-slate-400 mt-2">
-                  {mode === 'login' && t('auth.loginSubtitle')}
-                  {mode === 'register' && t('auth.registerSubtitle')}
-                  {mode === 'forgot' && t('auth.forgotSubtitle')}
-                </p>
-              </div>
-
-              {/* Form */}
-              <form className="space-y-4" onSubmit={submit} noValidate>
-                {error && (
-                  <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-sm font-medium">
-                    <AlertCircle size={16} className="mt-0.5 flex-shrink-0" />
-                    {error}
-                  </div>
-                )}
-
-                {notice && (
-                  <div className="flex items-start gap-2.5 px-4 py-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm font-medium">
-                    <CheckCircle size={16} className="mt-0.5 flex-shrink-0" />
-                    {notice}
-                  </div>
-                )}
-
-                {mode === 'register' && (
-                  <div className="relative">
-                    <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={form.name}
-                      onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-                      autoComplete="name"
-                      required
-                      placeholder={t('contact.name')}
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
-                    />
-                  </div>
-                )}
-
-                <div className="relative">
-                  <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    value={form.email}
-                    onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                    type="email"
-                    autoComplete="email"
-                    required
-                    placeholder={t('auth.email')}
-                    className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
-                  />
-                </div>
-
-                {mode === 'register' && (
-                  <div className="relative">
-                    <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={form.phone}
-                      onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                      autoComplete="tel"
-                      placeholder={t('common.phone')}
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
-                    />
-                  </div>
-                )}
-
-                {mode !== 'forgot' && (
-                  <div className="relative">
-                    <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={form.password}
-                      onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
-                      type={showPassword ? 'text' : 'password'}
-                      autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-                      required
-                      placeholder={t('auth.password')}
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-12 py-4 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                    >
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
-                )}
-
-                {mode === 'register' && (
-                  <div className="relative">
-                    <Lock size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input
-                      value={form.confirmPassword}
-                      onChange={e => setForm(f => ({ ...f, confirmPassword: e.target.value }))}
-                      type="password"
-                      autoComplete="new-password"
-                      required
-                      placeholder={t('auth.confirmPassword')}
-                      className="w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl pl-12 pr-4 py-4 text-sm focus:border-blue-600 focus:outline-none text-slate-800 dark:text-white placeholder-slate-400 transition-all"
-                    />
-                  </div>
-                )}
-
-                {mode === 'login' && (
-                  <div className="flex justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setMode('forgot')}
-                      className="text-sm text-blue-600 hover:underline font-medium"
-                    >
-                      {t('auth.forgot')}
-                    </button>
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-xl font-semibold text-lg transition-all duration-200 hover:shadow-lg hover:shadow-blue-600/30 flex items-center justify-center gap-2 disabled:opacity-60"
-                >
-                  {mode === 'login' && t('auth.submitLogin')}
-                  {mode === 'register' && t('auth.submitRegister')}
-                  {mode === 'forgot' && t('auth.submitForgot')}
-                  {busy ? <Loader2 size={20} className="animate-spin" /> : <ArrowRight size={20} />}
-                </button>
-
-                {mode !== 'forgot' && (
-                  <p className="text-center text-sm text-slate-500 dark:text-slate-400">
-                    {mode === 'login' ? t('auth.noAccount') : t('auth.hasAccount')}{' '}
-                    <button
-                      type="button"
-                      onClick={() => setMode(mode === 'login' ? 'register' : 'login')}
-                      className="text-blue-600 font-semibold hover:underline"
-                    >
-                      {mode === 'login' ? t('auth.register') : t('auth.login')}
-                    </button>
-                  </p>
-                )}
-
-                {mode === 'forgot' && (
+        <div className="flex-1 flex items-center justify-center py-10">
+          <div className="w-full max-w-[420px]">
+            {(mode === 'login' || mode === 'register') && (
+              <div className="grid grid-cols-2 p-1 rounded-xl bg-slate-100 mb-8" role="tablist">
+                {(['login', 'register'] as const).map(tab => (
                   <button
+                    key={tab}
                     type="button"
-                    onClick={() => setMode('login')}
-                    className="w-full text-center text-sm text-blue-600 font-medium hover:underline"
+                    role="tab"
+                    aria-selected={mode === tab}
+                    onClick={() => go(tab)}
+                    className={`relative h-10 rounded-lg text-sm font-bold transition-colors ${
+                      mode === tab ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'
+                    }`}
                   >
-                    {t('auth.login')}
+                    {mode === tab && (
+                      <motion.span layoutId="auth-tab" className="absolute inset-0 rounded-lg bg-white shadow-sm" transition={{ type: 'spring', damping: 30, stiffness: 400 }} />
+                    )}
+                    <span className="relative">{tx(tab === 'login' ? 'loginTab' : 'registerTab')}</span>
                   </button>
-                )}
-              </form>
-            </motion.div>
-          </AnimatePresence>
-        </motion.div>
-      </div>
-
-      {/* Right: Benefits */}
-      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-slate-900 via-blue-900 to-slate-800 items-center justify-center p-12 relative overflow-hidden">
-        <div className="absolute inset-0">
-          <img
-            src="https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=800&q=80"
-            alt=""
-            className="w-full h-full object-cover opacity-20"
-          />
-        </div>
-        <div className="relative z-10 max-w-md">
-          <div className="mb-8">
-            <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">TBILISIREALTOR.GE</span>
-            <h2 className="text-3xl lg:text-4xl font-bold text-white mt-2 mb-4">
-              {t('auth.benefitsTitle')}
-            </h2>
-            <p className="text-slate-400 text-lg">
-              {t('auth.benefitsSubtitle')}
-            </p>
-          </div>
-
-          <div className="space-y-4 mb-8">
-            {benefits.map((benefit, i) => (
-              <motion.div
-                key={benefit}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.1 }}
-                className="flex items-center gap-3"
-              >
-                <div className="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center flex-shrink-0">
-                  <CheckCircle size={14} className="text-emerald-400" />
-                </div>
-                <span className="text-slate-200">{benefit}</span>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Testimonial */}
-          <div className="glass rounded-2xl p-5">
-            <p className="text-white/90 italic mb-4">
-              "{t('auth.testimonial')}"
-            </p>
-            <div className="flex items-center gap-3">
-              <img
-                src="https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80"
-                alt="User"
-                className="w-10 h-10 rounded-full object-cover"
-              />
-              <div>
-                <p className="text-white font-semibold text-sm">{t('auth.testimonialAuthor')}</p>
-                <p className="text-slate-400 text-xs">{t('auth.testimonialRole')}</p>
+                ))}
               </div>
-            </div>
+            )}
+
+            {(mode === 'forgot' || mode === 'reset') && (
+              <button
+                type="button"
+                onClick={() => go('login')}
+                className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-500 hover:text-slate-900 mb-6"
+              >
+                <ArrowLeft size={16} /> {tx('backToLogin')}
+              </button>
+            )}
+
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={mode}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -6 }}
+                transition={{ duration: 0.18 }}
+              >
+                <h1 className="text-[28px] sm:text-[32px] font-bold text-slate-900 leading-tight">{heading[0]}</h1>
+                <p className="text-[15px] text-slate-500 mt-2 mb-7 leading-relaxed">{heading[1]}</p>
+
+                <form onSubmit={submit} noValidate className="space-y-4">
+                  {blocked && (
+                    <Alert tone="error" title={tx('blockedTitle')}>
+                      {blocked.reason && <p>{tx('blockedReason', { reason: blocked.reason })}</p>}
+                      <p>{tx('blockedHint', { phone: CONTACT.phone.display })}</p>
+                    </Alert>
+                  )}
+                  {formError && <Alert tone="error">{formError}</Alert>}
+                  {notice && <Alert tone="success">{notice}</Alert>}
+                  {mode === 'reset' && !resetToken && <Alert tone="warning">{tx('resetMissing')}</Alert>}
+
+                  {mode === 'register' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Field
+                        label={tx('firstName')}
+                        icon={User}
+                        value={form.firstName}
+                        onChange={e => set('firstName', e.target.value)}
+                        autoComplete="given-name"
+                        error={errors.firstName}
+                        maxLength={120}
+                        autoFocus
+                      />
+                      <Field
+                        label={tx('lastName')}
+                        value={form.lastName}
+                        onChange={e => set('lastName', e.target.value)}
+                        autoComplete="family-name"
+                        maxLength={120}
+                      />
+                    </div>
+                  )}
+
+                  {mode !== 'reset' && (
+                    <Field
+                      label={tx('email')}
+                      icon={Mail}
+                      type="email"
+                      inputMode="email"
+                      value={form.email}
+                      onChange={e => set('email', e.target.value)}
+                      autoComplete={mode === 'register' ? 'email' : 'username'}
+                      placeholder="name@example.com"
+                      error={errors.email}
+                      autoFocus={mode !== 'register'}
+                    />
+                  )}
+
+                  {mode === 'register' && (
+                    <Field
+                      label={tx('phoneOptional')}
+                      icon={Phone}
+                      type="tel"
+                      inputMode="tel"
+                      value={form.phone}
+                      onChange={e => set('phone', e.target.value)}
+                      autoComplete="tel"
+                      placeholder="5XX XX XX XX"
+                      maxLength={50}
+                    />
+                  )}
+
+                  {mode !== 'forgot' && (
+                    <div>
+                      <PasswordField
+                        {...passwordLabels}
+                        label={mode === 'reset' ? tx('newPassword') : tx('password')}
+                        icon={Lock}
+                        value={form.password}
+                        onChange={e => set('password', e.target.value)}
+                        autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+                        error={errors.password}
+                        autoFocus={mode === 'reset'}
+                      />
+                      {mode !== 'login' && <PasswordStrength password={form.password} labels={strengthLabels} />}
+                    </div>
+                  )}
+
+                  {(mode === 'register' || mode === 'reset') && (
+                    <PasswordField
+                      {...passwordLabels}
+                      label={tx('confirmPassword')}
+                      icon={Lock}
+                      value={form.confirmPassword}
+                      onChange={e => set('confirmPassword', e.target.value)}
+                      autoComplete="new-password"
+                      error={errors.confirmPassword}
+                    />
+                  )}
+
+                  {mode === 'login' && (
+                    <div className="flex justify-end -mt-1">
+                      <button type="button" onClick={() => go('forgot')} className="text-sm font-semibold text-blue-600 hover:text-blue-700">
+                        {tx('forgot')}
+                      </button>
+                    </div>
+                  )}
+
+                  {mode === 'register' && (
+                    <div>
+                      <label className="flex items-start gap-3 cursor-pointer select-none">
+                        <input
+                          type="checkbox"
+                          checked={form.agree}
+                          onChange={e => set('agree', e.target.checked)}
+                          className="mt-0.5 w-[18px] h-[18px] rounded-[5px] accent-blue-600 flex-shrink-0"
+                        />
+                        <span className="text-[13px] text-slate-600 leading-relaxed">{tx('agree')}</span>
+                      </label>
+                      {errors.agree && <p className="mt-1.5 text-xs font-semibold text-red-600">{errors.agree}</p>}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={busy || (mode === 'reset' && !resetToken)}
+                    className={`${btnPrimary} w-full h-12 text-[15px] mt-2`}
+                  >
+                    {submitLabel}
+                    {busy ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+                  </button>
+
+                  {(mode === 'login' || mode === 'register') && (
+                    <p className="text-center text-sm text-slate-500 pt-2">
+                      {mode === 'login' ? tx('noAccount') : tx('hasAccount')}{' '}
+                      <button
+                        type="button"
+                        onClick={() => go(mode === 'login' ? 'register' : 'login')}
+                        className="font-bold text-blue-600 hover:text-blue-700"
+                      >
+                        {mode === 'login' ? tx('createOne') : tx('signIn')}
+                      </button>
+                    </p>
+                  )}
+                </form>
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
+
+        <p className="text-xs text-slate-400 text-center">© {new Date().getFullYear()} TBILISIREALTOR.GE</p>
       </div>
+
+      {/* ── Brand side ── */}
+      <aside className="hidden lg:block sticky top-0 h-screen overflow-hidden bg-slate-900">
+        <img src="/5e6a55c3201bd.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" decoding="async" />
+        <div className="absolute inset-0 bg-slate-950/70" />
+        <div className="relative h-full flex flex-col justify-end p-12 xl:p-16">
+          <div className="max-w-[480px]">
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/90 text-xs font-semibold backdrop-blur">
+              <ShieldCheck size={14} /> {tx('trust')}
+            </span>
+            <h2 className="text-white text-[34px] xl:text-[40px] font-bold leading-[1.15] mt-5">{tx('sideTitle')}</h2>
+            <p className="text-white/70 text-base mt-3 leading-relaxed">{tx('sideText')}</p>
+
+            <ul className="mt-9 space-y-3">
+              {([
+                [PlusSquare, 'perk1'],
+                [Heart, 'perk2'],
+                [Search, 'perk3'],
+              ] as const).map(([Icon, key]) => (
+                <li key={key} className="flex gap-4 p-4 rounded-2xl bg-white/[0.07] border border-white/10 backdrop-blur-sm">
+                  <span className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
+                    <Icon size={19} className="text-white" />
+                  </span>
+                  <div>
+                    <p className="text-white font-bold text-[15px]">{tx(`${key}Title`)}</p>
+                    <p className="text-white/65 text-sm mt-0.5 leading-relaxed">{tx(`${key}Text`)}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }

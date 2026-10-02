@@ -50,7 +50,12 @@ async function mapPool<T, R>(items: T[], size: number, fn: (item: T) => Promise<
   return out;
 }
 
-function uploadPhoto(file: Express.Multer.File, watermark: boolean): Promise<{
+type PhotoMode = 'watermark' | 'clean' | 'avatar';
+
+/** Square face-centred crop, no logo — profile pictures for members and staff alike. */
+const AVATAR_TRANSFORM = [{ width: 400, height: 400, crop: 'fill', gravity: 'auto' }];
+
+function uploadPhoto(file: Express.Multer.File, mode: PhotoMode): Promise<{
   url: string;
   name: string;
   size: number;
@@ -60,14 +65,16 @@ function uploadPhoto(file: Express.Multer.File, watermark: boolean): Promise<{
   return new Promise((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       {
-        folder: 'tbilisirealtor/photos',
+        folder: mode === 'avatar' ? 'tbilisirealtor/avatars' : 'tbilisirealtor/photos',
         public_id: uniqueName(name, ''),
         resource_type: 'image',
         overwrite: false,
         access_mode: 'public',
-        ...(watermark
+        ...(mode === 'watermark'
           ? { tags: [WATERMARK_TAG], context: WATERMARK_CONTEXT, transformation: WATERMARK_TRANSFORM }
-          : { tags: ['no-watermark'] }),
+          : mode === 'avatar'
+            ? { tags: ['avatar', 'no-watermark'], transformation: AVATAR_TRANSFORM }
+            : { tags: ['no-watermark'] }),
       },
       (err, result) => {
         if (err || !result?.secure_url) {
@@ -138,12 +145,20 @@ router.post('/', upload.array('files', 20), async (req: AuthRequest, res: Respon
     return;
   }
 
-  // Staff may skip the stamp for portraits (?watermark=0) — a logo over a face is useless.
-  const watermark = !(req.query.watermark === '0' && isStaffRole(req.user?.role ?? ''));
+  // Anyone may set their own profile picture; staff may also skip the stamp for
+  // other imagery (?watermark=0) — a logo over a face or a render is useless.
+  const avatar = req.query.purpose === 'avatar';
+  if (avatar && (photos.length !== 1 || contracts.length)) {
+    res.status(400).json({ error: 'აირჩიეთ ერთი ფოტო' });
+    return;
+  }
+  const mode: PhotoMode = avatar
+    ? 'avatar'
+    : req.query.watermark === '0' && isStaffRole(req.user?.role ?? '') ? 'clean' : 'watermark';
 
   try {
-    if (photos.length && watermark) await ensureWatermark();
-    const uploadedPhotos = await mapPool(photos, 3, file => uploadPhoto(file, watermark));
+    if (photos.length && mode === 'watermark') await ensureWatermark();
+    const uploadedPhotos = await mapPool(photos, 3, file => uploadPhoto(file, mode));
     const savedContracts = contracts.map(saveContract);
     res.json({ files: [...uploadedPhotos, ...savedContracts] });
   } catch (err) {

@@ -3,7 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Menu, X, ChevronDown, Heart, User, Moon, Sun, Search,
-  Phone, ArrowRight, Star, LayoutDashboard, LogOut, Shield, Plus, Clock, MapPin,
+  Phone, ArrowRight, Star, LayoutDashboard, LogOut, Shield, Plus, Clock, MapPin, Building2, Settings,
 } from 'lucide-react';
 import BrandLogo from './BrandLogo';
 import { CONTACT, isBusinessOpenNow } from '../data/contactInfo';
@@ -198,9 +198,11 @@ export default function Header({ darkMode, toggleDarkMode }: HeaderProps) {
                         </div>
                         <div className="site-user__list">
                           {[
-                            { to: '/dashboard', icon: LayoutDashboard, label: t('common.dashboard') },
-                            { to: '/favorites', icon: Heart, label: t('common.favorites') },
-                            { to: '/dashboard/submit', icon: Plus, label: t('dashboard.submitListing') },
+                            { to: '/dashboard', icon: LayoutDashboard, label: t('account.nav.overview') },
+                            { to: '/dashboard/listings', icon: Building2, label: t('account.nav.listings') },
+                            { to: '/dashboard/favorites', icon: Heart, label: t('account.nav.favorites') },
+                            { to: '/dashboard/settings', icon: Settings, label: t('account.nav.settings') },
+                            { to: '/dashboard/submit', icon: Plus, label: t('account.nav.addListing') },
                             ...(isStaff ? [{ to: '/admin', icon: Shield, label: t('common.adminPanel') }] : []),
                           ].map(item => (
                             <Link key={item.to} to={item.to} className="site-user__link">

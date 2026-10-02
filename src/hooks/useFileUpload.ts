@@ -13,6 +13,13 @@ const CHUNK = 5;
 export interface UploadOptions {
   /** false = no brand stamp (broker portraits). Only honoured for staff. */
   watermark?: boolean;
+  /** 'avatar' = one square, unstamped profile picture. Open to every signed-in user. */
+  purpose?: 'avatar';
+}
+
+function uploadUrl(options: UploadOptions): string {
+  if (options.purpose === 'avatar') return '/api/uploads?purpose=avatar';
+  return options.watermark === false ? '/api/uploads?watermark=0' : '/api/uploads';
 }
 
 /**
@@ -40,7 +47,7 @@ export function useFileUpload(tokenOverride?: string | null) {
         const chunk = list.slice(i, i + CHUNK);
         const body = new FormData();
         chunk.forEach(file => body.append('files', file));
-        const res = await fetch(options.watermark === false ? '/api/uploads?watermark=0' : '/api/uploads', {
+        const res = await fetch(uploadUrl(options), {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` },
           body,

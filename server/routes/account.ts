@@ -24,7 +24,7 @@ router.use(requireAuth);
 
 /** Fields a member is allowed to set. Everything else is staff territory. */
 const MEMBER_FIELDS = [
-  'title', 'description', 'price', 'rentPrice', 'address', 'city', 'district',
+  'title', 'description', 'price', 'priceCurrency', 'rentPrice', 'address', 'city', 'district',
   'type', 'status', 'bedrooms', 'bathrooms', 'area', 'floor', 'totalFloors',
   'yearBuilt', 'images', 'amenities', 'features', 'coordinates',
 ] as const;
@@ -60,6 +60,7 @@ function memberListingValues(data: MemberListingInput) {
     description: typeof data.description === 'string' ? data.description.slice(0, 8000) : null,
     price,
     rentPrice: 'rentPrice' in data ? numberOrNull(data.rentPrice) : null,
+    priceCurrency: data.priceCurrency === 'USD' ? 'USD' : 'GEL',
     pricePerSqm,
     address: typeof data.address === 'string' ? data.address.trim().slice(0, 500) : null,
     city: typeof data.city === 'string' && data.city.trim() ? data.city.trim() : 'თბილისი',
@@ -275,6 +276,26 @@ router.get('/my-listings', async (req: AuthRequest, res: Response): Promise<void
     res.json({ data: rows.map(toMemberListing) });
   } catch (err) {
     console.error('My listings error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/my-listings/:id', async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const [row] = await db
+      .select()
+      .from(properties)
+      .where(and(
+        eq(properties.id, String(req.params.id)),
+        eq(properties.createdByUserId, memberId(req)),
+      ));
+    if (!row) {
+      res.status(404).json({ error: 'განცხადება ვერ მოიძებნა' });
+      return;
+    }
+    res.json(toMemberListing(row));
+  } catch (err) {
+    console.error('My listing get error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });

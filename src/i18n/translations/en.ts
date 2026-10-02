@@ -1,3 +1,5 @@
+import { accountEn } from './account';
+
 export const en = {
   common: {
     all: 'All',
@@ -1091,4 +1093,5 @@ export const en = {
     ctaButton: 'Write to us',
     ctaNote: 'Tell us the country and budget and we will prepare a shortlist.',
   },
+  account: accountEn,
 } as const;

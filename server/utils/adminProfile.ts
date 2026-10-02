@@ -61,6 +61,7 @@ export function toAdminSession(
     role: user.role,
     scope: (extra?.scope ?? user.scope ?? 'all') === 'own' ? 'own' : 'all',
     permissions: extra?.permissions ?? [],
+    createdAt: user.createdAt ?? null,
   };
 }
 

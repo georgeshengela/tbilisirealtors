@@ -1,6 +1,6 @@
 import { useState, useEffect, type ReactNode } from 'react';
 
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, useLocation, Navigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -13,7 +13,12 @@ import BlogPage from './pages/BlogPage';
 import BlogDetailPage from './pages/BlogDetailPage';
 import FavoritesPage from './pages/FavoritesPage';
 import AuthPage from './pages/AuthPage';
-import DashboardPage from './pages/DashboardPage';
+import AccountLayout from './pages/account/AccountLayout';
+import AccountOverviewPage from './pages/account/AccountOverviewPage';
+import AccountListingsPage from './pages/account/AccountListingsPage';
+import AccountFavoritesPage from './pages/account/AccountFavoritesPage';
+import AccountSearchesPage from './pages/account/AccountSearchesPage';
+import AccountSettingsPage from './pages/account/AccountSettingsPage';
 import SubmitListingPage from './pages/SubmitListingPage';
 import AboutPage from './pages/AboutPage';
 import ContactPage from './pages/ContactPage';
@@ -73,9 +78,30 @@ function ProtectedUserRoute({ children }: { children: ReactNode }) {
     : <Navigate to="/login" state={{ from: location.pathname + location.search }} replace />;
 }
 
+/** Old `/dashboard?tab=…` and `/dashboard/submit?id=…` links still land in the right place. */
+function DashboardIndex() {
+  const [params] = useSearchParams();
+  const legacy: Record<string, string> = {
+    favorites: '/dashboard/favorites',
+    listings: '/dashboard/listings',
+    searches: '/dashboard/searches',
+    profile: '/dashboard/settings',
+  };
+  const target = legacy[params.get('tab') ?? ''];
+  return target ? <Navigate to={target} replace /> : <AccountOverviewPage />;
+}
+
+function LegacySubmitRedirect() {
+  const [params] = useSearchParams();
+  const id = params.get('id');
+  return id ? <Navigate to={`/dashboard/listings/${encodeURIComponent(id)}/edit`} replace /> : <SubmitListingPage />;
+}
+
+const AUTH_PATHS = ['/login', '/register', '/forgot-password', '/reset-password'];
+
 function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDarkMode: () => void }) {
   const location = useLocation();
-  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
+  const isAuthPage = AUTH_PATHS.includes(location.pathname);
   const isDashboard = location.pathname.startsWith('/dashboard');
   const isAdminPage = location.pathname.startsWith('/admin');
   const isEmbed = new URLSearchParams(location.search).get('embed') === '1';
@@ -109,7 +135,7 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
 
         <AnimatePresence mode="wait">
           <motion.div
-            key={isListingsPath(location.pathname) ? 'listings' : location.pathname}
+            key={isListingsPath(location.pathname) ? 'listings' : isDashboard ? 'dashboard' : isAuthPage ? 'auth' : location.pathname}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -128,8 +154,18 @@ function AppContent({ darkMode, toggleDarkMode }: { darkMode: boolean; toggleDar
               <Route path="/favorites" element={<FavoritesPage />} />
               <Route path="/login" element={<AuthPage mode="login" />} />
               <Route path="/register" element={<AuthPage mode="register" />} />
-              <Route path="/dashboard" element={<ProtectedUserRoute><DashboardPage /></ProtectedUserRoute>} />
-              <Route path="/dashboard/submit" element={<ProtectedUserRoute><SubmitListingPage /></ProtectedUserRoute>} />
+              <Route path="/forgot-password" element={<AuthPage mode="forgot" />} />
+              <Route path="/reset-password" element={<AuthPage mode="reset" />} />
+              <Route path="/dashboard" element={<ProtectedUserRoute><AccountLayout /></ProtectedUserRoute>}>
+                <Route index element={<DashboardIndex />} />
+                <Route path="listings" element={<AccountListingsPage />} />
+                <Route path="listings/:id/edit" element={<SubmitListingPage />} />
+                <Route path="submit" element={<LegacySubmitRedirect />} />
+                <Route path="favorites" element={<AccountFavoritesPage />} />
+                <Route path="searches" element={<AccountSearchesPage />} />
+                <Route path="settings" element={<AccountSettingsPage />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+              </Route>
               <Route path="/about" element={<AboutPage />} />
               <Route path="/projects" element={<ProjectsPage />} />
               <Route path="/project/:slug" element={<ProjectDetailPage />} />

@@ -21,12 +21,14 @@ export interface MemberUser {
   avatarUrl: string | null;
   role: string;
   permissions: string[];
+  createdAt: string | null;
 }
 
 const STAFF_ROLES = ['super_admin', 'admin', 'manager', 'broker'];
 
 interface RegisterInput {
-  name: string;
+  firstName: string;
+  lastName?: string;
   email: string;
   phone?: string;
   password: string;
@@ -44,6 +46,22 @@ interface UserAuthContextType {
   refresh: () => Promise<void>;
   updateProfile: (patch: Record<string, unknown>) => Promise<MemberUser>;
   requestPasswordReset: (email: string) => Promise<string>;
+  resetPassword: (token: string, password: string) => Promise<void>;
+  deleteAccount: (password: string) => Promise<void>;
+}
+
+/** Server errors keep the offending field and, for a block, the reason. */
+export class AuthError extends Error {
+  field?: string;
+  blocked?: boolean;
+  reason?: string | null;
+
+  constructor(data: { error?: string; field?: string; blocked?: boolean; reason?: string | null }, fallback: string) {
+    super(data.error || fallback);
+    this.field = data.field;
+    this.blocked = data.blocked;
+    this.reason = data.reason;
+  }
 }
 
 const UserAuthContext = createContext<UserAuthContextType | null>(null);
@@ -51,7 +69,12 @@ const UserAuthContext = createContext<UserAuthContextType | null>(null);
 const TOKEN_KEY = 'member_token';
 const USER_KEY = 'member_user';
 
-type RawUser = Partial<MemberUser> & { id: number; email: string; role: string };
+type RawUser = Partial<Omit<MemberUser, 'createdAt'>> & {
+  id: number;
+  email: string;
+  role: string;
+  createdAt?: string | null;
+};
 
 function normalize(raw: RawUser): MemberUser {
   const firstName = raw.firstName ?? '';
@@ -66,6 +89,7 @@ function normalize(raw: RawUser): MemberUser {
     avatarUrl: raw.avatarUrl ?? null,
     role: raw.role,
     permissions: Array.isArray(raw.permissions) ? raw.permissions : [],
+    createdAt: raw.createdAt ?? null,
   };
 }
 
@@ -95,16 +119,21 @@ function clearStorage() {
   localStorage.removeItem(USER_KEY);
 }
 
-async function postJson(path: string, body: unknown) {
+async function sendJson(path: string, body: unknown, options: { method?: string; token?: string | null } = {}) {
   const res = await fetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: options.method ?? 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
+    },
     body: JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || 'მოთხოვნა ვერ შესრულდა');
+  if (!res.ok) throw new AuthError(data, 'მოთხოვნა ვერ შესრულდა');
   return data;
 }
+
+const postJson = (path: string, body: unknown) => sendJson(path, body);
 
 export function UserAuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<MemberUser | null>(null);
@@ -186,19 +215,25 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
     const stored = localStorage.getItem(TOKEN_KEY);
     if (!stored) throw new Error('სესია ამოიწურა');
 
-    const res = await fetch('/api/auth/profile', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${stored}` },
-      body: JSON.stringify(patch),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || 'პროფილი ვერ შეინახა');
+    const data = await sendJson('/api/auth/profile', patch, { method: 'PUT', token: stored });
+    // A password change rotates the token; keep this tab signed in with the new one.
+    const { token: rotated, ...raw } = data as RawUser & { token?: string };
+    if (rotated) return adopt(rotated, raw);
 
-    const next = normalize(data);
+    const next = normalize(raw);
     setUser(next);
     persist(stored, next);
     return next;
+  }, [adopt]);
+
+  const resetPassword = useCallback(async (resetToken: string, password: string) => {
+    await postJson('/api/auth/reset-password', { token: resetToken, password });
   }, []);
+
+  const deleteAccount = useCallback(async (password: string) => {
+    await sendJson('/api/auth/account', { password }, { method: 'DELETE', token: localStorage.getItem(TOKEN_KEY) });
+    logout();
+  }, [logout]);
 
   const requestPasswordReset = useCallback(async (email: string) => {
     const data = await postJson('/api/auth/forgot-password', { email });
@@ -218,6 +253,8 @@ export function UserAuthProvider({ children }: { children: ReactNode }) {
         refresh,
         updateProfile,
         requestPasswordReset,
+        resetPassword,
+        deleteAccount,
       }}
     >
       {children}

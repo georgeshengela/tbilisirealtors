@@ -8,6 +8,7 @@ import { requireAuth, AuthRequest, signToken, loadActor } from '../middleware/au
 import { rateLimit } from '../middleware/rateLimit.js';
 import { buildDisplayName, toAdminSession, profileFieldsFromBody } from '../utils/adminProfile.js';
 import { isStaffRole } from '../permissions.js';
+import { EMAIL_RE, MIN_PASSWORD, deleteMemberAccount } from '../services/memberAccount.js';
 
 const router = Router();
 
@@ -56,20 +57,26 @@ router.post(
         .select({
           id: users.id,
           isActive: users.isActive,
+          blockedReason: users.blockedReason,
           passwordHash: users.passwordHash,
           tokenVersion: users.tokenVersion,
         })
         .from(users)
         .where(eq(users.email, String(email).toLowerCase().trim()));
 
-      if (!user || !user.isActive) {
-        res.status(401).json({ error: 'Invalid credentials' });
+      const valid = user ? await bcrypt.compare(String(password), user.passwordHash) : false;
+      if (!user || !valid) {
+        res.status(401).json({ error: 'Email ან პაროლი არასწორია' });
         return;
       }
 
-      const valid = await bcrypt.compare(password, user.passwordHash);
-      if (!valid) {
-        res.status(401).json({ error: 'Invalid credentials' });
+      // Only told after the password matched, so a block never confirms an address exists.
+      if (!user.isActive) {
+        res.status(403).json({
+          error: 'ანგარიში დაბლოკილია',
+          blocked: true,
+          reason: user.blockedReason ?? null,
+        });
         return;
       }
 
@@ -94,19 +101,22 @@ router.post(
     try {
       const email = typeof req.body.email === 'string' ? req.body.email.toLowerCase().trim() : '';
       const password = typeof req.body.password === 'string' ? req.body.password : '';
-      const rawName = typeof req.body.name === 'string' ? req.body.name.trim() : '';
-      const phone = typeof req.body.phone === 'string' ? req.body.phone.trim() : '';
+      const phone = typeof req.body.phone === 'string' ? req.body.phone.trim().slice(0, 50) : '';
+      // Older clients send one `name`; the form now sends the two parts.
+      const legacy = typeof req.body.name === 'string' ? req.body.name.trim().split(/\s+/).filter(Boolean) : [];
+      const firstName = (typeof req.body.firstName === 'string' ? req.body.firstName.trim() : legacy[0] ?? '').slice(0, 120);
+      const lastName = (typeof req.body.lastName === 'string' ? req.body.lastName.trim() : legacy.slice(1).join(' ')).slice(0, 120);
 
-      if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        res.status(400).json({ error: 'შეიყვანეთ სწორი Email' });
+      if (!firstName) {
+        res.status(400).json({ error: 'სახელი სავალდებულოა', field: 'firstName' });
         return;
       }
-      if (password.length < 6) {
-        res.status(400).json({ error: 'პაროლი მინიმუმ 6 სიმბოლო უნდა იყოს' });
+      if (!email || !EMAIL_RE.test(email)) {
+        res.status(400).json({ error: 'შეიყვანეთ სწორი Email', field: 'email' });
         return;
       }
-      if (!rawName) {
-        res.status(400).json({ error: 'სახელი სავალდებულოა' });
+      if (password.length < MIN_PASSWORD) {
+        res.status(400).json({ error: `პაროლი მინიმუმ ${MIN_PASSWORD} სიმბოლო უნდა იყოს`, field: 'password' });
         return;
       }
 
@@ -115,25 +125,23 @@ router.post(
         .from(users)
         .where(eq(users.email, email));
       if (existing) {
-        res.status(409).json({ error: 'ეს Email უკვე რეგისტრირებულია' });
+        res.status(409).json({ error: 'ეს Email უკვე რეგისტრირებულია', field: 'email' });
         return;
       }
 
-      const parts = rawName.split(/\s+/).filter(Boolean);
-      const firstName = parts[0] ?? '';
-      const lastName = parts.slice(1).join(' ');
       const passwordHash = await bcrypt.hash(password, 12);
 
       const [created] = await db
         .insert(users)
         .values({
           email,
-          name: buildDisplayName(firstName, lastName, rawName),
+          name: buildDisplayName(firstName, lastName, email),
           firstName: firstName || null,
           lastName: lastName || null,
           phone: phone || null,
           passwordHash,
           role: 'user',
+          lastLoginAt: new Date(),
           scope: 'own',
           isActive: true,
           showOnFrontend: false,
@@ -187,14 +195,35 @@ router.put('/profile', requireAuth, async (req: AuthRequest, res: Response): Pro
       updatedAt: new Date(),
     };
 
-    // Members never appear on the public team page.
-    if (!isStaffRole(existing.role)) delete updates.showOnFrontend;
+    const member = !isStaffRole(existing.role);
+    // Members never appear on the public team page, and have no job title or bio.
+    if (member) {
+      delete updates.showOnFrontend;
+      delete updates.jobTitle;
+      delete updates.bio;
+    }
 
     const password = typeof req.body.password === 'string' ? req.body.password.trim() : '';
+    let newToken: string | null = null;
     if (password) {
-      if (password.length < 6) {
-        res.status(400).json({ error: 'პაროლი მინიმუმ 6 სიმბოლო უნდა იყოს' });
+      const minimum = member ? MIN_PASSWORD : 6;
+      if (password.length < minimum) {
+        res.status(400).json({ error: `პაროლი მინიმუმ ${minimum} სიმბოლო უნდა იყოს`, field: 'password' });
         return;
+      }
+      // Members confirm the old password; a stolen open tab is not enough to take the account.
+      if (member) {
+        const [row] = await db
+          .select({ passwordHash: users.passwordHash })
+          .from(users)
+          .where(eq(users.id, req.user!.id));
+        const current = typeof req.body.currentPassword === 'string' ? req.body.currentPassword : '';
+        if (!row || !current || !(await bcrypt.compare(current, row.passwordHash))) {
+          res.status(400).json({ error: 'მიმდინარე პაროლი არასწორია', field: 'currentPassword' });
+          return;
+        }
+        // Signs out every other device; this one gets a fresh token below.
+        updates.tokenVersion = sql`${users.tokenVersion} + 1`;
       }
       updates.passwordHash = await bcrypt.hash(password, 12);
     }
@@ -208,14 +237,50 @@ router.put('/profile', requireAuth, async (req: AuthRequest, res: Response): Pro
       );
     }
 
-    await db.update(users).set(updates).where(eq(users.id, req.user!.id));
+    const [saved] = await db
+      .update(users)
+      .set(updates)
+      .where(eq(users.id, req.user!.id))
+      .returning({ tokenVersion: users.tokenVersion });
+    if (updates.tokenVersion) newToken = signToken(req.user!.id, saved.tokenVersion);
 
-    res.json(await sessionFor(req.user!.id));
+    const session = await sessionFor(req.user!.id);
+    // Staff clients read the session at the top level, so the token rides alongside it.
+    res.json(newToken ? { ...session, token: newToken } : session);
   } catch (err) {
     console.error('Profile update error:', err);
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+/** A member closes their own account. Staff accounts are removed from the admin panel only. */
+router.delete(
+  '/account',
+  requireAuth,
+  rateLimit({ windowMs: 60 * 60 * 1000, max: 10, key: 'close-account' }),
+  async (req: AuthRequest, res: Response): Promise<void> => {
+    try {
+      if (isStaffRole(req.user!.role)) {
+        res.status(403).json({ error: 'თანამშრომლის ანგარიში მხოლოდ ადმინისტრატორი შლის' });
+        return;
+      }
+      const [row] = await db
+        .select({ passwordHash: users.passwordHash })
+        .from(users)
+        .where(eq(users.id, req.user!.id));
+      const password = typeof req.body?.password === 'string' ? req.body.password : '';
+      if (!row || !password || !(await bcrypt.compare(password, row.passwordHash))) {
+        res.status(400).json({ error: 'პაროლი არასწორია', field: 'password' });
+        return;
+      }
+      await deleteMemberAccount(req.user!.id);
+      res.json({ success: true });
+    } catch (err) {
+      console.error('Close account error:', err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  },
+);
 
 /**
  * Password reset. The response never reveals whether the address exists.
@@ -271,8 +336,8 @@ router.post(
       const token = typeof req.body.token === 'string' ? req.body.token.trim() : '';
       const password = typeof req.body.password === 'string' ? req.body.password : '';
 
-      if (password.length < 6) {
-        res.status(400).json({ error: 'პაროლი მინიმუმ 6 სიმბოლო უნდა იყოს' });
+      if (password.length < MIN_PASSWORD) {
+        res.status(400).json({ error: `პაროლი მინიმუმ ${MIN_PASSWORD} სიმბოლო უნდა იყოს` });
         return;
       }
 

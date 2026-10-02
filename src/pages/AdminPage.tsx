@@ -6,7 +6,7 @@ import {
   BookOpen, Search, CheckCircle, XCircle, Shield, Home,
   Star, Zap, Sparkles, Image as ImageIcon,
   Phone, Globe, RefreshCw, ArrowUpRight, MapPin, Clock,
-  ExternalLink, Headphones, UserCog, Ban, Lock, BarChart3, LineChart, HardHat, type LucideIcon,
+  ExternalLink, Headphones, UserCog, Lock, BarChart3, LineChart, HardHat, type LucideIcon,
 } from 'lucide-react';
 import { useAdminAuth, useApiRequest } from '../contexts/AdminAuthContext';
 import AdminPropertiesSection, {
@@ -14,6 +14,7 @@ import AdminPropertiesSection, {
 } from '../components/admin/AdminPropertiesSection';
 import AdminOrdersSection from '../components/admin/AdminOrdersSection';
 import AdminProjectsSection from '../components/admin/AdminProjectsSection';
+import AdminMembersSection from '../components/admin/AdminMembersSection';
 import AdminBrokersSection, { type BrokerRow } from '../components/admin/AdminBrokersSection';
 import AdminDeskSection, { type DeskTab } from '../components/admin/desk/AdminDeskSection';
 import AdminAnalyticsSection, {
@@ -24,7 +25,7 @@ import StaffPermissionEditor from '../components/admin/StaffPermissionEditor';
 import BrandLogo from '../components/BrandLogo';
 import AdminNavBar from '../components/admin/AdminNavBar';
 import AdminFooter from '../components/admin/AdminFooter';
-import { formatGeorgianLongDate, formatGeorgianShortDate } from '../lib/dateFormat';
+import { formatGeorgianLongDate } from '../lib/dateFormat';
 import { propertyHref } from '../lib/seoPropertyUrl';
 import { listingIsVerified } from '../lib/listingBadges';
 import VerifiedListingBadge from '../components/VerifiedListingBadge';
@@ -78,19 +79,6 @@ interface AdminUserRow {
   effectivePermissions?: string[];
   isActive: boolean;
   blockedReason?: string | null;
-  lastLoginAt?: string | null;
-  createdAt: string;
-}
-
-interface MemberRow {
-  id: number;
-  email: string;
-  name: string;
-  phone?: string | null;
-  avatarUrl?: string | null;
-  isActive: boolean;
-  blockedReason?: string | null;
-  listingCount: number;
   lastLoginAt?: string | null;
   createdAt: string;
 }
@@ -394,7 +382,6 @@ export default function AdminPage() {
   const [agentList, setAgentList] = useState<BrokerAdminRow[]>([]);
   const [blogList, setBlogList] = useState<BlogRow[]>([]);
   const [staffList, setStaffList] = useState<AdminUserRow[]>([]);
-  const [memberList, setMemberList] = useState<MemberRow[]>([]);
   const [settingList, setSettingList] = useState<Setting[]>([]);
 
   const [loading, setLoading] = useState(false);
@@ -458,9 +445,6 @@ export default function AdminPage() {
       } else if (s === 'staff') {
         const data = await api('/staff');
         setStaffList(data);
-      } else if (s === 'members') {
-        const data = await api('/members');
-        setMemberList(data);
       } else if (s === 'settings') {
         const data = await api('/settings');
         setSettingList(data);
@@ -554,19 +538,6 @@ export default function AdminPage() {
     showToast(`${roleLabel(role)} — შაბლონი განახლდა`);
   }
 
-  async function toggleMember(member: MemberRow) {
-    try {
-      await api(`/members/${member.id}`, {
-        method: 'PUT',
-        body: JSON.stringify({ isActive: !member.isActive }),
-      });
-      showToast(member.isActive ? 'მომხმარებელი დაიბლოკა' : 'ბლოკი მოიხსნა');
-      loadSection('members');
-    } catch (err) {
-      showToast(err instanceof Error ? err.message : 'შეცდომა', 'error');
-    }
-  }
-
   async function saveSettings() {
     try {
       await api('/settings', { method: 'PUT', body: JSON.stringify({ settings: settingList }) });
@@ -609,10 +580,6 @@ export default function AdminPage() {
 
   const filteredStaff = staffList.filter(u =>
     !search || u.name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
-  );
-
-  const filteredMembers = memberList.filter(m =>
-    !search || m.name?.toLowerCase().includes(search.toLowerCase()) || m.email?.toLowerCase().includes(search.toLowerCase())
   );
 
   // A broker landing on ?section=settings gets bounced to their first real tab.
@@ -828,7 +795,7 @@ export default function AdminPage() {
       {/* Main content */}
       <main className="flex-1 overflow-y-auto">
         <div className={`container-xl ${section === 'dashboard' ? 'py-6 sm:py-7' : 'py-6'}`}>
-          {['blog', 'staff', 'members'].includes(section) && (
+          {['blog', 'staff'].includes(section) && (
             <div className="relative mb-5 md:max-w-sm">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
@@ -1380,59 +1347,7 @@ export default function AdminPage() {
           )}
 
           {/* ── MEMBERS ── */}
-          {section === 'members' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-between flex-wrap gap-3">
-                <div>
-                  <h2 className="text-lg font-extrabold text-slate-800">საიტის მომხმარებლები</h2>
-                  <p className="text-xs text-slate-500 mt-0.5">რეგისტრირებული მომხმარებლები — რჩეულები და განაცხადები</p>
-                </div>
-                <p className="text-xs text-slate-500">სულ: <b className="text-slate-700">{filteredMembers.length}</b></p>
-              </div>
-
-              {filteredMembers.length === 0 && (
-                <div className="bg-white rounded-2xl p-12 border border-slate-100 shadow-sm text-center">
-                  <UserCog size={26} className="text-slate-300 mx-auto mb-3" />
-                  <p className="text-sm text-slate-500">ჯერ არავინ დარეგისტრირებულა</p>
-                </div>
-              )}
-
-              <div className="grid gap-3">
-                {filteredMembers.map(m => (
-                  <div key={m.id} className="bg-white rounded-2xl p-4 border border-slate-100 shadow-sm flex items-center gap-4 flex-wrap">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 overflow-hidden bg-slate-400">
-                      {m.avatarUrl ? <img src={m.avatarUrl} alt="" className="w-full h-full object-cover" /> : m.name.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-[160px]">
-                      <p className="font-bold text-slate-800 text-sm">{m.name}</p>
-                      <p className="text-xs text-slate-400">
-                        {m.email}{m.phone ? ` · ${m.phone}` : ''}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 flex-wrap justify-end">
-                      <Badge label={`${m.listingCount} განცხადება`} color="#2563eb" />
-                      <Badge label={m.isActive ? 'აქტ.' : 'დაბლოკილი'} color={m.isActive ? '#10B981' : '#ef4444'} />
-                      <span className="text-[11px] text-slate-400">
-                        {m.createdAt ? formatGeorgianShortDate(m.createdAt) : ''}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-1 flex-shrink-0">
-                      {can('members.block') && (
-                        <button onClick={() => toggleMember(m)} title={m.isActive ? 'დაბლოკვა' : 'ბლოკის მოხსნა'}
-                          className={`p-1.5 rounded-lg transition-colors ${m.isActive ? 'hover:bg-orange-50 text-slate-400 hover:text-orange-600' : 'hover:bg-green-50 text-slate-400 hover:text-green-600'}`}>
-                          {m.isActive ? <Ban size={13} /> : <CheckCircle size={13} />}
-                        </button>
-                      )}
-                      {can('members.delete') && (
-                        <button onClick={() => setConfirmDelete({ type: 'members', id: m.id })}
-                          className="p-1.5 rounded-lg hover:bg-red-50 text-slate-400 hover:text-red-600 transition-colors"><Trash2 size={13} /></button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {section === 'members' && <AdminMembersSection onToast={showToast} />}
 
           {/* ── SETTINGS ── */}
           {section === 'settings' && (

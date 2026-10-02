@@ -22,6 +22,14 @@ export function formatGeorgianLongDate(input: Date | string | number = new Date(
   return `${KA_WEEKDAYS_LONG[date.getDay()]}, ${date.getDate()} ${KA_MONTHS_LONG[date.getMonth()]}, ${date.getFullYear()}`;
 }
 
+/** Month and year — e.g. "ოქტომბერი 2026" / "October 2026". */
+export function formatMonthYear(input: Date | string | number, locale: string): string {
+  const date = input instanceof Date ? input : new Date(input);
+  if (Number.isNaN(date.getTime())) return '';
+  if (locale === 'ka') return `${KA_MONTHS_LONG[date.getMonth()]} ${date.getFullYear()}`;
+  return new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(date);
+}
+
 /** Compact admin table stamp — e.g. "07.06.2023". */
 export function formatDotDate(input: Date | string | number | null | undefined): string {
   if (!input) return '';

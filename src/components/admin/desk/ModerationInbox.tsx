@@ -31,7 +31,7 @@ import {
   DeskModal,
   EmptyState,
   Field,
-  GEL,
+  money,
   Spinner,
   StatTile,
   Thumb,
@@ -321,7 +321,7 @@ function QueueCard({
           </div>
 
           <div className="mt-2.5 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-slate-500">
-            <span className="font-bold text-blue-700">{GEL(row.price)}</span>
+            <span className="font-bold text-blue-700">{money(row.price, row.priceCurrency)}</span>
             {row.area && <span>{row.area} მ²</span>}
             {Boolean(row.bedrooms) && <span>{row.bedrooms} ოთახი</span>}
             <span>{TYPE_LABELS[row.type ?? ''] ?? row.type}</span>
@@ -413,7 +413,7 @@ function ReviewModal({
   return (
     <DeskModal
       title={row.title}
-      subtitle={`${row.id} · ${row.district || row.city || ''} · ${GEL(row.price)}`}
+      subtitle={`${row.id} · ${row.district || row.city || ''} · ${money(row.price, row.priceCurrency)}`}
       onClose={onClose}
       width="max-w-4xl"
       footer={
@@ -471,7 +471,7 @@ function ReviewModal({
           )}
 
           <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-            <Spec label="ფასი" value={GEL(row.price)} />
+            <Spec label="ფასი" value={money(row.price, row.priceCurrency)} />
             <Spec label="ფართი" value={row.area ? `${row.area} მ²` : '—'} />
             <Spec label="ოთახი" value={row.bedrooms ?? '—'} />
             <Spec label="სართული" value={row.floor ? `${row.floor}/${row.totalFloors ?? '?'}` : '—'} />

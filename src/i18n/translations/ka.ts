@@ -1,3 +1,5 @@
+import { accountKa } from './account';
+
 export const ka = {
   common: {
     all: 'ყველა',
@@ -1091,6 +1093,7 @@ export const ka = {
     ctaButton: 'მოგვწერეთ',
     ctaNote: 'მიუთითეთ ქვეყანა და ბიუჯეტი — მოგიმზადებთ შერჩევას.',
   },
+  account: accountKa,
 } as const;
 
 export type TranslationKeys = typeof ka;

@@ -20,3 +20,11 @@ export function portraitUrl(url: string | null | undefined, width: number, heigh
   if (!match) return url;
   return `${match[1]}c_fill,g_face,w_${Math.round(width)},h_${Math.round(height)},f_auto,q_auto/${match[2]}`;
 }
+
+/** Width-capped Cloudinary delivery for thumbnails; other hosts pass through. */
+export function cloudinarySized(url: string | null | undefined, width: number): string {
+  if (!url) return '';
+  const match = url.match(CLOUDINARY_UPLOAD);
+  if (!match) return url;
+  return `${match[1]}c_limit,w_${Math.round(width)},f_auto,q_auto/${match[2]}`;
+}

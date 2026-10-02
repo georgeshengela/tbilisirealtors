@@ -3,6 +3,14 @@ import type { ReactNode } from 'react';
 import { Image as ImageIcon, Loader2, X } from 'lucide-react';
 import { roleColor, roleLabel } from '../../../lib/permissions';
 
+/** Amount in the currency it was entered in — `$` for USD listings, `₾` otherwise. */
+export const money = (value: number | string | null | undefined, currency?: string | null): string =>
+  value === null || value === undefined || value === ''
+    ? '—'
+    : currency === 'USD'
+      ? `$${Number(value).toLocaleString('en-US')}`
+      : `${Number(value).toLocaleString('ka-GE')} ₾`;
+
 export const GEL = (value: number | string | null | undefined): string =>
   value === null || value === undefined || value === ''
     ? '—'

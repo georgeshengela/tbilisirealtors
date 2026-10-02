@@ -1,23 +1,28 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, Search } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import PropertyCard from '../components/PropertyCard';
 import { useTranslation } from '../i18n/LocaleContext';
 import { useProperties } from '../hooks/usePublicData';
 import { useFavorites } from '../lib/favorites';
+import { useUserAuth } from '../contexts/UserAuthContext';
 
 export default function FavoritesPage() {
   const { t } = useTranslation();
   const { data: properties, loading } = useProperties();
   const { ids: favoriteIds } = useFavorites();
   const [search, setSearch] = useState('');
+  const { user } = useUserAuth();
 
   const favorites = properties.filter(p => favoriteIds.includes(p.id));
 
   const filtered = favorites.filter(p =>
     !search || p.title.toLowerCase().includes(search.toLowerCase()) || p.city.includes(search)
   );
+
+  // Members keep favourites in their account area, next to their listings.
+  if (user) return <Navigate to="/dashboard/favorites" replace />;
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-900 page-under-header">
@@ -45,7 +50,7 @@ export default function FavoritesPage() {
             </div>
             <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-3">{t('favorites.emptyTitle')}</h2>
             <p className="text-slate-500 mb-8">{t('favorites.emptyHint')}</p>
-            <Link to="/udzravi-qoneba/" className="bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold hover:bg-blue-600 transition-colors">
+            <Link to="/udzravi-qoneba/" className="bg-blue-600 text-white px-8 py-4 rounded-xl font-semibold hover:bg-blue-700 transition-colors inline-block">
               {t('favorites.browse')}
             </Link>
           </div>

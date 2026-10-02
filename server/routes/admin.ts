@@ -3,10 +3,11 @@ import bcrypt from 'bcryptjs';
 import { db } from '../db.js';
 import {
   properties, propertyPriceHistory, users, agents, blogPosts, siteSettings,
-  rolePermissions, activityLog,
+  rolePermissions, activityLog, userFavorites,
   type PropertyOwner, type PropertyContract, type InternalNote,
 } from '../schema.js';
 import { activeProvider, translateListingFromGeorgian, TranslateError } from '../services/translate.js';
+import { EMAIL_RE, MIN_PASSWORD, deleteMemberAccount } from '../services/memberAccount.js';
 import { eq, desc, count, sql, inArray, and, ne, or, ilike, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import {
@@ -2375,29 +2376,84 @@ router.delete('/staff/:id', requirePermission('staff.delete'), async (req: AuthR
 
 // ─── MEMBERS (public site accounts) ────────────────────────────────────────────
 
+const MEMBER_SELECT = {
+  id: users.id,
+  email: users.email,
+  name: users.name,
+  firstName: users.firstName,
+  lastName: users.lastName,
+  phone: users.phone,
+  avatarUrl: users.avatarUrl,
+  isActive: users.isActive,
+  blockedReason: users.blockedReason,
+  lastLoginAt: users.lastLoginAt,
+  createdAt: users.createdAt,
+};
+
+type MemberRow = { [K in keyof typeof MEMBER_SELECT]: (typeof users.$inferSelect)[K] };
+type MemberListingStats = { total: number; pending: number; approved: number; rejected: number };
+
+/** Per-member listing counts by moderation state. */
+async function memberListingStats(ids?: number[]): Promise<Map<number, MemberListingStats>> {
+  const rows = await db
+    .select({
+      userId: properties.createdByUserId,
+      status: properties.moderationStatus,
+      count: count(),
+    })
+    .from(properties)
+    .where(ids?.length ? inArray(properties.createdByUserId, ids) : sql`${properties.createdByUserId} is not null`)
+    .groupBy(properties.createdByUserId, properties.moderationStatus);
+
+  const byUser = new Map<number, MemberListingStats>();
+  for (const row of rows) {
+    if (row.userId == null) continue;
+    const entry = byUser.get(row.userId) ?? { total: 0, pending: 0, approved: 0, rejected: 0 };
+    const n = Number(row.count);
+    entry.total += n;
+    if (row.status === 'pending' || row.status === 'approved' || row.status === 'rejected') entry[row.status] += n;
+    else if (row.status === 'changes_requested') entry.rejected += n;
+    byUser.set(row.userId, entry);
+  }
+  return byUser;
+}
+
+function toMemberDto(row: MemberRow, stats?: MemberListingStats) {
+  return {
+    ...row,
+    name: buildDisplayName(row.firstName, row.lastName, row.name),
+    listingCount: stats?.total ?? 0,
+    listings: stats ?? { total: 0, pending: 0, approved: 0, rejected: 0 },
+  };
+}
+
+/** Only plain members — staff accounts are never reachable through these routes. */
+async function findMember(id: number): Promise<MemberRow | null> {
+  if (!Number.isInteger(id)) return null;
+  const [row] = await db
+    .select({ ...MEMBER_SELECT, role: users.role })
+    .from(users)
+    .where(eq(users.id, id));
+  if (!row || row.role !== 'user') return null;
+  const { role: _role, ...member } = row;
+  return member;
+}
+
 router.get('/members', requirePermission('members.view'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const search = typeof req.query.search === 'string' ? req.query.search.trim().toLowerCase() : '';
 
     const all = await db
-      .select(USER_SELECT)
+      .select(MEMBER_SELECT)
       .from(users)
       .where(eq(users.role, 'user'))
       .orderBy(desc(users.createdAt))
-      .limit(500);
+      .limit(2000);
 
-    const listingCounts = await db
-      .select({ userId: properties.createdByUserId, count: count() })
-      .from(properties)
-      .groupBy(properties.createdByUserId);
-    const byUser = new Map(listingCounts.map(row => [row.userId, Number(row.count)]));
+    const stats = await memberListingStats();
 
     const rows = all
-      .map(row => ({
-        ...row,
-        name: buildDisplayName(row.firstName, row.lastName, row.name),
-        listingCount: byUser.get(row.id) ?? 0,
-      }))
+      .map(row => toMemberDto(row, stats.get(row.id)))
       .filter(row => !search
         || row.name.toLowerCase().includes(search)
         || row.email.toLowerCase().includes(search)
@@ -2410,36 +2466,137 @@ router.get('/members', requirePermission('members.view'), async (req: AuthReques
   }
 });
 
-router.put('/members/:id', requirePermission('members.block'), async (req: AuthRequest, res: Response): Promise<void> => {
+/** One member with every listing they submitted — the admin's detail drawer. */
+router.get('/members/:id', requirePermission('members.view'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const id = parseInt(String(req.params.id));
-    const [existing] = await db
-      .select({ id: users.id, role: users.role })
-      .from(users)
-      .where(eq(users.id, id));
-
-    if (!existing || existing.role !== 'user') {
-      res.status(404).json({ error: 'User not found' });
+    const member = await findMember(parseInt(String(req.params.id)));
+    if (!member) {
+      res.status(404).json({ error: 'მომხმარებელი ვერ მოიძებნა' });
       return;
     }
 
-    const isActive = Boolean(req.body.isActive);
-    const [updated] = await db
-      .update(users)
-      .set({
-        isActive,
-        blockedReason: isActive
-          ? null
-          : (typeof req.body.blockedReason === 'string' ? req.body.blockedReason.slice(0, 255) : null),
-        tokenVersion: sql`${users.tokenVersion} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, id))
-      .returning(USER_SELECT);
+    const [stats, listings, favorites] = await Promise.all([
+      memberListingStats([member.id]),
+      db
+        .select({
+          id: properties.id,
+          title: properties.title,
+          price: properties.price,
+          priceCurrency: properties.priceCurrency,
+          district: properties.district,
+          images: properties.images,
+          moderationStatus: properties.moderationStatus,
+          moderationNote: properties.moderationNote,
+          viewCount: properties.viewCount,
+          createdAt: properties.createdAt,
+        })
+        .from(properties)
+        .where(eq(properties.createdByUserId, member.id))
+        .orderBy(desc(properties.createdAt))
+        .limit(100),
+      db.select({ count: count() }).from(userFavorites).where(eq(userFavorites.userId, member.id)),
+    ]);
 
-    await logActivity(req, isActive ? 'member.unblock' : 'member.block', 'user', id);
+    res.json({
+      ...toMemberDto(member, stats.get(member.id)),
+      favoriteCount: Number(favorites[0]?.count ?? 0),
+      listingRows: listings.map(({ images, ...row }) => ({ ...row, cover: images?.[0] ?? null })),
+    });
+  } catch (err) {
+    console.error('Member detail error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
-    res.json({ ...updated, name: buildDisplayName(updated.firstName, updated.lastName, updated.name) });
+/**
+ * Edit a member's details and/or block state. `isActive` alone keeps the old
+ * block/unblock behaviour; profile fields and a new password are optional.
+ */
+router.put('/members/:id', requirePermission('members.block'), async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const existing = await findMember(parseInt(String(req.params.id)));
+    if (!existing) {
+      res.status(404).json({ error: 'მომხმარებელი ვერ მოიძებნა' });
+      return;
+    }
+
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    let revokeSessions = false;
+
+    for (const key of ['firstName', 'lastName'] as const) {
+      const value = body[key];
+      if (typeof value === 'string') updates[key] = value.trim().slice(0, 120) || null;
+    }
+    if ('firstName' in updates && !updates.firstName) {
+      res.status(400).json({ error: 'სახელი სავალდებულოა', field: 'firstName' });
+      return;
+    }
+    if (typeof body.phone === 'string') updates.phone = body.phone.trim().slice(0, 50) || null;
+    if (body.avatarUrl === null) updates.avatarUrl = null;
+    else if (typeof body.avatarUrl === 'string') updates.avatarUrl = body.avatarUrl.trim().slice(0, 500) || null;
+
+    if (typeof body.email === 'string') {
+      const email = body.email.toLowerCase().trim();
+      if (!EMAIL_RE.test(email)) {
+        res.status(400).json({ error: 'შეიყვანეთ სწორი Email', field: 'email' });
+        return;
+      }
+      if (email !== existing.email) {
+        const [taken] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
+        if (taken) {
+          res.status(409).json({ error: 'ეს Email უკვე გამოყენებულია', field: 'email' });
+          return;
+        }
+        updates.email = email;
+      }
+    }
+
+    const password = typeof body.password === 'string' ? body.password.trim() : '';
+    if (password) {
+      if (password.length < MIN_PASSWORD) {
+        res.status(400).json({ error: `პაროლი მინიმუმ ${MIN_PASSWORD} სიმბოლო უნდა იყოს`, field: 'password' });
+        return;
+      }
+      updates.passwordHash = await bcrypt.hash(password, 12);
+      revokeSessions = true;
+    }
+
+    let blockAction: string | null = null;
+    if (typeof body.isActive === 'boolean' && body.isActive !== existing.isActive) {
+      updates.isActive = body.isActive;
+      updates.blockedReason = body.isActive
+        ? null
+        : (typeof body.blockedReason === 'string' ? body.blockedReason.trim().slice(0, 255) || null : null);
+      if (!body.isActive) revokeSessions = true;
+      blockAction = body.isActive ? 'member.unblock' : 'member.block';
+    } else if (!existing.isActive && typeof body.blockedReason === 'string') {
+      updates.blockedReason = body.blockedReason.trim().slice(0, 255) || null;
+    }
+
+    if ('firstName' in updates || 'lastName' in updates) {
+      updates.name = buildDisplayName(
+        ('firstName' in updates ? updates.firstName : existing.firstName) as string | null,
+        ('lastName' in updates ? updates.lastName : existing.lastName) as string | null,
+        existing.name,
+      );
+    }
+    // A block or a new password signs the member out everywhere.
+    if (revokeSessions) updates.tokenVersion = sql`${users.tokenVersion} + 1`;
+
+    await db.update(users).set(updates).where(eq(users.id, existing.id));
+
+    if (blockAction) {
+      await logActivity(req, blockAction, 'user', existing.id, { reason: updates.blockedReason ?? null });
+    }
+    const edited = Object.keys(updates)
+      .filter(key => ['firstName', 'lastName', 'phone', 'email', 'avatarUrl'].includes(key));
+    if (password) edited.push('password');
+    if (edited.length) await logActivity(req, 'member.edit', 'user', existing.id, { fields: edited });
+
+    const fresh = await findMember(existing.id);
+    const stats = await memberListingStats([existing.id]);
+    res.json(toMemberDto(fresh!, stats.get(existing.id)));
   } catch (err) {
     console.error('Member update error:', err);
     res.status(500).json({ error: 'Server error' });
@@ -2448,21 +2605,16 @@ router.put('/members/:id', requirePermission('members.block'), async (req: AuthR
 
 router.delete('/members/:id', requirePermission('members.delete'), async (req: AuthRequest, res: Response): Promise<void> => {
   try {
-    const id = parseInt(String(req.params.id));
-    const [existing] = await db
-      .select({ id: users.id, role: users.role, email: users.email })
-      .from(users)
-      .where(eq(users.id, id));
-
-    if (!existing || existing.role !== 'user') {
-      res.status(404).json({ error: 'User not found' });
+    const existing = await findMember(parseInt(String(req.params.id)));
+    if (!existing) {
+      res.status(404).json({ error: 'მომხმარებელი ვერ მოიძებნა' });
       return;
     }
 
-    await db.delete(users).where(eq(users.id, id));
-    await logActivity(req, 'member.delete', 'user', id, { email: existing.email });
+    const { listings } = await deleteMemberAccount(existing.id);
+    await logActivity(req, 'member.delete', 'user', existing.id, { email: existing.email, listings });
 
-    res.json({ success: true });
+    res.json({ success: true, listings });
   } catch (err) {
     console.error('Member delete error:', err);
     res.status(500).json({ error: 'Server error' });

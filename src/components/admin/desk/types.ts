@@ -200,6 +200,8 @@ export interface ModerationListing {
   title: string;
   description: string | null;
   price: string | null;
+  /** Members may enter the asking price in dollars. */
+  priceCurrency?: string | null;
   rentPrice: string | null;
   area: string | null;
   bedrooms: number | null;
