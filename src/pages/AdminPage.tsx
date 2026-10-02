@@ -379,6 +379,7 @@ export default function AdminPage() {
   const staffFilter = searchParams.get('staff') || '';
   const memberFilter = searchParams.get('member') || '';
   const listQ = searchParams.get('q') || '';
+  const listArchive = searchParams.get('archive') === '1';
   const [agentList, setAgentList] = useState<BrokerAdminRow[]>([]);
   const [blogList, setBlogList] = useState<BlogRow[]>([]);
   const [staffList, setStaffList] = useState<AdminUserRow[]>([]);
@@ -427,6 +428,7 @@ export default function AdminPage() {
         if (staffFilter) qs.set('staffId', staffFilter);
         if (memberFilter) qs.set('member', memberFilter);
         if (listQ) qs.set('q', listQ);
+        qs.set('archive', listArchive ? 'only' : 'exclude');
         const [data, staff] = await Promise.all([
           api(`/properties?${qs}`),
           api('/listing-staff').catch(() => []),
@@ -454,7 +456,7 @@ export default function AdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [user, api, can, showToast, listPage, staffFilter, memberFilter, listQ]);
+  }, [user, api, can, showToast, listPage, staffFilter, memberFilter, listQ, listArchive]);
 
   useEffect(() => {
     if (user) loadSection(section);
@@ -474,6 +476,7 @@ export default function AdminPage() {
         if (staffFilter) qs.set('staffId', staffFilter);
         if (memberFilter) qs.set('member', memberFilter);
         if (listQ) qs.set('q', listQ);
+        qs.set('archive', listArchive ? 'only' : 'exclude');
         api(`/properties?${qs}`)
           .then(data => {
             setPropSummary(data.summary ?? null);

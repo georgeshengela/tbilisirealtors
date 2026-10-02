@@ -2123,7 +2123,12 @@ export default function AdminPropertiesSection({
   const [cityFilter, setCityFilter] = useState('all');
   const [sortKey, setSortKey] = useState<SortKey>('bumpedAt');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
-  const [mode, setMode] = useState<'active' | 'archive'>('active');
+  // Lives in the URL so the page loader asks the server for the right slice.
+  const mode: 'active' | 'archive' = searchParams.get('archive') === '1' ? 'archive' : 'active';
+  const setMode = (next: 'active' | 'archive' | ((m: 'active' | 'archive') => 'active' | 'archive')) => {
+    const value = typeof next === 'function' ? next(mode) : next;
+    patchQuery({ archive: value === 'archive' ? '1' : null });
+  };
 
   const cities = useMemo(() => {
     const set = new Set(properties.map(p => p.city).filter(Boolean));

@@ -560,6 +560,14 @@ router.get('/properties', requirePermission('listings.view'), async (req: AuthRe
 
     const where = conditions.length ? and(...conditions) : undefined;
 
+    // The table pages through active listings and the archive separately, so a
+    // page is never mostly hidden archive rows. Counters below still cover both.
+    const archive = req.query.archive;
+    const listConditions = [...conditions];
+    if (archive === 'only') listConditions.push(eq(properties.lifecycleState, 'old'));
+    else if (archive === 'exclude') listConditions.push(ne(properties.lifecycleState, 'old'));
+    const listWhere = listConditions.length ? and(...listConditions) : undefined;
+
     const all = await db
       .select({
         property: properties,
@@ -576,13 +584,13 @@ router.get('/properties', requirePermission('listings.view'), async (req: AuthRe
       .from(properties)
       .leftJoin(listingCreator, eq(listingCreator.id, properties.createdByUserId))
       .leftJoin(listingAssignee, eq(listingAssignee.id, properties.assignedToUserId))
-      .where(where)
+      .where(listWhere)
       // Last refreshed first; never-refreshed listings fall back to when they were added.
       .orderBy(desc(sql`COALESCE(${properties.bumpedAt}, ${properties.createdAt})`), desc(properties.createdAt))
       .limit(limit)
       .offset(offset);
 
-    const [total] = await db.select({ count: count() }).from(properties).where(where);
+    const [total] = await db.select({ count: count() }).from(properties).where(listWhere);
 
     const grouped = await db
       .select({
