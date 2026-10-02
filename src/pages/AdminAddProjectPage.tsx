@@ -452,7 +452,8 @@ export default function AdminAddProjectPage() {
 
   async function uploadPhotos(files: FileList | File[] | null) {
     if (!files || files.length === 0) return;
-    const uploaded = await upload(files);
+    // Project renders go up clean — no brand stamp on developer imagery.
+    const uploaded = await upload(files, { watermark: false });
     const urls = uploaded.map(file => file.url).filter(Boolean);
     if (!urls.length) return;
     setForm(f => ({ ...f, images: [...f.images, ...urls] }));

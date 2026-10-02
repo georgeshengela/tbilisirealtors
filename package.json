@@ -26,7 +26,7 @@
     "db:remap-ids": "tsx server/remap-listing-ids.ts",
     "warm:buildings": "tsx server/warm-buildings.ts",
     "photos:watermark": "tsx scripts/watermark-existing.ts",
-    "photos:rewatermark-v4": "tsx scripts/rewatermark-v4.ts"
+    "photos:rollback-watermark-v4": "tsx scripts/rollback-watermark-v4.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.2",
