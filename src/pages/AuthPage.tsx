@@ -7,11 +7,11 @@ import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  ArrowLeft, ArrowRight, Heart, Loader2, Lock, Mail, Phone, PlusSquare, Search, ShieldCheck, User,
+  ArrowLeft, Heart, Loader2, Lock, Mail, MapPin, Phone, PlusSquare, Search, User,
 } from 'lucide-react';
 import { useTranslation } from '../i18n/LocaleContext';
 import { AuthError, useUserAuth } from '../contexts/UserAuthContext';
-import BrandLogo from '../components/BrandLogo';
+import BrandLogo, { BrandMark } from '../components/BrandLogo';
 import { CONTACT } from '../data/contactInfo';
 import {
   Alert, Field, PasswordField, PasswordStrength, btnPrimary,
@@ -331,7 +331,7 @@ export default function AuthPage({ mode }: { mode: AuthMode }) {
                     className={`${btnPrimary} w-full h-12 text-[15px] mt-2`}
                   >
                     {submitLabel}
-                    {busy ? <Loader2 size={18} className="animate-spin" /> : <ArrowRight size={18} />}
+                    {busy && <Loader2 size={18} className="animate-spin" />}
                   </button>
 
                   {(mode === 'login' || mode === 'register') && (
@@ -356,34 +356,55 @@ export default function AuthPage({ mode }: { mode: AuthMode }) {
       </div>
 
       {/* ── Brand side ── */}
-      <aside className="hidden lg:block sticky top-0 h-screen overflow-hidden bg-slate-900">
-        <img src="/5e6a55c3201bd.jpg" alt="" className="absolute inset-0 w-full h-full object-cover" decoding="async" />
-        <div className="absolute inset-0 bg-slate-950/70" />
-        <div className="relative h-full flex flex-col justify-end p-12 xl:p-16">
-          <div className="max-w-[480px]">
-            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/10 border border-white/15 text-white/90 text-xs font-semibold backdrop-blur">
-              <ShieldCheck size={14} /> {tx('trust')}
-            </span>
-            <h2 className="text-white text-[34px] xl:text-[40px] font-bold leading-[1.15] mt-5">{tx('sideTitle')}</h2>
-            <p className="text-white/70 text-base mt-3 leading-relaxed">{tx('sideText')}</p>
+      <aside className="hidden lg:block sticky top-0 h-screen overflow-hidden bg-slate-950">
+        <img src="/5e6a55c3201bd.jpg" alt="" className="absolute inset-0 w-full h-full object-cover scale-105" decoding="async" />
+        <div className="absolute inset-0 bg-slate-950/75" />
+        <div className="absolute inset-0 bg-blue-950/20 mix-blend-multiply" />
 
-            <ul className="mt-9 space-y-3">
+        <div className="relative h-full flex flex-col items-center text-center px-10 xl:px-16 py-12">
+          {/* Top: brand */}
+          <span className="inline-flex items-center gap-2.5 h-10 pl-1.5 pr-4 rounded-full bg-white/10 border border-white/15 backdrop-blur-md">
+            <BrandMark size={28} />
+            <span className="text-white/90 text-[13px] font-semibold">{tx('trust')}</span>
+          </span>
+
+          {/* Middle: message and the three perks, centred as one block */}
+          <div className="flex-1 w-full flex flex-col items-center justify-center">
+            <h2 className="text-white text-[38px] xl:text-[46px] font-bold leading-[1.12] max-w-[520px] text-balance">
+              {tx('sideTitle')}
+            </h2>
+            <span className="block w-14 h-1 rounded-full bg-blue-500 mt-6" aria-hidden />
+            <p className="text-white/70 text-base xl:text-[17px] mt-6 leading-relaxed max-w-[440px] text-balance">
+              {tx('sideText')}
+            </p>
+
+            <ul className="mt-12 grid grid-cols-3 gap-3 xl:gap-4 w-full max-w-[620px]">
               {([
                 [PlusSquare, 'perk1'],
                 [Heart, 'perk2'],
                 [Search, 'perk3'],
               ] as const).map(([Icon, key]) => (
-                <li key={key} className="flex gap-4 p-4 rounded-2xl bg-white/[0.07] border border-white/10 backdrop-blur-sm">
-                  <span className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center flex-shrink-0">
-                    <Icon size={19} className="text-white" />
+                <li
+                  key={key}
+                  className="flex flex-col items-center gap-3 px-2 py-6 rounded-2xl bg-white/[0.06] border border-white/10 backdrop-blur-md"
+                >
+                  <span className="w-12 h-12 rounded-2xl bg-blue-600 flex items-center justify-center shadow-lg shadow-blue-900/40">
+                    <Icon size={21} className="text-white" />
                   </span>
-                  <div>
-                    <p className="text-white font-bold text-[15px]">{tx(`${key}Title`)}</p>
-                    <p className="text-white/65 text-sm mt-0.5 leading-relaxed">{tx(`${key}Text`)}</p>
-                  </div>
+                  <span className="text-white font-bold text-[15px] leading-tight">{tx(`${key}Title`)}</span>
+                  <span className="text-white/55 text-xs leading-snug -mt-1 whitespace-nowrap">{tx(`${key}Text`)}</span>
                 </li>
               ))}
             </ul>
+          </div>
+
+          {/* Bottom: the office, mirrored under the brand chip */}
+          <div className="flex items-center justify-center gap-x-6 gap-y-2 flex-wrap text-[13px] text-white/60">
+            <span className="inline-flex items-center gap-2"><MapPin size={15} className="text-blue-400" />{CONTACT.street}</span>
+            <span className="w-1 h-1 rounded-full bg-white/30" aria-hidden />
+            <a href={`tel:${CONTACT.phone.tel}`} className="inline-flex items-center gap-2 hover:text-white transition">
+              <Phone size={15} className="text-blue-400" />{CONTACT.phone.display}
+            </a>
           </div>
         </div>
       </aside>

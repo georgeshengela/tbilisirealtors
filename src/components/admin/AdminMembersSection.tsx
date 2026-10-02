@@ -178,7 +178,7 @@ export default function AdminMembersSection({ onToast }: { onToast: (message: st
           <input
             value={query}
             onChange={e => setQuery(e.target.value)}
-            placeholder="სახელი, Email ან ტელეფონი"
+            placeholder="სახელი, ელ-ფოსტა ან ტელეფონი"
             className="w-full h-10 pl-9 pr-9 rounded-xl border border-slate-200 bg-white text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-100"
           />
           {query && (
@@ -463,7 +463,7 @@ function MemberDrawer({ id, onClose, onEdit, onBlock, onUnblock, onDelete, refre
             {member && (
               <div className="border-t border-slate-100 p-4 grid grid-cols-3 gap-2 flex-shrink-0">
                 {can('members.block') ? (
-                  <button type="button" onClick={() => onEdit(member)} className={`${btnGhost} h-10 px-2`}><Pencil size={15} /> რედაქტ.</button>
+                  <button type="button" onClick={() => onEdit(member)} className={`${btnGhost} h-10 px-2`}><Pencil size={15} /> რედაქტირება</button>
                 ) : <span />}
                 {can('members.block') ? (member.isActive ? (
                   <button type="button" onClick={() => onBlock(member)} className={`${btnGhost} h-10 px-2 text-orange-700`}><Ban size={15} /> დაბლოკვა</button>
@@ -514,8 +514,8 @@ function EditMemberModal({ member, onClose, onSaved }: {
     if (!member) return;
     const next: Record<string, string> = {};
     if (!form.firstName.trim()) next.firstName = 'სახელი სავალდებულოა';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = 'შეიყვანეთ სწორი Email';
-    if (form.password && form.password.length < 8) next.password = 'მინიმუმ 8 სიმბოლო';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = 'შეიყვანეთ სწორი ელ-ფოსტა';
+    if (form.password && form.password.length < 8) next.password = 'პაროლი უნდა შეიცავდეს მინიმუმ 8 სიმბოლოს';
     setErrors(next);
     if (Object.keys(next).length) return;
 
@@ -551,7 +551,7 @@ function EditMemberModal({ member, onClose, onSaved }: {
             <Field label="სახელი" value={form.firstName} onChange={e => set('firstName', e.target.value)} error={errors.firstName} maxLength={120} />
             <Field label="გვარი" value={form.lastName} onChange={e => set('lastName', e.target.value)} maxLength={120} />
           </div>
-          <Field label="Email" type="email" icon={Mail} value={form.email} onChange={e => set('email', e.target.value)} error={errors.email} />
+          <Field label="ელ-ფოსტა" type="email" icon={Mail} value={form.email} onChange={e => set('email', e.target.value)} error={errors.email} />
           <Field label="ტელეფონი" type="tel" icon={Phone} value={form.phone} onChange={e => set('phone', e.target.value)} maxLength={50} />
           <PasswordField
             label="ახალი პაროლი"
@@ -707,7 +707,7 @@ function DeleteMemberModal({ member, onClose, onDeleted }: {
           )}
           {needsConfirm && (
             <Field
-              label={`დასადასტურებლად ჩაწერეთ: ${member.email}`}
+              label={`დასადასტურებლად ჩაწერეთ ელ-ფოსტა: ${member.email}`}
               value={confirmText}
               onChange={e => setConfirmText(e.target.value)}
               autoComplete="off"

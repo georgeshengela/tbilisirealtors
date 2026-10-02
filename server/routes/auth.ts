@@ -48,7 +48,7 @@ router.post(
     const { email, password } = req.body;
 
     if (!email || !password) {
-      res.status(400).json({ error: 'Email and password are required' });
+      res.status(400).json({ error: 'შეიყვანეთ ელ-ფოსტა და პაროლი' });
       return;
     }
 
@@ -66,7 +66,7 @@ router.post(
 
       const valid = user ? await bcrypt.compare(String(password), user.passwordHash) : false;
       if (!user || !valid) {
-        res.status(401).json({ error: 'Email ან პაროლი არასწორია' });
+        res.status(401).json({ error: 'ელ-ფოსტა ან პაროლი არასწორია' });
         return;
       }
 
@@ -112,11 +112,11 @@ router.post(
         return;
       }
       if (!email || !EMAIL_RE.test(email)) {
-        res.status(400).json({ error: 'შეიყვანეთ სწორი Email', field: 'email' });
+        res.status(400).json({ error: 'შეიყვანეთ სწორი ელ-ფოსტა', field: 'email' });
         return;
       }
       if (password.length < MIN_PASSWORD) {
-        res.status(400).json({ error: `პაროლი მინიმუმ ${MIN_PASSWORD} სიმბოლო უნდა იყოს`, field: 'password' });
+        res.status(400).json({ error: `პაროლი უნდა შეიცავდეს მინიმუმ ${MIN_PASSWORD} სიმბოლოს`, field: 'password' });
         return;
       }
 
@@ -125,7 +125,7 @@ router.post(
         .from(users)
         .where(eq(users.email, email));
       if (existing) {
-        res.status(409).json({ error: 'ეს Email უკვე რეგისტრირებულია', field: 'email' });
+        res.status(409).json({ error: 'ამ ელ-ფოსტით ანგარიში უკვე არსებობს', field: 'email' });
         return;
       }
 
@@ -154,7 +154,7 @@ router.post(
       res.status(201).json({ token, user: session });
     } catch (err: unknown) {
       if (err && typeof err === 'object' && 'code' in err && (err as { code: string }).code === '23505') {
-        res.status(409).json({ error: 'ეს Email უკვე რეგისტრირებულია' });
+        res.status(409).json({ error: 'ამ ელ-ფოსტით ანგარიში უკვე არსებობს' });
         return;
       }
       console.error('Register error:', err);
@@ -208,7 +208,7 @@ router.put('/profile', requireAuth, async (req: AuthRequest, res: Response): Pro
     if (password) {
       const minimum = member ? MIN_PASSWORD : 6;
       if (password.length < minimum) {
-        res.status(400).json({ error: `პაროლი მინიმუმ ${minimum} სიმბოლო უნდა იყოს`, field: 'password' });
+        res.status(400).json({ error: `პაროლი უნდა შეიცავდეს მინიმუმ ${minimum} სიმბოლოს`, field: 'password' });
         return;
       }
       // Members confirm the old password; a stolen open tab is not enough to take the account.
@@ -291,7 +291,7 @@ router.post(
   '/forgot-password',
   rateLimit({ windowMs: 60 * 60 * 1000, max: 8, key: 'forgot' }),
   async (req: Request, res: Response): Promise<void> => {
-    const generic = { success: true, message: 'თუ ასეთი Email არსებობს, ბმულს გამოგიგზავნით' };
+    const generic = { success: true, message: 'თუ ეს ელ-ფოსტა რეგისტრირებულია, ბმულს გამოგიგზავნით' };
     try {
       const email = typeof req.body.email === 'string' ? req.body.email.toLowerCase().trim() : '';
       if (!email) {
@@ -337,7 +337,7 @@ router.post(
       const password = typeof req.body.password === 'string' ? req.body.password : '';
 
       if (password.length < MIN_PASSWORD) {
-        res.status(400).json({ error: `პაროლი მინიმუმ ${MIN_PASSWORD} სიმბოლო უნდა იყოს` });
+        res.status(400).json({ error: `პაროლი უნდა შეიცავდეს მინიმუმ ${MIN_PASSWORD} სიმბოლოს` });
         return;
       }
 

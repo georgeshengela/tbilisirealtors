@@ -2539,13 +2539,13 @@ router.put('/members/:id', requirePermission('members.block'), async (req: AuthR
     if (typeof body.email === 'string') {
       const email = body.email.toLowerCase().trim();
       if (!EMAIL_RE.test(email)) {
-        res.status(400).json({ error: 'შეიყვანეთ სწორი Email', field: 'email' });
+        res.status(400).json({ error: 'შეიყვანეთ სწორი ელ-ფოსტა', field: 'email' });
         return;
       }
       if (email !== existing.email) {
         const [taken] = await db.select({ id: users.id }).from(users).where(eq(users.email, email));
         if (taken) {
-          res.status(409).json({ error: 'ეს Email უკვე გამოყენებულია', field: 'email' });
+          res.status(409).json({ error: 'ეს ელ-ფოსტა უკვე გამოყენებულია', field: 'email' });
           return;
         }
         updates.email = email;
@@ -2555,7 +2555,7 @@ router.put('/members/:id', requirePermission('members.block'), async (req: AuthR
     const password = typeof body.password === 'string' ? body.password.trim() : '';
     if (password) {
       if (password.length < MIN_PASSWORD) {
-        res.status(400).json({ error: `პაროლი მინიმუმ ${MIN_PASSWORD} სიმბოლო უნდა იყოს`, field: 'password' });
+        res.status(400).json({ error: `პაროლი უნდა შეიცავდეს მინიმუმ ${MIN_PASSWORD} სიმბოლოს`, field: 'password' });
         return;
       }
       updates.passwordHash = await bcrypt.hash(password, 12);
