@@ -3,22 +3,42 @@ import { Link } from 'react-router-dom';
 import {
   ArrowRight, Building2, CheckCircle2, Clock, Eye, Heart, Plus, UserRound, XCircle,
 } from 'lucide-react';
-import PropertyCard from '../../components/PropertyCard';
-import MyListingRow, { isSentBack } from '../../components/account/MyListingRow';
+import MiniListingCard, { AddListingTile } from '../../components/account/MiniListingCard';
+import { ListingPrice, StatusPill, isSentBack } from '../../components/account/MyListingRow';
 import { Alert, Spinner, btnGhost, card } from '../../components/account/ui';
 import { useProperties } from '../../hooks/usePublicData';
 import { useFavorites } from '../../lib/favorites';
 import { useUserAuth } from '../../contexts/UserAuthContext';
 import { useTranslation } from '../../i18n/LocaleContext';
 import { listingsHref } from '../../lib/seoListingsUrl';
+import { propertyHref } from '../../lib/seoPropertyUrl';
+import { listingMoneyFrom } from '../../lib/moneyEntry';
+import { useCurrency } from '../../contexts/CurrencyContext';
 import { useAccountData } from './AccountLayout';
+
+function SectionHead({ title, count, href, linkLabel }: { title: string; count: number; href?: string; linkLabel: string }) {
+  return (
+    <div className="flex items-center justify-between mb-3">
+      <h2 className="text-lg font-bold text-slate-900 inline-flex items-center gap-2">
+        {title}
+        {count > 0 && <span className="min-w-[24px] h-6 px-2 rounded-md bg-slate-100 text-xs font-bold text-slate-500 inline-flex items-center justify-center">{count}</span>}
+      </h2>
+      {href && (
+        <Link to={href} className="inline-flex items-center gap-1 text-sm font-bold text-blue-600 hover:text-blue-700">
+          {linkLabel} <ArrowRight size={15} />
+        </Link>
+      )}
+    </div>
+  );
+}
 
 export default function AccountOverviewPage() {
   const { t } = useTranslation();
   const tx = (key: string, vars?: Record<string, string | number>) => t(`account.overview.${key}`, vars);
   const { user } = useUserAuth();
   const { listings, loading, error, reload } = useAccountData();
-  const { ids: favoriteIds } = useFavorites();
+  const { ids: favoriteIds, toggle: toggleFavorite } = useFavorites();
+  const { formatMoney } = useCurrency();
   const { data: properties, loading: propertiesLoading } = useProperties();
 
   const counts = useMemo(() => ({
@@ -118,55 +138,84 @@ export default function AccountOverviewPage() {
         </div>
       )}
 
-      <div className="grid xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] gap-6">
-        {/* Recent listings */}
-        <section className={`${card} p-5`}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-slate-900">{tx('recentListings')}</h2>
-            {listings.length > 0 && (
-              <Link to="/dashboard/listings" className="text-sm font-bold text-blue-600 hover:text-blue-700">{tx('viewAll')}</Link>
+      {/* Recent listings */}
+      <section>
+        <SectionHead
+          title={tx('recentListings')}
+          count={listings.length}
+          href={listings.length ? '/dashboard/listings' : undefined}
+          linkLabel={tx('viewAll')}
+        />
+        {loading ? <Spinner className="py-10" /> : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {listings.slice(0, 3).map(listing => (
+              <MiniListingCard
+                key={listing.id}
+                href={`/dashboard/listings/${listing.id}/edit`}
+                image={listing.images?.[0]}
+                price={<ListingPrice listing={listing} />}
+                title={listing.title}
+                place={[listing.district, listing.city].filter(Boolean).join(', ')}
+                area={listing.area}
+                rooms={listing.bedrooms}
+                views={listing.viewCount ?? 0}
+                badge={<StatusPill status={listing.moderationStatus} />}
+              />
+            ))}
+            {listings.length < 3 && (
+              <AddListingTile
+                href="/dashboard/submit"
+                label={tx('addCta')}
+                hint={listings.length === 0 ? t('account.listings.emptyText') : undefined}
+                className={listings.length ? 'hidden sm:flex' : 'flex'}
+              />
             )}
           </div>
-          {loading ? <Spinner className="py-10" /> : listings.length === 0 ? (
-            <div className="py-8 text-center">
-              <p className="text-sm text-slate-500">{t('account.listings.emptyTitle')}</p>
-              <Link to="/dashboard/submit" className="inline-flex items-center gap-1.5 mt-3 text-sm font-bold text-blue-600 hover:text-blue-700">
-                <Plus size={16} /> {tx('addCta')}
-              </Link>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {listings.slice(0, 4).map(listing => <MyListingRow key={listing.id} listing={listing} compact />)}
-            </div>
-          )}
-        </section>
+        )}
+      </section>
 
-        {/* Recently saved */}
-        <section className={`${card} p-5`}>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-bold text-slate-900 inline-flex items-center gap-2">
-              {tx('recentFavorites')}
-              {favoriteIds.length > 0 && <span className="text-xs font-bold text-slate-400">{favoriteIds.length}</span>}
-            </h2>
-            {favoriteIds.length > 0 && (
-              <Link to="/dashboard/favorites" className="text-sm font-bold text-blue-600 hover:text-blue-700">{tx('viewAll')}</Link>
-            )}
+      {/* Recently saved */}
+      <section>
+        <SectionHead
+          title={tx('recentFavorites')}
+          count={favoriteIds.length}
+          href={favoriteIds.length ? '/dashboard/favorites' : undefined}
+          linkLabel={tx('viewAll')}
+        />
+        {propertiesLoading ? <Spinner className="py-10" /> : favorites.length === 0 ? (
+          <div className={`${card} px-6 py-10 text-center`}>
+            <span className="w-12 h-12 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mx-auto"><Heart size={20} /></span>
+            <p className="text-sm text-slate-500 mt-3">{tx('noFavorites')}</p>
+            <Link to={listingsHref()} className="inline-flex items-center gap-1.5 mt-4 text-sm font-bold text-blue-600 hover:text-blue-700">
+              {tx('browse')} <ArrowRight size={15} />
+            </Link>
           </div>
-          {propertiesLoading ? <Spinner className="py-10" /> : favorites.length === 0 ? (
-            <div className="py-8 text-center">
-              <Heart size={22} className="mx-auto text-slate-300" />
-              <p className="text-sm text-slate-500 mt-2">{tx('noFavorites')}</p>
-              <Link to={listingsHref()} className="inline-flex items-center gap-1.5 mt-3 text-sm font-bold text-blue-600 hover:text-blue-700">
-                {tx('browse')} <ArrowRight size={15} />
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {favorites.map(property => <PropertyCard key={property.id} property={property} variant="horizontal" />)}
-            </div>
-          )}
-        </section>
-      </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+            {favorites.map(property => (
+              <MiniListingCard
+                key={property.id}
+                href={propertyHref(property)}
+                image={property.images?.[0]}
+                price={(
+                  <>
+                    {formatMoney(Number(property.price), listingMoneyFrom(property))}
+                    {(property.status === 'rent' || property.status === 'daily_rent') && (
+                      <span className="text-sm font-semibold text-slate-500">{t('common.perMonth')}</span>
+                    )}
+                  </>
+                )}
+                title={property.title}
+                place={[property.district, property.city].filter(Boolean).join(', ')}
+                area={property.area}
+                rooms={property.rooms ?? property.bedrooms}
+                onUnsave={() => toggleFavorite(property.id)}
+                unsaveLabel={t('home.unsaveListing')}
+              />
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }
